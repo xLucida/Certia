@@ -8,7 +8,6 @@ import {
 } from "./objectStorage";
 import { evaluateRightToWork } from "./workEligibility";
 import { insertEmployeeSchema, insertRightToWorkCheckSchema } from "@shared/schema";
-import { extractFieldsFromDocument } from "./ocr";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -190,23 +189,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error setting document ACL:", error);
       res.status(500).json({ error: "Internal server error" });
-    }
-  });
-
-  // OCR extraction route
-  app.post("/api/ocr/extract", isAuthenticated, async (req, res) => {
-    try {
-      const { fileUrl } = req.body;
-      
-      if (!fileUrl) {
-        return res.status(400).json({ error: "fileUrl is required" });
-      }
-
-      const extractedFields = await extractFieldsFromDocument(fileUrl);
-      res.json(extractedFields);
-    } catch (error) {
-      console.error("Error extracting document fields:", error);
-      res.status(500).json({ error: "Failed to extract document fields" });
     }
   });
 
