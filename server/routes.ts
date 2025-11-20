@@ -8,6 +8,7 @@ import {
 } from "./objectStorage";
 import { evaluateRightToWork } from "./workEligibility";
 import { insertEmployeeSchema, insertRightToWorkCheckSchema } from "@shared/schema";
+import { extractFieldsFromDocument } from "./ocr";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -75,6 +76,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid employee data", details: error.errors });
       }
       res.status(500).json({ error: "Failed to create employee" });
+    }
+  });
+
+  app.put("/api/employees/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const employeeId = req.params.id;
+      
+      // Verify ownership
+      const existing = await storage.getEmployeeById(employeeId);
+      if (!existing) {
+        return res.status(404).json({ error: "Employee not found" });
+      }
+      if (existing.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Validate and update (don't allow userId to be changed)
+      const validatedData = insertEmployeeSchema.omit({ userId: true }).parse(req.body);
+      const employee = await storage.updateEmployee(employeeId, validatedData);
+      
+      if (!employee) {
+        return res.status(404).json({ error: "Employee not found" });
+      }
+      
+      res.json(employee);
+    } catch (error: any) {
+      console.error("Error updating employee:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid employee data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update employee" });
     }
   });
 
@@ -157,6 +190,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error setting document ACL:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // OCR extraction route
+  app.post("/api/ocr/extract", isAuthenticated, async (req, res) => {
+    try {
+      const { fileUrl } = req.body;
+      
+      if (!fileUrl) {
+        return res.status(400).json({ error: "fileUrl is required" });
+      }
+
+      const extractedFields = await extractFieldsFromDocument(fileUrl);
+      res.json(extractedFields);
+    } catch (error) {
+      console.error("Error extracting document fields:", error);
+      res.status(500).json({ error: "Failed to extract document fields" });
     }
   });
 

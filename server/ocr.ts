@@ -1,21 +1,11 @@
 /**
- * OCR Extraction Stub
+ * OCR Extraction Service using Tesseract.js
  * 
- * This is a placeholder for future OCR integration.
- * 
- * TODO: Integrate a real OCR API service such as:
- * - Google Cloud Vision API (https://cloud.google.com/vision/docs/ocr)
- * - AWS Textract (https://aws.amazon.com/textract/)
- * - Tesseract.js (https://tesseract.projectnaptha.com/)
- * - Azure Computer Vision (https://azure.microsoft.com/en-us/services/cognitive-services/computer-vision/)
- * 
- * Expected integration steps:
- * 1. Install the OCR SDK: npm install @google-cloud/vision (or equivalent)
- * 2. Set up API credentials in environment variables
- * 3. Replace the mock implementation below with actual API calls
- * 4. Parse OCR response to extract document fields
- * 5. Return structured data matching the expected format
+ * This service provides OCR capabilities for extracting text from uploaded documents.
+ * It uses Tesseract.js for optical character recognition.
  */
+
+import { createWorker } from "tesseract.js";
 
 export interface ExtractedDocumentFields {
   documentType?: string;
@@ -23,47 +13,106 @@ export interface ExtractedDocumentFields {
   countryOfIssue?: string;
   dateOfIssue?: string;
   expiryDate?: string;
+  rawText?: string;
 }
 
 /**
  * Extract fields from an uploaded document using OCR.
  * 
- * @param fileUrl - The URL of the uploaded document
+ * @param fileUrl - The URL or file path of the uploaded document
  * @returns Extracted document fields
- * 
- * @example
- * const fields = await extractFieldsFromDocument('/objects/upload123.pdf');
- * console.log(fields);
- * // {
- * //   documentType: 'EU_BLUE_CARD',
- * //   documentNumber: 'AB123456',
- * //   countryOfIssue: 'Germany',
- * //   dateOfIssue: '2023-01-15',
- * //   expiryDate: '2026-01-15'
- * // }
  */
 export async function extractFieldsFromDocument(
   fileUrl: string
 ): Promise<ExtractedDocumentFields> {
-  // TODO: Replace this mock implementation with actual OCR API call
-  // 
-  // Example with Google Cloud Vision:
-  // ```typescript
-  // import vision from '@google-cloud/vision';
-  // const client = new vision.ImageAnnotatorClient();
-  // const [result] = await client.documentTextDetection(fileUrl);
-  // const fullTextAnnotation = result.fullTextAnnotation;
-  // // Parse fullTextAnnotation.text to extract fields
-  // ```
+  try {
+    console.log(`[OCR] Starting text extraction from: ${fileUrl}`);
+    
+    const worker = await createWorker("eng+deu");
+    const { data: { text } } = await worker.recognize(fileUrl);
+    await worker.terminate();
+    
+    console.log(`[OCR] Extracted raw text length: ${text.length} characters`);
+    
+    // Parse the extracted text to identify document fields
+    const fields = parseDocumentText(text);
+    
+    return {
+      ...fields,
+      rawText: text,
+    };
+  } catch (error) {
+    console.error("[OCR] Error extracting document fields:", error);
+    return {
+      rawText: error instanceof Error ? error.message : "OCR extraction failed",
+    };
+  }
+}
+
+/**
+ * Parse extracted OCR text to identify document fields.
+ * This uses pattern matching to find common document field patterns.
+ */
+function parseDocumentText(text: string): Omit<ExtractedDocumentFields, "rawText"> {
+  const result: Omit<ExtractedDocumentFields, "rawText"> = {};
   
-  console.log(`[OCR Stub] Would extract fields from: ${fileUrl}`);
+  // Normalize text for easier pattern matching
+  const normalizedText = text.toUpperCase().replace(/\s+/g, " ");
   
-  // Return mock data for now
-  return {
-    documentType: undefined,
-    documentNumber: undefined,
-    countryOfIssue: undefined,
-    dateOfIssue: undefined,
-    expiryDate: undefined,
-  };
+  // Try to extract document number (various patterns)
+  const docNumPatterns = [
+    /(?:DOCUMENT|DOC|CARD|PERMIT)[\s#:]*([A-Z0-9]{6,})/i,
+    /(?:NR|NO|NUMBER)[\s.:]*([A-Z0-9]{6,})/i,
+    /\b([A-Z]{1,3}\d{6,})\b/,
+  ];
+  
+  for (const pattern of docNumPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      result.documentNumber = match[1].trim();
+      break;
+    }
+  }
+  
+  // Try to extract country
+  const germanCountries = ["GERMANY", "DEUTSCHLAND", "FEDERAL REPUBLIC"];
+  for (const country of germanCountries) {
+    if (normalizedText.includes(country)) {
+      result.countryOfIssue = "Germany";
+      break;
+    }
+  }
+  
+  // Try to extract dates (DD.MM.YYYY or DD/MM/YYYY format)
+  const datePattern = /(\d{2}[.\/]\d{2}[.\/]\d{4})/g;
+  const dates = text.match(datePattern);
+  
+  if (dates && dates.length >= 2) {
+    // First date is usually issue date, second is expiry
+    result.dateOfIssue = convertToISODate(dates[0]);
+    result.expiryDate = convertToISODate(dates[1]);
+  }
+  
+  // Try to identify document type
+  if (normalizedText.includes("BLUE CARD") || normalizedText.includes("BLAUE KARTE")) {
+    result.documentType = "EU_BLUE_CARD";
+  } else if (normalizedText.includes("AUFENTHALTSTITEL") || normalizedText.includes("RESIDENCE")) {
+    result.documentType = "EAT";
+  } else if (normalizedText.includes("FIKTIONSBESCHEINIGUNG") || normalizedText.includes("FICTION")) {
+    result.documentType = "FIKTIONSBESCHEINIGUNG";
+  }
+  
+  return result;
+}
+
+/**
+ * Convert DD.MM.YYYY or DD/MM/YYYY to YYYY-MM-DD
+ */
+function convertToISODate(dateStr: string): string {
+  const parts = dateStr.split(/[.\/]/);
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  return dateStr;
 }

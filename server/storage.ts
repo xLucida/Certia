@@ -22,6 +22,7 @@ export interface IStorage {
   getEmployeesByUserId(userId: string): Promise<EmployeeWithChecks[]>;
   getEmployeeById(id: string): Promise<EmployeeWithChecks | undefined>;
   createEmployee(employee: InsertEmployee): Promise<Employee>;
+  updateEmployee(id: string, employee: Partial<InsertEmployee>): Promise<Employee | undefined>;
   
   // Right-to-work check operations
   createRightToWorkCheck(check: InsertRightToWorkCheck): Promise<RightToWorkCheck>;
@@ -88,6 +89,18 @@ export class DatabaseStorage implements IStorage {
 
   async createEmployee(employeeData: InsertEmployee): Promise<Employee> {
     const [employee] = await db.insert(employees).values(employeeData).returning();
+    return employee;
+  }
+
+  async updateEmployee(id: string, employeeData: Partial<InsertEmployee>): Promise<Employee | undefined> {
+    const [employee] = await db
+      .update(employees)
+      .set({
+        ...employeeData,
+        updatedAt: new Date(),
+      })
+      .where(eq(employees.id, id))
+      .returning();
     return employee;
   }
 

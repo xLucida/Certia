@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Calendar, FileText, Download, Plus, File } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import type { EmployeeWithChecks } from "@shared/schema";
@@ -88,12 +88,20 @@ export default function EmployeeDetail() {
                     )}
                   </div>
                 </div>
-                <Link href={`/checks/new?employeeId=${employee.id}`}>
-                  <Button data-testid="button-add-check">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Check
-                  </Button>
-                </Link>
+                <div className="flex gap-2">
+                  <Link href={`/employees/${employee.id}/edit`}>
+                    <Button variant="outline" data-testid="button-edit-employee">
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                  </Link>
+                  <Link href={`/checks/new?employeeId=${employee.id}`}>
+                    <Button data-testid="button-add-check">
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Check
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </CardHeader>
             {employee.notes && (

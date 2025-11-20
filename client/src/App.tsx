@@ -9,6 +9,7 @@ import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Employees from "@/pages/employees";
 import EmployeeNew from "@/pages/employee-new";
+import EmployeeEdit from "@/pages/employee-edit";
 import EmployeeDetail from "@/pages/employee-detail";
 import CheckNew from "@/pages/check-new";
 
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/employees" component={Employees} />
       <Route path="/employees/new" component={EmployeeNew} />
+      <Route path="/employees/:id/edit" component={EmployeeEdit} />
       <Route path="/employees/:id" component={EmployeeDetail} />
       <Route path="/checks/new" component={CheckNew} />
       <Route component={NotFound} />
