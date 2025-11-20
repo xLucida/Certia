@@ -5,15 +5,36 @@
 RTW-DE is an HR compliance SaaS application for managing employee right-to-work eligibility in Germany. The system enables HR teams to track visa documentation, assess work authorization status, and monitor expiry dates for various German work permits including EU Blue Cards, Employment Authorization Titles (EAT), and Fiktionsbescheinigung documents.
 
 **Core Capabilities:**
-- Employee management with biographical data
+- Employee management with biographical data (CRUD operations including edit)
 - Right-to-work check creation and tracking
 - Automated eligibility evaluation based on German visa rules
-- Document upload and storage
-- Dashboard with compliance status overview
+- Document upload and storage via Replit Object Storage
+- Dashboard with compliance status overview and advanced filtering
+- Search and filter employees by name/email, work status, document type, and expiry dates
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Recent Changes
+
+**November 20, 2025:**
+- **Employee Edit Feature:** Added full CRUD support with edit functionality
+  - New PUT /api/employees/:id endpoint with ownership validation
+  - Employee edit page with form pre-populated from existing data
+  - Edit button on dashboard for quick access to employee records
+- **Advanced Filtering & Search:** Implemented comprehensive filtering system
+  - Database-level search filtering using SQL LIKE with LOWER() and COALESCE()
+  - Status filter (ELIGIBLE, NOT_ELIGIBLE, NEEDS_REVIEW) applied in-memory
+  - Document type filter (EU_BLUE_CARD, EAT, FIKTIONSBESCHEINIGUNG, OTHER)
+  - Expiry date range filtering (from/to dates)
+  - Optimized query performance: single employee query + batched check fetch (no N+1 problem)
+  - Clear filters button for easy reset
+  - SQL injection protection via Drizzle parameter binding
+- **OCR Integration:** Deferred to future phase
+  - Server-side Tesseract.js identified as problematic (CPU-intensive, SSRF risk)
+  - Reverted to stub implementation for now
+  - Future: implement client-side OCR or use hosted OCR service
 
 ## System Architecture
 
