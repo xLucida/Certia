@@ -67,9 +67,16 @@ export default function EmployeeNew() {
   });
 
   const onSubmit = async (data: EmployeeFormData) => {
+    console.log("Form submitted with data:", data);
+    console.log("Form errors:", form.formState.errors);
     setIsSubmitting(true);
-    await createMutation.mutateAsync(data);
-    setIsSubmitting(false);
+    try {
+      await createMutation.mutateAsync(data);
+    } catch (error) {
+      console.error("Error creating employee:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -92,7 +99,10 @@ export default function EmployeeNew() {
               <CardTitle>Employee Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={(e) => {
+                console.log("Form submit event triggered");
+                form.handleSubmit(onSubmit)(e);
+              }} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">

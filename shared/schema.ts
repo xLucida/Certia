@@ -124,7 +124,7 @@ export const insertRightToWorkCheckSchema = createInsertSchema(rightToWorkChecks
 });
 
 // Extended schema for form validation
-export const employeeFormSchema = insertEmployeeSchema.extend({
+export const employeeFormSchema = insertEmployeeSchema.omit({ userId: true }).extend({
   dateOfBirth: z.string().optional(),
 });
 
