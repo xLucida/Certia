@@ -1,0 +1,77 @@
+Build a small SaaS MVP called **RTW-DE** (Right-To-Work Germany) for HR teams.
+
+Goal: Let an HR user:
+- Sign up / log in
+- Create Employees
+- Create Right-to-Work checks for each employee
+- See a dashboard of employees + work status + upcoming expiries
+
+Use:
+- Next.js + TypeScript
+- Tailwind CSS
+- Any simple SQL DB supported on Replit (SQLite/Postgres) + an ORM (Prisma if easy)
+- Basic email/password auth
+
+Data models (adapt if needed):
+
+User:
+- id, name, email, password_hash, companyName, createdAt, updatedAt
+
+Employee:
+- id, userId, firstName, lastName, dateOfBirth, notes, createdAt, updatedAt
+
+RightToWorkCheck:
+- id, employeeId
+- documentType (EU_BLUE_CARD | EAT | FIKTIONSBESCHEINIGUNG | OTHER)
+- documentNumber
+- countryOfIssue
+- dateOfIssue
+- expiryDate
+- workStatus (ELIGIBLE | NOT_ELIGIBLE | NEEDS_REVIEW)
+- decisionSummary (short string)
+- decisionDetails (longer text)
+- createdAt, updatedAt
+
+Main features:
+
+1. Auth: simple email/password sign-up and login.
+
+2. Employees:
+   - List employees belonging to the logged-in user
+   - Create/edit employees
+
+3. New Right-to-Work check:
+   - Select or create an employee
+   - Form fields: documentType, documentNumber, countryOfIssue, dateOfIssue, expiryDate
+   - Optional file upload (PDF/image) saved somewhere simple (e.g., /uploads or storage)
+   - On submit, call a small rules function to determine status:
+
+Rules (hard-code logic):
+- EU_BLUE_CARD or EAT:
+  - if expiryDate > now → ELIGIBLE
+  - else → NOT_ELIGIBLE
+- FIKTIONSBESCHEINIGUNG:
+  - if expiryDate > now → NEEDS_REVIEW
+  - else → NOT_ELIGIBLE
+- OTHER: always NEEDS_REVIEW
+
+The rules function should live in a separate TypeScript helper, e.g.:
+
+evaluateRightToWork({ documentType, expiryDate }) => { workStatus, decisionSummary, decisionDetails }
+
+4. Dashboard:
+   - After login, show:
+     - Table of employees and their latest check:
+       - employee name
+       - documentType
+       - workStatus (with colored badge)
+       - expiryDate
+       - link to a detail page
+   - Section for “expiring soon”: checks with expiryDate in the next 60 days.
+
+5. OCR stub:
+   - Add a helper like `extractFieldsFromDocument(file)` that currently just returns mock data and has a TODO comment where I can plug in a real OCR API later.
+
+Design:
+- Keep styling simple, clean and responsive using Tailwind.
+- Include a short README explaining how to run the app and where to plug in a real OCR API.
