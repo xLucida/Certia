@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Users, CheckCircle, AlertTriangle, Plus, Eye } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Users, CheckCircle, AlertTriangle, Plus, Eye, Search, X } from "lucide-react";
 import { Link } from "wouter";
 import { formatDate } from "@/lib/dateUtils";
 import { isExpiringSoon } from "@/lib/workEligibilityUtils";
 import type { EmployeeWithChecks } from "@shared/schema";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -18,9 +20,31 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 export default function Dashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<string>("");
+  const [documentType, setDocumentType] = useState<string>("");
+  const [expiryFrom, setExpiryFrom] = useState<string>("");
+  const [expiryTo, setExpiryTo] = useState<string>("");
+
+  const buildQueryString = () => {
+    const params = new URLSearchParams();
+    if (search) params.append("search", search);
+    if (status) params.append("status", status);
+    if (documentType) params.append("documentType", documentType);
+    if (expiryFrom) params.append("expiryFrom", expiryFrom);
+    if (expiryTo) params.append("expiryTo", expiryTo);
+    return params.toString();
+  };
 
   const { data: employees, isLoading, error } = useQuery<EmployeeWithChecks[]>({
-    queryKey: ["/api/employees"],
+    queryKey: ["/api/employees", search, status, documentType, expiryFrom, expiryTo],
+    queryFn: async () => {
+      const queryString = buildQueryString();
+      const url = `/api/employees${queryString ? `?${queryString}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch employees");
+      return response.json();
+    },
     enabled: isAuthenticated,
   });
 
@@ -148,7 +172,79 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Employees & Work Status</CardTitle>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <CardTitle>Employees & Work Status</CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search employees..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-9 w-64"
+                      data-testid="input-search"
+                    />
+                  </div>
+                  <Select value={status || "all"} onValueChange={(val) => setStatus(val === "all" ? "" : val)}>
+                    <SelectTrigger className="w-40" data-testid="select-status">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="ELIGIBLE">Eligible</SelectItem>
+                      <SelectItem value="NOT_ELIGIBLE">Not Eligible</SelectItem>
+                      <SelectItem value="NEEDS_REVIEW">Needs Review</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={documentType || "all"} onValueChange={(val) => setDocumentType(val === "all" ? "" : val)}>
+                    <SelectTrigger className="w-48" data-testid="select-document-type">
+                      <SelectValue placeholder="All Document Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="EU_BLUE_CARD">EU Blue Card</SelectItem>
+                      <SelectItem value="EAT">Employment Authorization</SelectItem>
+                      <SelectItem value="FIKTIONSBESCHEINIGUNG">Fiktionsbescheinigung</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="date"
+                      value={expiryFrom}
+                      onChange={(e) => setExpiryFrom(e.target.value)}
+                      placeholder="Expiry from"
+                      className="w-40"
+                      data-testid="input-expiry-from"
+                    />
+                    <span className="text-muted-foreground text-sm">to</span>
+                    <Input
+                      type="date"
+                      value={expiryTo}
+                      onChange={(e) => setExpiryTo(e.target.value)}
+                      placeholder="Expiry to"
+                      className="w-40"
+                      data-testid="input-expiry-to"
+                    />
+                  </div>
+                  {(search || status || documentType || expiryFrom || expiryTo) && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setSearch("");
+                        setStatus("");
+                        setDocumentType("");
+                        setExpiryFrom("");
+                        setExpiryTo("");
+                      }}
+                      data-testid="button-clear-filters"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {employeesWithLatestCheck.length === 0 ? (

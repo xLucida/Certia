@@ -29,7 +29,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/employees", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const employees = await storage.getEmployeesByUserId(userId);
+      const { search, status, documentType, expiryFrom, expiryTo } = req.query;
+      
+      const employees = await storage.getEmployeesByUserId(userId, {
+        search: search as string,
+        status: status as string,
+        documentType: documentType as string,
+        expiryFrom: expiryFrom as string,
+        expiryTo: expiryTo as string,
+      });
       res.json(employees);
     } catch (error) {
       console.error("Error fetching employees:", error);

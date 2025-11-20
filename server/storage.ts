@@ -11,7 +11,15 @@ import {
   type EmployeeWithChecks,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, or, gte, lte, like, sql, inArray } from "drizzle-orm";
+
+export interface EmployeeFilters {
+  search?: string;
+  status?: string;
+  documentType?: string;
+  expiryFrom?: string;
+  expiryTo?: string;
+}
 
 export interface IStorage {
   // User operations
@@ -19,7 +27,7 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
 
   // Employee operations
-  getEmployeesByUserId(userId: string): Promise<EmployeeWithChecks[]>;
+  getEmployeesByUserId(userId: string, filters?: EmployeeFilters): Promise<EmployeeWithChecks[]>;
   getEmployeeById(id: string): Promise<EmployeeWithChecks | undefined>;
   createEmployee(employee: InsertEmployee): Promise<Employee>;
   updateEmployee(id: string, employee: Partial<InsertEmployee>): Promise<Employee | undefined>;
@@ -50,25 +58,89 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getEmployeesByUserId(userId: string): Promise<EmployeeWithChecks[]> {
+  async getEmployeesByUserId(userId: string, filters?: EmployeeFilters): Promise<EmployeeWithChecks[]> {
+    // Build WHERE conditions for employee search at DB level
+    const employeeConditions: any[] = [eq(employees.userId, userId)];
+    
+    if (filters?.search) {
+      const searchPattern = `%${filters.search.toLowerCase()}%`;
+      employeeConditions.push(
+        or(
+          sql`LOWER(${employees.firstName}) LIKE ${searchPattern}`,
+          sql`LOWER(${employees.lastName}) LIKE ${searchPattern}`,
+          sql`LOWER(COALESCE(${employees.email}, '')) LIKE ${searchPattern}`
+        )
+      );
+    }
+
+    // First, get filtered employees from DB
     const employeesList = await db
       .select()
       .from(employees)
-      .where(eq(employees.userId, userId))
+      .where(and(...employeeConditions))
       .orderBy(desc(employees.createdAt));
 
-    const employeesWithChecks: EmployeeWithChecks[] = await Promise.all(
-      employeesList.map(async (employee) => {
-        const checks = await this.getChecksByEmployeeId(employee.id);
-        return {
-          ...employee,
-          checks,
-          latestCheck: checks.sort(
-            (a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-          )[0],
-        };
-      })
-    );
+    // Build employee IDs for checks query
+    const employeeIds = employeesList.map(e => e.id);
+    
+    if (employeeIds.length === 0) {
+      return [];
+    }
+
+    // Fetch ALL checks for these employees in one query
+    const allChecks = await db
+      .select()
+      .from(rightToWorkChecks)
+      .where(inArray(rightToWorkChecks.employeeId, employeeIds))
+      .orderBy(desc(rightToWorkChecks.createdAt));
+
+    // Group checks by employee and find latest for each
+    const checksByEmployee = new Map<string, RightToWorkCheck[]>();
+    for (const check of allChecks) {
+      if (!checksByEmployee.has(check.employeeId)) {
+        checksByEmployee.set(check.employeeId, []);
+      }
+      checksByEmployee.get(check.employeeId)!.push(check);
+    }
+
+    // Build employees with checks and apply check-based filters
+    const employeesWithChecks: EmployeeWithChecks[] = [];
+    
+    for (const employee of employeesList) {
+      const checks = checksByEmployee.get(employee.id) || [];
+      const latestCheck = checks[0]; // Already sorted by createdAt DESC
+      
+      // Apply check-based filters
+      if (filters) {
+        if (filters.status && latestCheck?.workStatus !== filters.status) {
+          continue;
+        }
+
+        if (filters.documentType && latestCheck?.documentType !== filters.documentType) {
+          continue;
+        }
+
+        if (filters.expiryFrom || filters.expiryTo) {
+          if (!latestCheck?.expiryDate) {
+            continue;
+          }
+          const expiryDate = new Date(latestCheck.expiryDate);
+          
+          if (filters.expiryFrom && new Date(filters.expiryFrom) > expiryDate) {
+            continue;
+          }
+          if (filters.expiryTo && new Date(filters.expiryTo) < expiryDate) {
+            continue;
+          }
+        }
+      }
+      
+      employeesWithChecks.push({
+        ...employee,
+        checks,
+        latestCheck,
+      });
+    }
 
     return employeesWithChecks;
   }
