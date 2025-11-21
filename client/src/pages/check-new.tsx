@@ -19,11 +19,20 @@ import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import type { z } from "zod";
 import type { Employee } from "@shared/schema";
 import type { UploadResult } from "@uppy/core";
-import { ArrowLeft, FileText, Upload, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, FileText, Upload, UserPlus, Users, Sparkles, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type CheckFormData = z.infer<typeof checkFormSchema>;
+
+interface OcrExtractionResult {
+  rawText: string;
+  documentTypeGuess?: 'EU_BLUE_CARD' | 'EAT' | 'FIKTIONSBESCHEINIGUNG' | 'OTHER';
+  documentNumberGuess?: string;
+  expiryDateGuessIso?: string;
+  error?: string;
+}
 
 export default function CheckNew() {
   const [, setLocationPath] = useLocation();
@@ -31,6 +40,9 @@ export default function CheckNew() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>("");
   const [checkType, setCheckType] = useState<"new" | "existing">("new");
+  const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+  const [ocrAutofilled, setOcrAutofilled] = useState(false);
+  const [ocrError, setOcrError] = useState<string>("");
   const searchParams = new URLSearchParams(window.location.search);
   const preselectedEmployeeId = searchParams.get("employeeId");
 
@@ -153,6 +165,76 @@ export default function CheckNew() {
     }
   };
 
+  const handleOcrFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsOcrProcessing(true);
+    setOcrError("");
+    setOcrAutofilled(false);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/ocr/extract', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      const result: OcrExtractionResult = await response.json();
+
+      if (result.error) {
+        setOcrError(result.error);
+        toast({
+          title: "OCR unavailable",
+          description: result.error,
+          variant: "default",
+        });
+      } else {
+        if (result.documentTypeGuess) {
+          form.setValue('documentType', result.documentTypeGuess);
+        }
+        if (result.documentNumberGuess) {
+          form.setValue('documentNumber', result.documentNumberGuess);
+        }
+        if (result.expiryDateGuessIso) {
+          form.setValue('expiryDate', result.expiryDateGuessIso);
+        }
+
+        const fieldsFound = [
+          result.documentTypeGuess && 'document type',
+          result.documentNumberGuess && 'document number',
+          result.expiryDateGuessIso && 'expiry date',
+        ].filter(Boolean);
+
+        if (fieldsFound.length > 0) {
+          setOcrAutofilled(true);
+          toast({
+            title: "Fields auto-filled",
+            description: `Found: ${fieldsFound.join(', ')}. Please review and correct if needed.`,
+          });
+        } else {
+          toast({
+            title: "OCR completed",
+            description: "No fields could be extracted. Please enter details manually.",
+          });
+        }
+      }
+    } catch (error) {
+      console.error('OCR extraction error:', error);
+      setOcrError("OCR extraction failed. Please enter details manually.");
+      toast({
+        title: "Error",
+        description: "Failed to process document. Please enter details manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsOcrProcessing(false);
+    }
+  };
+
   const onSubmit = async (data: CheckFormData) => {
     setIsSubmitting(true);
     await createMutation.mutateAsync(data);
@@ -182,6 +264,56 @@ export default function CheckNew() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-6 p-4 border-2 border-dashed rounded-lg bg-muted/30">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">Smart Document Scan (Optional)</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Upload your visa document to auto-fill form fields using OCR. You can review and edit the results before submitting.
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={handleOcrFileUpload}
+                        disabled={isOcrProcessing}
+                        className="max-w-xs"
+                        data-testid="input-ocr-file"
+                      />
+                      {isOcrProcessing && (
+                        <p className="text-xs text-muted-foreground">Processing...</p>
+                      )}
+                    </div>
+
+                    {ocrAutofilled && (
+                      <Alert className="bg-primary/5 border-primary/20">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <AlertDescription className="text-xs">
+                          Fields auto-filled from document scan. Please review and correct if needed.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {ocrError && (
+                      <Alert className="bg-muted border-muted-foreground/20">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                          {ocrError}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <Tabs value={checkType} onValueChange={(value) => setCheckType(value as "new" | "existing")}>
                   <TabsList className="grid w-full grid-cols-2">
