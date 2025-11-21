@@ -22,10 +22,18 @@ export default function BulkImport() {
 
   const importMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      return apiRequest<ImportResult>("/api/employees/import", {
+      const res = await fetch("/api/employees/import", {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Import failed");
+      }
+      
+      return await res.json() as ImportResult;
     },
     onSuccess: (data) => {
       setImportResult(data);
@@ -36,10 +44,10 @@ export default function BulkImport() {
         variant: data.failed > 0 ? "destructive" : "default",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Import Failed",
-        description: "An error occurred during import. Please try again.",
+        description: error.message || "An error occurred during import. Please try again.",
         variant: "destructive",
       });
     },
@@ -69,7 +77,7 @@ export default function BulkImport() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "first_name,last_name,date_of_birth,email,notes\nJohn,Doe,1990-01-15,john.doe@example.com,New hire\nJane,Smith,1985-03-22,jane.smith@example.com,";
+    const csvContent = "first_name,last_name,date_of_birth,notes\nJohn,Doe,1990-01-15,New hire\nJane,Smith,1985-03-22,Transfer from Berlin office";
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -106,14 +114,14 @@ export default function BulkImport() {
               <div className="mt-4 p-4 bg-muted/30 rounded-md">
                 <p className="text-sm font-medium mb-2">Template Format:</p>
                 <code className="text-xs font-mono block">
-                  first_name, last_name, date_of_birth, email, notes
+                  first_name, last_name, date_of_birth, notes
                 </code>
                 <p className="text-xs text-muted-foreground mt-2">
                   • date_of_birth format: YYYY-MM-DD (e.g., 1990-01-15)
                   <br />
-                  • All fields except notes are required
+                  • first_name and last_name are required
                   <br />
-                  • Email must be unique per employee
+                  • date_of_birth and notes are optional
                 </p>
               </div>
             </CardContent>
@@ -127,34 +135,29 @@ export default function BulkImport() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="border-2 border-dashed rounded-lg p-8 text-center hover-elevate transition-colors">
+              <div className="space-y-2">
+                <label htmlFor="csv-upload" className="text-sm font-medium">
+                  Select CSV File
+                </label>
                 <input
                   type="file"
                   accept=".csv"
                   onChange={handleFileChange}
-                  className="hidden"
+                  className="block w-full text-sm text-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                   id="csv-upload"
                   data-testid="input-file-upload"
                 />
-                <label htmlFor="csv-upload" className="cursor-pointer">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      {file ? (
-                        <FileSpreadsheet className="h-6 w-6 text-primary" />
-                      ) : (
-                        <Upload className="h-6 w-6 text-primary" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-medium">
-                        {file ? file.name : "Click to upload CSV file"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {file ? `${(file.size / 1024).toFixed(1)} KB` : "or drag and drop"}
+                {file && (
+                  <div className="flex items-center gap-2 p-3 bg-accent/10 rounded-md border border-accent">
+                    <FileSpreadsheet className="h-5 w-5 text-accent" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(file.size / 1024).toFixed(1)} KB
                       </p>
                     </div>
                   </div>
-                </label>
+                )}
               </div>
 
               <Button

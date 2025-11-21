@@ -5,18 +5,36 @@
 RTW-DE is an HR compliance SaaS application for managing employee right-to-work eligibility in Germany. The system enables HR teams to track visa documentation, assess work authorization status, and monitor expiry dates for various German work permits including EU Blue Cards, Employment Authorization Titles (EAT), and Fiktionsbescheinigung documents.
 
 **Core Capabilities:**
-- Employee management with biographical data (CRUD operations including edit)
+- Employee management with biographical data (full CRUD operations including edit)
+- Bulk employee import via CSV upload with validation
 - Right-to-work check creation and tracking
 - Automated eligibility evaluation based on German visa rules
 - Document upload and storage via Replit Object Storage
 - Dashboard with compliance status overview and advanced filtering
 - Search and filter employees by name/email, work status, document type, and expiry dates
+- Premium UI design inspired by Linear and Stripe aesthetics
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+
+**November 21, 2025:**
+- **Design Overhaul:** Implemented Linear/Stripe-inspired premium aesthetic
+  - Dashboard stat cards: text-5xl numbers with color-coded gradients (green for eligible, amber for expiring, red for not eligible)
+  - Table improvements: zebra striping, employee avatars with initials, stronger hover states, better spacing
+  - Improved empty states: engaging copy with benefits checklist and clear CTAs
+  - Color palette update: vibrant blue primary (217 91% 60%) with teal accents
+- **Bulk Employee Import:** CSV upload feature with validation
+  - New `/import` page with template download
+  - POST /api/employees/import endpoint using multer for file upload
+  - CSV parsing with validation and detailed error reporting
+  - Import results UI showing successful/failed counts and specific errors
+- **Email Notifications Infrastructure:** Database schema created for future implementation
+  - `notification_preferences` table for user email settings and notification day thresholds (60/30/14/7 days before expiry)
+  - `audit_logs` table for tracking employee/check modifications
+  - **Note:** User dismissed Resend integration - email notifications deferred until user provides API credentials
 
 **November 20, 2025:**
 - **Employee Edit Feature:** Added full CRUD support with edit functionality
@@ -98,6 +116,8 @@ Preferred communication style: Simple, everyday language.
 - `employees`: Employee records with biographical data (linked to users)
 - `rightToWorkChecks`: Work authorization documents and evaluation results
 - `sessions`: Server-side session storage for authentication
+- `notification_preferences`: User email notification settings (future use)
+- `audit_logs`: Activity tracking for compliance (future use)
 
 **Relationships:**
 - Users → Employees (one-to-many)
@@ -180,6 +200,8 @@ Preferred communication style: Simple, everyday language.
 - `passport`: Authentication middleware
 - `openid-client`: OIDC client implementation
 - `@google-cloud/storage`: GCS client
+- `multer`: File upload middleware (CSV import)
+- `csv-parse`: CSV parsing for bulk import
 
 **Development:**
 - `vite`: Build tool and dev server
@@ -187,9 +209,18 @@ Preferred communication style: Simple, everyday language.
 - `esbuild`: Server bundling
 - `tailwindcss`: CSS framework
 
-### Future Integration Placeholder
+### Future Features
 
 **OCR Service (Not Yet Implemented):**
 - Stub exists in `server/ocr.ts` for document field extraction
 - Planned integration options: Google Cloud Vision, AWS Textract, Tesseract.js, Azure Computer Vision
 - Purpose: Auto-populate visa document fields from uploaded images
+
+**Email Notifications (Schema Ready, Implementation Pending):**
+- Database tables created: `notification_preferences`, `audit_logs`
+- User dismissed Resend integration setup
+- To activate: user must provide email service API credentials (Resend, SendGrid, etc.)
+- Planned features:
+  - Automated expiry alerts (60/30/14/7 days before expiration)
+  - Weekly digest emails for HR teams
+  - Configurable notification preferences per user

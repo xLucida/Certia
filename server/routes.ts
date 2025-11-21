@@ -125,17 +125,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/employees/import", isAuthenticated, upload.single("file"), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      console.log("[IMPORT] Starting import for user:", userId);
       
       if (!req.file) {
+        console.log("[IMPORT] No file in request");
         return res.status(400).json({ error: "No file uploaded" });
       }
 
+      console.log("[IMPORT] File received:", req.file.originalname, "size:", req.file.size);
       const csvContent = req.file.buffer.toString("utf-8");
+      console.log("[IMPORT] CSV content preview:", csvContent.substring(0, 200));
+      
       const records = parse(csvContent, {
         columns: true,
         skip_empty_lines: true,
         trim: true,
       });
+
+      console.log("[IMPORT] Parsed", records.length, "records");
 
       const results = {
         total: records.length,
@@ -147,6 +154,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (let i = 0; i < records.length; i++) {
         try {
           const record = records[i];
+          console.log("[IMPORT] Processing row", i + 1, ":", record);
+          
           const validatedData = insertEmployeeSchema.parse({
             userId,
             firstName: record.first_name,
@@ -157,7 +166,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           await storage.createEmployee(validatedData);
           results.successful++;
+          console.log("[IMPORT] Row", i + 1, "imported successfully");
         } catch (error: any) {
+          console.error("[IMPORT] Error on row", i + 1, ":", error);
           results.failed++;
           results.errors.push({
             row: i + 2, // +2 because header is row 1 and index starts at 0
@@ -166,10 +177,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      console.log("[IMPORT] Import complete. Results:", results);
       res.json(results);
     } catch (error: any) {
       console.error("Error processing import:", error);
-      res.status(500).json({ error: "Failed to process import" });
+      console.error("Error stack:", error.stack);
+      res.status(500).json({ error: "Failed to process import", details: error.message });
     }
   });
 
