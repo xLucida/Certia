@@ -185,10 +185,14 @@ export default function EmployeeDetail() {
                         </div>
                       )}
 
-                      {check.decisionDetails && (
+                      {check.decisionDetails && check.decisionDetails.length > 0 && (
                         <div>
-                          <p className="text-sm font-medium mb-1">Details</p>
-                          <p className="text-sm text-muted-foreground">{check.decisionDetails}</p>
+                          <p className="text-sm font-medium mb-2">Decision Details</p>
+                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                            {check.decisionDetails.map((detail, idx) => (
+                              <li key={idx}>{detail}</li>
+                            ))}
+                          </ul>
                         </div>
                       )}
 
