@@ -8,6 +8,7 @@ import {
 } from "./objectStorage";
 import { evaluateRightToWork } from "../lib/rightToWork";
 import { mapToRulesEngineInput } from "./rightToWorkAdapter";
+import { extractFieldsFromDocument } from "../lib/ocr";
 import { insertEmployeeSchema, insertRightToWorkCheckSchema } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
@@ -184,6 +185,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error processing import:", error);
       console.error("Error stack:", error.stack);
       res.status(500).json({ error: "Failed to process import", details: error.message });
+    }
+  });
+
+  // OCR extraction route
+  app.post("/api/ocr/extract", isAuthenticated, upload.single("file"), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      console.log("[OCR] Processing file:", req.file.originalname, "size:", req.file.size);
+
+      const result = await extractFieldsFromDocument(req.file.buffer);
+
+      console.log("[OCR] Extraction complete:", {
+        hasRawText: result.rawText.length > 0,
+        documentTypeGuess: result.documentTypeGuess,
+        hasDocumentNumber: !!result.documentNumberGuess,
+        hasExpiryDate: !!result.expiryDateGuessIso,
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("[OCR] Extraction failed:", error);
+      
+      if (error.message?.includes('OCR_SPACE_API_KEY')) {
+        return res.status(400).json({ 
+          error: "OCR service not configured",
+          message: error.message
+        });
+      }
+
+      res.json({
+        rawText: '',
+        documentTypeGuess: undefined,
+        documentNumberGuess: undefined,
+        expiryDateGuessIso: undefined,
+        error: "OCR extraction failed. Please enter details manually."
+      });
     }
   });
 

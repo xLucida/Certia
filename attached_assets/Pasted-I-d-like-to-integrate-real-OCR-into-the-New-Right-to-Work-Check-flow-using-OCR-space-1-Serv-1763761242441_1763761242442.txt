@@ -1,0 +1,113 @@
+I’d like to integrate real OCR into the “New Right-to-Work Check” flow using OCR.space.
+
+### 1. Server-side helper
+
+Create a file `lib/ocr.ts` (or similar) with a function like:
+
+```ts
+export interface OcrExtractionResult {
+  rawText: string;
+  // Best-effort guesses; can be null if not found
+  documentTypeGuess?: 'EU_BLUE_CARD' | 'EAT_EMPLOYMENT' | 'FIKTIONSBESCHEINIGUNG' | 'OTHER';
+  documentNumberGuess?: string;
+  expiryDateGuessIso?: string; // e.g. "2027-12-31"
+}
+
+export async function extractFieldsFromDocument(fileBuffer: Buffer): Promise<OcrExtractionResult> {
+  // 1) Call OCR.space API using process.env.OCR_SPACE_API_KEY
+  // 2) Parse the returned JSON
+  // 3) Return rawText + best-effort guesses
+}
+Implementation details:
+
+Use the OCR.space API endpoint for file uploads (POST).
+
+Read the API key from process.env.OCR_SPACE_API_KEY.
+
+Use sensible defaults:
+
+If the API key is missing, throw a clear error.
+
+If the API fails, catch it and return an object with rawText empty and all guesses undefined.
+
+2. Basic parsing rules from OCR text
+Inside extractFieldsFromDocument, after getting the rawText:
+
+For documentTypeGuess:
+
+If text contains “Blaue Karte” or “Blue Card” → EU_BLUE_CARD
+
+If it contains “Elektronischer Aufenthaltstitel” or “eAT” → EAT_EMPLOYMENT
+
+If it contains “Fiktionsbescheinigung” → FIKTIONSBESCHEINIGUNG
+
+Otherwise → OTHER
+
+For documentNumberGuess:
+
+Look for a pattern like a relatively long alphanumeric token (e.g. 8–12 chars) near keywords such as “Dokumentennummer”, “Ausweis-Nr”, “Card No”.
+
+Return the best match if any, else leave undefined.
+
+For expiryDateGuessIso:
+
+Search for date-like patterns in common German formats:
+
+dd.mm.yyyy
+
+dd.mm.yy
+
+Prefer dates that are in the future relative to today.
+
+Convert the selected date to an ISO string (yyyy-mm-dd) and return it.
+
+Keep the parsing logic simple and comment it clearly so it can be improved later.
+
+3. Hook into New Check upload
+On the server-side endpoint / API route that receives the uploaded document for a new Right-to-Work check:
+
+After the file is uploaded and before rendering the form back:
+
+Read the file into a Buffer.
+
+Call extractFieldsFromDocument(fileBuffer).
+
+Use the result to pre-fill fields on the New Check form:
+
+If documentTypeGuess is set, pre-select that document type.
+
+If documentNumberGuess is set, pre-fill the document number field.
+
+If expiryDateGuessIso is set, pre-fill the expiry date field.
+
+On the frontend:
+
+Show a small notice like:
+
+“Fields auto-filled from document scan (OCR). Please review and correct if needed.”
+
+Allow the user to change any of the pre-filled values before submitting.
+
+4. Error handling
+If OCR fails (no key, network error, bad response), do NOT block the user:
+
+Log the error on the server.
+
+Continue to show the New Check form with empty fields.
+
+Show a non-blocking message like:
+
+“We couldn’t auto-read this document. Please enter the details manually.”
+
+5. README update
+Update the README to include:
+
+A short “OCR Setup” section explaining:
+
+We use OCR.space.
+
+You must set OCR_SPACE_API_KEY in Replit Secrets.
+
+OCR is used to auto-fill document type, number, and expiry date, but results should always be reviewed by HR.
+
+Please implement this end-to-end and make sure the New Check flow still works even if OCR fails.
