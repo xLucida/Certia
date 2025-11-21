@@ -23,6 +23,16 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 **November 21, 2025:**
+- **OCR Integration for Document Auto-Fill:** Smart document scanning feature
+  - Created `lib/ocr.ts`: OCR.space API integration with German language support
+  - Automatically extracts document type, number, and expiry date from uploaded visa documents
+  - Server-side validation: MIME type checking (PDF/JPG/PNG only) and 10MB file size limit
+  - POST /api/ocr/extract endpoint with comprehensive error handling
+  - UI enhancement: "Smart Document Scan" section on check creation form
+  - User feedback: Success alerts show extracted fields, error alerts guide manual entry
+  - Graceful degradation: Form works normally if OCR fails or is unavailable
+  - Security: File upload validation prevents abuse, proper HTTP status codes for all error cases
+  - All extracted fields remain editable for user review and correction
 - **German Right-to-Work Rules Engine Integration:** Automated eligibility evaluation
   - Created `lib/rightToWork.ts`: Comprehensive rules engine implementing German visa compliance logic
   - Conservative approach: Ambiguous or incomplete data defaults to NEEDS_REVIEW status

@@ -32,6 +32,7 @@ interface OcrExtractionResult {
   documentNumberGuess?: string;
   expiryDateGuessIso?: string;
   error?: string;
+  message?: string;
 }
 
 export default function CheckNew() {
