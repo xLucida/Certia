@@ -23,6 +23,16 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 **November 21, 2025:**
+- **German Right-to-Work Rules Engine Integration:** Automated eligibility evaluation
+  - Created `lib/rightToWork.ts`: Comprehensive rules engine implementing German visa compliance logic
+  - Conservative approach: Ambiguous or incomplete data defaults to NEEDS_REVIEW status
+  - Rules cover EU/EEA nationals, document expiry, employment permissions, employer restrictions, occupation limits, Blue Card requirements, Fiktionsbescheinigung edge cases
+  - Created `server/rightToWorkAdapter.ts`: Maps minimal form data to detailed evaluation input with safe defaults
+  - Schema updates: Added `decisionSummary` (text) and `decisionDetails` (text[]) to rightToWorkChecks table
+  - POST /api/checks endpoint now auto-computes workStatus, decisionSummary, and decisionDetails array
+  - UI updates: Employee detail page displays decision summary and bullet-point reasoning list
+  - Current behavior: Most checks return NEEDS_REVIEW due to minimal form data collection (by design)
+  - End-to-end testing confirmed conservative evaluation logic works correctly
 - **Standalone Right-to-Work Checks (Pre-Employment Screening):** Major workflow enhancement
   - Right-to-work checks can now be created independently without requiring employee records first
   - Schema updated: `rightToWorkChecks.employeeId` is now nullable, added `firstName/lastName` fields for candidate names
