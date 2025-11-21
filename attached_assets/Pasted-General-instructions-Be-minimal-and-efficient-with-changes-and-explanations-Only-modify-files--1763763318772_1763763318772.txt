@@ -1,0 +1,88 @@
+General instructions:
+- Be minimal and efficient with changes and explanations.
+- Only modify files directly needed for this task.
+- Do NOT refactor or rebuild unrelated parts of the app.
+- Keep explanations under 3 bullets and reuse existing patterns.
+
+Context:
+- Project: RightToWorkDE.
+- OCR is implemented in `lib/ocr.ts` and wired via `/api/ocr/extract`.
+- The rules engine is in `lib/rightToWork.ts`, called via `mapToRulesEngineInput` in `server/rightToWorkAdapter.ts`.
+- The New Check page is `client/src/pages/check-new.tsx`.
+- The Employee Detail page (where decision summary/details are shown) is `client/src/pages/employee-detail.tsx`.
+- Product goal: minimal manual input. The upload (plus a few basics) should be the primary source of truth. If something can’t be determined from the information provided, the UI should clearly say what’s missing rather than forcing lots of upfront fields.
+- I am in MVP/demo phase, but I want:
+  - a lightweight OCR audit trail,
+  - safer OCR auto-fill (no blind trust),
+  - and simple OCR rate limiting.
+
+Task:
+
+1) Make the New Check flow “upload-first” with minimal typing
+- In `client/src/pages/check-new.tsx`:
+  - Visually emphasize the document upload as **Step 1**.
+  - Keep the existing fields (employee, document type, number, country, dates), but:
+    - Group them in a section titled something like “Review & corrections”.
+    - Make it clear that most fields are **auto-filled from the document** and can be edited.
+  - If OCR successfully fills a field, show a small hint like “Auto-filled from scan – please review” next to it.
+  - If OCR fails or is not used, the form should still work exactly as it does now.
+
+2) Add a lightweight confirmation instead of more fields
+- Still in `check-new.tsx`, near the submit button:
+  - Add a single confirmation checkbox that is **required only when OCR was used for this check**:
+    - Label: “I’ve reviewed the auto-filled values against the document.”
+  - If no OCR result was used on this check, this checkbox should not be required.
+- Do NOT introduce any new required *data* fields (no big questionnaires). This checkbox is the only new required interaction.
+
+3) Change decision copy to explicitly say what the system could NOT determine
+- In `lib/rightToWork.ts`, update only the messages related to unknown/unclear data.
+  - Anywhere we currently push messages like:
+    - "Unclear whether the permit is tied to a specific employer."
+    - "Unclear whether there is an hours-per-week limit on the permit."
+    - "Unclear whether the permit has any regional/location restriction."
+    - "Unclear whether the permit is limited to a specific occupation."
+  - Rephrase them to explicitly reflect “missing from the information provided”, for example:
+    - "We could not determine from the information provided whether the permit is tied to a specific employer."
+    - "We could not determine from the information provided whether there is an hours-per-week limit on the permit."
+    - "We could not determine from the information provided whether the permit has any regional/location restriction."
+    - "We could not determine from the information provided whether the permit is limited to a specific occupation."
+  - Keep the function signature and return type the same: `{ workStatus, decisionSummary, decisionDetails }`.
+  - Do not change the logic that defaults unknowns to `NEEDS_REVIEW` — only the wording.
+
+4) Surface “missing information” clearly in the Check UI
+- In `client/src/pages/employee-detail.tsx`, where we render each check:
+  - Keep the existing “Decision Summary” and main “Decision Details” list.
+  - For `decisionDetails`, split the list into two groups based on the detail text:
+    - If a detail string starts with "We could not determine from the information provided", render those under a subheading like **"Missing information"**.
+    - All other details stay under **"Decision details"** (or the existing heading).
+  - Style the “Missing information” items subtly as warnings (e.g., muted text / small warning icon), but do not require any extra input; this is informational only.
+
+5) Store a lightweight OCR audit trail
+- In the Drizzle schema for right-to-work checks (`shared/schema.ts`):
+  - Add two nullable columns:
+    - `ocr_raw_text` (text)
+    - `ocr_extracted_fields` (json/jsonb, depending on current DB type).
+- In the server code that creates a check (where we call `evaluateRightToWork` and insert into `right_to_work_checks`):
+  - If OCR was used for this check, also store:
+    - `ocr_raw_text`: the full text returned by OCR.space.
+    - `ocr_extracted_fields`: the structured guess object we already return from `/api/ocr/extract` (documentTypeGuess, documentNumberGuess, expiryDateGuessIso, etc.).
+  - If no OCR was used, leave these fields null.
+- On the Check Detail page (`employee-detail` view), add a collapsed section, e.g. “Document scan details”, that:
+  - Indicates: “Stored scan result from OCR (for audit).”
+  - Shows a small pretty-printed view of `ocr_extracted_fields`.
+  - Allows toggling/showing `ocr_raw_text` in a scrollable area.
+  - This is read-only and optional to open.
+
+6) Add simple OCR rate limiting (MVP level)
+- In the `/api/ocr/extract` endpoint:
+  - Add a basic rate limit, for example:
+    - Per authenticated user OR per IP: max ~30 OCR requests per hour.
+  - If the limit is exceeded, return HTTP 429 with a clear JSON error:
+    - `{ error: "Too many OCR requests. Please wait a bit before trying again." }`
+- Implementation can use an in-memory or simple in-process store suitable for MVP; no need for a complex distributed limiter.
+
+Constraints:
+- Do NOT refactor or rebuild unrelated files.
+- Do NOT add new required *data* fields beyond the single confirmation checkbox (which should only be required when OCR is used).
+- Database changes must be limited to the two OCR audit columns on the checks table.
+- The primary flow must remain: upload → auto-fill → minimal review → confirm → save check → show what was determined and what could not be determined from the information provided.

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -44,6 +45,10 @@ export default function CheckNew() {
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
   const [ocrAutofilled, setOcrAutofilled] = useState(false);
   const [ocrError, setOcrError] = useState<string>("");
+  const [ocrUsed, setOcrUsed] = useState(false);
+  const [ocrConfirmed, setOcrConfirmed] = useState(false);
+  const [autofilledFields, setAutofilledFields] = useState<Set<string>>(new Set());
+  const [ocrResult, setOcrResult] = useState<OcrExtractionResult | null>(null);
   const searchParams = new URLSearchParams(window.location.search);
   const preselectedEmployeeId = searchParams.get("employeeId");
 
@@ -92,6 +97,13 @@ export default function CheckNew() {
         employeeId: checkType === "existing" ? data.employeeId : undefined,
         firstName: checkType === "new" ? data.firstName : undefined,
         lastName: checkType === "new" ? data.lastName : undefined,
+        // Include OCR audit trail if OCR was used
+        ocrRawText: ocrResult?.rawText,
+        ocrExtractedFields: ocrResult ? {
+          documentTypeGuess: ocrResult.documentTypeGuess,
+          documentNumberGuess: ocrResult.documentNumberGuess,
+          expiryDateGuessIso: ocrResult.expiryDateGuessIso,
+        } : undefined,
       };
       return await apiRequest("POST", "/api/checks", payload);
     },
@@ -199,14 +211,18 @@ export default function CheckNew() {
       }
 
       // Success: check if any fields were extracted
+      const autofilled = new Set<string>();
       if (result.documentTypeGuess) {
         form.setValue('documentType', result.documentTypeGuess);
+        autofilled.add('documentType');
       }
       if (result.documentNumberGuess) {
         form.setValue('documentNumber', result.documentNumberGuess);
+        autofilled.add('documentNumber');
       }
       if (result.expiryDateGuessIso) {
         form.setValue('expiryDate', result.expiryDateGuessIso);
+        autofilled.add('expiryDate');
       }
 
       const fieldsFound = [
@@ -217,11 +233,16 @@ export default function CheckNew() {
 
       if (fieldsFound.length > 0) {
         setOcrAutofilled(true);
+        setOcrUsed(true); // Only set to true when fields were actually extracted
+        setAutofilledFields(autofilled);
+        setOcrResult(result);
         toast({
           title: "Fields auto-filled",
           description: `Found: ${fieldsFound.join(', ')}. Please review and correct if needed.`,
         });
       } else {
+        // Don't set ocrUsed to true if no fields were extracted
+        setOcrResult(result);
         toast({
           title: "OCR completed",
           description: "No fields could be extracted. Please enter details manually.",
@@ -272,18 +293,18 @@ export default function CheckNew() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="mb-6 p-4 border-2 border-dashed rounded-lg bg-muted/30">
+              <div className="mb-8 p-6 border-2 border-primary/20 rounded-lg bg-primary/5">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-primary" />
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Sparkles className="h-6 w-6 text-primary" />
                     </div>
                   </div>
                   <div className="flex-1 space-y-3">
                     <div>
-                      <p className="text-sm font-medium">Smart Document Scan (Optional)</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Upload your visa document to auto-fill form fields using OCR. You can review and edit the results before submitting.
+                      <p className="text-base font-semibold">Step 1: Upload Document</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Upload your visa document to automatically extract key fields. We'll analyze it and pre-fill the form below.
                       </p>
                     </div>
                     
@@ -293,18 +314,18 @@ export default function CheckNew() {
                         accept=".pdf,.jpg,.jpeg,.png"
                         onChange={handleOcrFileUpload}
                         disabled={isOcrProcessing}
-                        className="max-w-xs"
+                        className="max-w-sm"
                         data-testid="input-ocr-file"
                       />
                       {isOcrProcessing && (
-                        <p className="text-xs text-muted-foreground">Processing...</p>
+                        <p className="text-sm text-muted-foreground">Processing...</p>
                       )}
                     </div>
 
                     {ocrAutofilled && (
                       <Alert className="bg-primary/5 border-primary/20">
                         <Sparkles className="h-4 w-4 text-primary" />
-                        <AlertDescription className="text-xs">
+                        <AlertDescription className="text-sm">
                           Fields auto-filled from document scan. Please review and correct if needed.
                         </AlertDescription>
                       </Alert>
@@ -313,13 +334,20 @@ export default function CheckNew() {
                     {ocrError && (
                       <Alert className="bg-muted border-muted-foreground/20">
                         <AlertCircle className="h-4 w-4" />
-                        <AlertDescription className="text-xs">
+                        <AlertDescription className="text-sm">
                           {ocrError}
                         </AlertDescription>
                       </Alert>
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-sm font-medium mb-4">Step 2: Review & Corrections</h3>
+                <p className="text-xs text-muted-foreground mb-6">
+                  Review the auto-filled fields below and make corrections as needed. Fields marked with ✨ were extracted from your document.
+                </p>
               </div>
 
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -404,9 +432,17 @@ export default function CheckNew() {
                 </Tabs>
 
                 <div className="space-y-3">
-                  <Label>
-                    Document Type <span className="text-destructive">*</span>
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label>
+                      Document Type <span className="text-destructive">*</span>
+                    </Label>
+                    {autofilledFields.has('documentType') && (
+                      <span className="text-xs text-primary flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        Auto-filled from scan
+                      </span>
+                    )}
+                  </div>
                   <RadioGroup
                     value={form.watch("documentType")}
                     onValueChange={(value) => form.setValue("documentType", value as any)}
@@ -436,7 +472,15 @@ export default function CheckNew() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="documentNumber">Document Number</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="documentNumber">Document Number</Label>
+                    {autofilledFields.has('documentNumber') && (
+                      <span className="text-xs text-primary flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        Auto-filled from scan
+                      </span>
+                    )}
+                  </div>
                   <Input
                     id="documentNumber"
                     {...form.register("documentNumber")}
@@ -468,9 +512,17 @@ export default function CheckNew() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="expiryDate">
-                      Expiry Date <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="expiryDate">
+                        Expiry Date <span className="text-destructive">*</span>
+                      </Label>
+                      {autofilledFields.has('expiryDate') && (
+                        <span className="text-xs text-primary flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          Auto-filled from scan
+                        </span>
+                      )}
+                    </div>
                     <Input
                       id="expiryDate"
                       type="date"
@@ -514,6 +566,25 @@ export default function CheckNew() {
                   </div>
                 </div>
 
+                {ocrUsed && (
+                  <div className="flex items-start gap-3 p-4 border rounded-lg bg-muted/30">
+                    <Checkbox
+                      id="ocrConfirmation"
+                      checked={ocrConfirmed}
+                      onCheckedChange={(checked) => setOcrConfirmed(checked as boolean)}
+                      data-testid="checkbox-ocr-confirmation"
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="ocrConfirmation" className="cursor-pointer font-normal">
+                        I've reviewed the auto-filled values against the document <span className="text-destructive">*</span>
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Please verify that the extracted information matches your document before submitting.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-4 justify-end pt-4">
                   <Link href="/employees">
                     <Button type="button" variant="outline" data-testid="button-cancel">
@@ -522,7 +593,7 @@ export default function CheckNew() {
                   </Link>
                   <Button 
                     type="submit" 
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || (ocrUsed && !ocrConfirmed)}
                     data-testid="button-submit"
                   >
                     {isSubmitting ? "Creating..." : "Create Check"}

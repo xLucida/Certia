@@ -164,7 +164,7 @@ export function evaluateRightToWork(
     }
   } else if (input.permitNamesSpecificEmployer === 'UNKNOWN') {
     status = 'NEEDS_REVIEW';
-    reasons.push('Unclear whether the permit is tied to a specific employer.');
+    reasons.push('We could not determine from the information provided whether the permit is tied to a specific employer.');
   }
 
   // 5) Occupation / job match
@@ -182,7 +182,7 @@ export function evaluateRightToWork(
     }
   } else if (input.permitLimitedToOccupation === 'UNKNOWN') {
     status = 'NEEDS_REVIEW';
-    reasons.push('Unclear whether the permit is limited to a specific occupation.');
+    reasons.push('We could not determine from the information provided whether the permit is limited to a specific occupation.');
   }
 
   // 6) Hours limits (e.g. students or restricted work)
@@ -199,7 +199,7 @@ export function evaluateRightToWork(
     }
   } else if (input.hasHoursLimitOnPermit === 'UNKNOWN') {
     status = 'NEEDS_REVIEW';
-    reasons.push('Unclear whether there is an hours-per-week limit on the permit.');
+    reasons.push('We could not determine from the information provided whether there is an hours-per-week limit on the permit.');
   }
 
   // 7) Location / region
@@ -217,7 +217,7 @@ export function evaluateRightToWork(
     }
   } else if (input.hasLocationRestriction === 'UNKNOWN') {
     status = 'NEEDS_REVIEW';
-    reasons.push('Unclear whether the permit has any regional/location restriction.');
+    reasons.push('We could not determine from the information provided whether the permit has any regional/location restriction.');
   }
 
   // 8) Blue Card specifics

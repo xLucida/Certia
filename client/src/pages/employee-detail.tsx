@@ -4,8 +4,9 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, AlertCircle, ChevronDown } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import type { EmployeeWithChecks } from "@shared/schema";
@@ -185,15 +186,77 @@ export default function EmployeeDetail() {
                         </div>
                       )}
 
-                      {check.decisionDetails && check.decisionDetails.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium mb-2">Decision Details</p>
-                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                            {check.decisionDetails.map((detail, idx) => (
-                              <li key={idx}>{detail}</li>
-                            ))}
-                          </ul>
-                        </div>
+                      {check.decisionDetails && check.decisionDetails.length > 0 && (() => {
+                        const missingInfo = check.decisionDetails.filter((detail: string) => 
+                          detail.startsWith('We could not determine from the information provided')
+                        );
+                        const regularDetails = check.decisionDetails.filter((detail: string) => 
+                          !detail.startsWith('We could not determine from the information provided')
+                        );
+
+                        return (
+                          <div className="space-y-4">
+                            {regularDetails.length > 0 && (
+                              <div>
+                                <p className="text-sm font-medium mb-2">Decision Details</p>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                                  {regularDetails.map((detail, idx) => (
+                                    <li key={idx}>{detail}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {missingInfo.length > 0 && (
+                              <div className="p-3 rounded-lg bg-muted/50 border border-muted-foreground/20">
+                                <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                                  Missing Information
+                                </p>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                                  {missingInfo.map((detail, idx) => (
+                                    <li key={idx}>{detail}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {(check.ocrRawText || check.ocrExtractedFields) && (
+                        <Collapsible className="border rounded-lg p-3 bg-muted/30">
+                          <CollapsibleTrigger className="flex items-center justify-between w-full hover-elevate">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium">Document Scan Details</span>
+                            </div>
+                            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [&[data-state=open]]:rotate-180" />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="mt-3 space-y-3">
+                            <p className="text-xs text-muted-foreground">
+                              Stored scan result from OCR (for audit).
+                            </p>
+
+                            {check.ocrExtractedFields && (
+                              <div>
+                                <p className="text-xs font-medium mb-1">Extracted Fields:</p>
+                                <pre className="text-xs bg-muted p-2 rounded border overflow-x-auto">
+                                  {JSON.stringify(check.ocrExtractedFields, null, 2)}
+                                </pre>
+                              </div>
+                            )}
+
+                            {check.ocrRawText && (
+                              <div>
+                                <p className="text-xs font-medium mb-1">Raw OCR Text:</p>
+                                <div className="text-xs bg-muted p-2 rounded border max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                  {check.ocrRawText}
+                                </div>
+                              </div>
+                            )}
+                          </CollapsibleContent>
+                        </Collapsible>
                       )}
 
                       {check.fileUrl && (

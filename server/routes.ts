@@ -13,6 +13,30 @@ import { insertEmployeeSchema, insertRightToWorkCheckSchema } from "@shared/sche
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 
+// Simple in-memory rate limiter for OCR endpoint (MVP level)
+// Map of userId -> array of request timestamps
+const ocrRateLimiter = new Map<string, number[]>();
+const OCR_RATE_LIMIT = 30; // requests per hour
+const OCR_RATE_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
+
+function checkOcrRateLimit(userId: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const userRequests = ocrRateLimiter.get(userId) || [];
+  
+  // Filter out requests outside the time window
+  const recentRequests = userRequests.filter(timestamp => now - timestamp < OCR_RATE_WINDOW);
+  
+  if (recentRequests.length >= OCR_RATE_LIMIT) {
+    return { allowed: false, remaining: 0 };
+  }
+  
+  // Add current request
+  recentRequests.push(now);
+  ocrRateLimiter.set(userId, recentRequests);
+  
+  return { allowed: true, remaining: OCR_RATE_LIMIT - recentRequests.length };
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
@@ -191,6 +215,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // OCR extraction route with file validation
   app.post("/api/ocr/extract", isAuthenticated, upload.single("file"), async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+
+      // Check rate limit
+      const rateLimitCheck = checkOcrRateLimit(userId);
+      if (!rateLimitCheck.allowed) {
+        return res.status(429).json({
+          error: "Too many OCR requests. Please wait a bit before trying again.",
+          message: "Rate limit exceeded. You can make up to 30 OCR requests per hour."
+        });
+      }
+
       if (!req.file) {
         return res.status(400).json({ 
           error: "No file uploaded",
@@ -267,7 +302,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/checks", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { employeeId, firstName, lastName, documentType, expiryDate, ...otherData } = req.body;
+      const { 
+        employeeId, 
+        firstName, 
+        lastName, 
+        documentType, 
+        expiryDate, 
+        ocrRawText, 
+        ocrExtractedFields,
+        ...otherData 
+      } = req.body;
       
       // Verify employee exists and belongs to user if employeeId is provided
       if (employeeId) {
@@ -310,6 +354,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         workStatus: evaluation.workStatus,
         decisionSummary: evaluation.decisionSummary,
         decisionDetails: evaluation.decisionDetails,
+        ocrRawText: ocrRawText || null,
+        ocrExtractedFields: ocrExtractedFields || null,
         ...otherData,
       } as any;
       

@@ -90,6 +90,8 @@ export const rightToWorkChecks = pgTable("right_to_work_checks", {
   decisionSummary: text("decision_summary"),
   decisionDetails: text("decision_details").array(),
   fileUrl: varchar("file_url"),
+  ocrRawText: text("ocr_raw_text"),
+  ocrExtractedFields: jsonb("ocr_extracted_fields"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
