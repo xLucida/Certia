@@ -36,6 +36,7 @@ export interface IStorage {
   createRightToWorkCheck(check: InsertRightToWorkCheck): Promise<RightToWorkCheck>;
   getChecksByEmployeeId(employeeId: string): Promise<RightToWorkCheck[]>;
   getStandaloneChecksByUserId(userId: string): Promise<RightToWorkCheck[]>;
+  getRightToWorkCheckById(id: string): Promise<RightToWorkCheck | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -207,6 +208,14 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(rightToWorkChecks.createdAt));
+  }
+
+  async getRightToWorkCheckById(id: string): Promise<RightToWorkCheck | undefined> {
+    const [check] = await db
+      .select()
+      .from(rightToWorkChecks)
+      .where(eq(rightToWorkChecks.id, id));
+    return check;
   }
 }
 

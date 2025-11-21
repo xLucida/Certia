@@ -35,7 +35,7 @@ export function CheckDecisionPanel({ check, showLatestBadge = false }: CheckDeci
             </CardTitle>
           </div>
           <div className="text-right text-sm text-muted-foreground">
-            <p>Created {formatDate(check.createdAt!)}</p>
+            <p>Created {check.createdAt ? formatDate(check.createdAt instanceof Date ? check.createdAt.toISOString() : check.createdAt) : '—'}</p>
           </div>
         </div>
       </CardHeader>
@@ -116,7 +116,9 @@ export function CheckAuditTrail({ check }: CheckAuditTrailProps) {
 
   let extractedFieldsObj = null;
   try {
-    extractedFieldsObj = check.ocrExtractedFields ? JSON.parse(check.ocrExtractedFields) : null;
+    extractedFieldsObj = check.ocrExtractedFields && typeof check.ocrExtractedFields === 'string' 
+      ? JSON.parse(check.ocrExtractedFields) 
+      : null;
   } catch (e) {
     console.error('Failed to parse OCR extracted fields', e);
   }
@@ -168,7 +170,7 @@ interface CheckDocumentDownloadProps {
 }
 
 export function CheckDocumentDownload({ check, onDownload }: CheckDocumentDownloadProps) {
-  if (!check.documentPath) {
+  if (!check.fileUrl) {
     return null;
   }
 
