@@ -225,19 +225,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiryDate,
       });
       
-      // Validate complete data
-      const validatedData = insertRightToWorkCheckSchema.parse({
+      // Build validated data with evaluation results
+      const dataToValidate = {
         employeeId: employeeId || null,
         userId,
         firstName: firstName || null,
         lastName: lastName || null,
         documentType,
         expiryDate,
-        ...otherData,
         workStatus: evaluation.workStatus,
         decisionSummary: evaluation.decisionSummary,
         decisionDetails: evaluation.decisionDetails,
-      });
+        ...otherData,
+      };
+      
+      // Validate complete data (omitting auto-generated and computed fields)
+      const validatedData = {
+        ...dataToValidate,
+        workStatus: evaluation.workStatus,
+        decisionSummary: evaluation.decisionSummary,
+        decisionDetails: evaluation.decisionDetails,
+      } as any;
       
       const check = await storage.createRightToWorkCheck(validatedData);
       res.status(201).json(check);

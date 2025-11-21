@@ -55,7 +55,12 @@ export default function EmployeeEdit() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: EmployeeFormData) => {
-      return await apiRequest("PUT", `/api/employees/${employeeId}`, data);
+      // Convert empty strings to undefined for optional fields
+      const payload = {
+        ...data,
+        dateOfBirth: data.dateOfBirth || undefined,
+      };
+      return await apiRequest("PUT", `/api/employees/${employeeId}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });

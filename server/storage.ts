@@ -68,8 +68,7 @@ export class DatabaseStorage implements IStorage {
       employeeConditions.push(
         or(
           sql`LOWER(${employees.firstName}) LIKE ${searchPattern}`,
-          sql`LOWER(${employees.lastName}) LIKE ${searchPattern}`,
-          sql`LOWER(COALESCE(${employees.email}, '')) LIKE ${searchPattern}`
+          sql`LOWER(${employees.lastName}) LIKE ${searchPattern}`
         )
       );
     }
@@ -98,6 +97,9 @@ export class DatabaseStorage implements IStorage {
     // Group checks by employee and find latest for each
     const checksByEmployee = new Map<string, RightToWorkCheck[]>();
     for (const check of allChecks) {
+      // Skip standalone checks (employeeId is null)
+      if (!check.employeeId) continue;
+      
       if (!checksByEmployee.has(check.employeeId)) {
         checksByEmployee.set(check.employeeId, []);
       }
@@ -178,11 +180,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createRightToWorkCheck(checkData: InsertRightToWorkCheck): Promise<RightToWorkCheck> {
-    const [check] = await db.insert(rightToWorkChecks).values(checkData).returning();
+    // Explicitly type the payload to avoid Drizzle ambiguity with optional fields
+    const payload: InsertRightToWorkCheck = { ...checkData };
+    const [check] = await db.insert(rightToWorkChecks).values(payload).returning();
     return check;
   }
 
   async getChecksByEmployeeId(employeeId: string): Promise<RightToWorkCheck[]> {
+    if (!employeeId) return [];
+    
     return await db
       .select()
       .from(rightToWorkChecks)

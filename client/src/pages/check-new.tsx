@@ -70,6 +70,10 @@ export default function CheckNew() {
 
       const payload = {
         ...data,
+        // Convert empty strings to undefined for optional fields
+        dateOfIssue: data.dateOfIssue || undefined,
+        documentNumber: data.documentNumber || undefined,
+        countryOfIssue: data.countryOfIssue || undefined,
         fileUrl: uploadedFileUrl || undefined,
         // Only include fields relevant to the check type
         employeeId: checkType === "existing" ? data.employeeId : undefined,
