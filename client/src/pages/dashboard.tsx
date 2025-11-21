@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, CheckCircle, AlertTriangle, Plus, Eye, Search, X } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import { formatDate } from "@/lib/dateUtils";
 import { isExpiringSoon } from "@/lib/workEligibilityUtils";
@@ -117,40 +118,46 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+            <Card className="border-l-4 border-l-primary/40 bg-gradient-to-br from-card to-background">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Total Employees</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-semibold" data-testid="text-total-employees">{totalEmployees}</div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <div className="text-5xl font-bold tracking-tight" data-testid="text-total-employees">{totalEmployees}</div>
+                <p className="text-sm text-muted-foreground mt-2">
                   Active employee records
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Eligible Workers</CardTitle>
-                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <Card className="border-l-4 border-l-accent/60 bg-gradient-to-br from-card to-background">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Eligible Workers</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-accent" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-semibold" data-testid="text-eligible-count">{eligibleCount}</div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <div className="text-5xl font-bold tracking-tight text-accent" data-testid="text-eligible-count">{eligibleCount}</div>
+                <p className="text-sm text-muted-foreground mt-2">
                   Currently authorized to work
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <Card className="border-l-4 border-l-amber-500/60 bg-gradient-to-br from-card to-background">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Expiring Soon</CardTitle>
+                <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-semibold" data-testid="text-expiring-count">{expiringSoon.length}</div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <div className="text-5xl font-bold tracking-tight text-amber-600 dark:text-amber-500" data-testid="text-expiring-count">{expiringSoon.length}</div>
+                <p className="text-sm text-muted-foreground mt-2">
                   Documents expiring in 60 days
                 </p>
               </CardContent>
@@ -248,67 +255,107 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {employeesWithLatestCheck.length === 0 ? (
-                <div className="text-center py-12">
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">No employees added yet</p>
-                  <Link href="/employees/new">
-                    <Button data-testid="button-add-first-employee">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Your First Employee
-                    </Button>
-                  </Link>
+                <div className="text-center py-16 px-4">
+                  <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-6">
+                    <Users className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-semibold mb-2">Start Managing Work Eligibility</h3>
+                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                    Add your first employee to begin tracking right-to-work documentation and ensure compliance with German visa regulations.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center items-center mb-8">
+                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-5 w-5 text-accent mt-0.5" />
+                      <span>Track visa documents</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-5 w-5 text-accent mt-0.5" />
+                      <span>Automated compliance checks</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-5 w-5 text-accent mt-0.5" />
+                      <span>Expiry notifications</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Link href="/employees/new">
+                      <Button size="lg" data-testid="button-add-first-employee">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Your First Employee
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full" data-testid="table-employees">
-                    <thead className="border-b">
+                    <thead className="border-b bg-muted/30">
                       <tr className="text-left">
-                        <th className="px-4 py-3 text-sm font-medium">Employee Name</th>
-                        <th className="px-4 py-3 text-sm font-medium">Document Type</th>
-                        <th className="px-4 py-3 text-sm font-medium">Status</th>
-                        <th className="px-4 py-3 text-sm font-medium">Expiry Date</th>
-                        <th className="px-4 py-3 text-sm font-medium">Actions</th>
+                        <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Employee</th>
+                        <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Document Type</th>
+                        <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                        <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Expiry Date</th>
+                        <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {employeesWithLatestCheck.map((employee) => (
-                        <tr 
-                          key={employee.id} 
-                          className="border-b hover-elevate"
-                          data-testid={`row-employee-${employee.id}`}
-                        >
-                          <td className="px-4 py-3">
-                            <div className="font-medium" data-testid={`text-employee-name-${employee.id}`}>
-                              {employee.firstName} {employee.lastName}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-sm font-mono">
-                              {employee.latestCheck?.documentType.replace(/_/g, ' ') || '—'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            {employee.latestCheck ? (
-                              <StatusBadge status={employee.latestCheck.workStatus} />
-                            ) : (
-                              <span className="text-sm text-muted-foreground">No check</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-sm font-mono">
-                              {formatDate(employee.latestCheck?.expiryDate)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Link href={`/employees/${employee.id}`}>
-                              <Button variant="ghost" size="sm" data-testid={`button-view-${employee.id}`}>
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
-                              </Button>
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
+                    <tbody className="divide-y divide-border">
+                      {employeesWithLatestCheck.map((employee, index) => {
+                        const initials = `${employee.firstName[0]}${employee.lastName[0]}`.toUpperCase();
+                        return (
+                          <tr 
+                            key={employee.id} 
+                            className={`hover-elevate active-elevate-2 transition-colors ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}
+                            data-testid={`row-employee-${employee.id}`}
+                          >
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9">
+                                  <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                                    {initials}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="font-semibold text-sm" data-testid={`text-employee-name-${employee.id}`}>
+                                    {employee.firstName} {employee.lastName}
+                                  </div>
+                                  {employee.dateOfBirth && (
+                                    <div className="text-xs text-muted-foreground">
+                                      Born {formatDate(employee.dateOfBirth)}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm font-mono text-foreground">
+                                {employee.latestCheck?.documentType.replace(/_/g, ' ') || '—'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              {employee.latestCheck ? (
+                                <StatusBadge status={employee.latestCheck.workStatus} />
+                              ) : (
+                                <span className="text-sm text-muted-foreground">No check</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm font-mono tabular-nums">
+                                {formatDate(employee.latestCheck?.expiryDate)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <Link href={`/employees/${employee.id}`}>
+                                  <Button variant="ghost" size="sm" data-testid={`button-view-${employee.id}`}>
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    View
+                                  </Button>
+                                </Link>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
