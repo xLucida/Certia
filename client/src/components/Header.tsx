@@ -48,6 +48,11 @@ export function Header() {
                 New Check
               </Button>
             </Link>
+            <Link href="/import" data-testid="link-bulk-import">
+              <Button variant="ghost" className="font-medium">
+                Import
+              </Button>
+            </Link>
           </nav>
         </div>
 

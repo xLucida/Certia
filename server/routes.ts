@@ -8,6 +8,8 @@ import {
 } from "./objectStorage";
 import { evaluateRightToWork } from "./workEligibility";
 import { insertEmployeeSchema, insertRightToWorkCheckSchema } from "@shared/schema";
+import multer from "multer";
+import { parse } from "csv-parse/sync";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -115,6 +117,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid employee data", details: error.errors });
       }
       res.status(500).json({ error: "Failed to update employee" });
+    }
+  });
+
+  // Bulk import route
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+  app.post("/api/employees/import", isAuthenticated, upload.single("file"), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const csvContent = req.file.buffer.toString("utf-8");
+      const records = parse(csvContent, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+      });
+
+      const results = {
+        total: records.length,
+        successful: 0,
+        failed: 0,
+        errors: [] as Array<{ row: number; message: string }>,
+      };
+
+      for (let i = 0; i < records.length; i++) {
+        try {
+          const record = records[i];
+          const validatedData = insertEmployeeSchema.parse({
+            userId,
+            firstName: record.first_name,
+            lastName: record.last_name,
+            dateOfBirth: record.date_of_birth || null,
+            notes: record.notes || null,
+          });
+          
+          await storage.createEmployee(validatedData);
+          results.successful++;
+        } catch (error: any) {
+          results.failed++;
+          results.errors.push({
+            row: i + 2, // +2 because header is row 1 and index starts at 0
+            message: error.message || "Invalid data format",
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error processing import:", error);
+      res.status(500).json({ error: "Failed to process import" });
     }
   });
 

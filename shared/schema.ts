@@ -143,6 +143,41 @@ export type RightToWorkCheck = typeof rightToWorkChecks.$inferSelect;
 export type DocumentType = typeof documentTypes[number];
 export type WorkStatus = typeof workStatuses[number];
 
+// Notification preferences table
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  emailEnabled: varchar("email_enabled").notNull().default("true"),
+  notificationDays: varchar("notification_days").array().notNull().default(sql`ARRAY['60', '30', '14', '7']`),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const notificationPreferencesRelations = relations(notificationPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [notificationPreferences.userId],
+    references: [users.id],
+  }),
+}));
+
+// Audit log table
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  action: varchar("action").notNull(),
+  entityType: varchar("entity_type").notNull(),
+  entityId: varchar("entity_id"),
+  details: text("details"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLogs.userId],
+    references: [users.id],
+  }),
+}));
+
 // Extended types with relations
 export type EmployeeWithChecks = Employee & {
   checks: RightToWorkCheck[];
@@ -152,3 +187,6 @@ export type EmployeeWithChecks = Employee & {
 export type CheckWithEmployee = RightToWorkCheck & {
   employee: Employee;
 };
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
