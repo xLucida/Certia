@@ -37,6 +37,7 @@ export interface IStorage {
   getChecksByEmployeeId(employeeId: string): Promise<RightToWorkCheck[]>;
   getStandaloneChecksByUserId(userId: string): Promise<RightToWorkCheck[]>;
   getRightToWorkCheckById(id: string): Promise<RightToWorkCheck | undefined>;
+  deleteRightToWorkCheck(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -216,6 +217,10 @@ export class DatabaseStorage implements IStorage {
       .from(rightToWorkChecks)
       .where(eq(rightToWorkChecks.id, id));
     return check;
+  }
+
+  async deleteRightToWorkCheck(id: string): Promise<void> {
+    await db.delete(rightToWorkChecks).where(eq(rightToWorkChecks.id, id));
   }
 }
 

@@ -100,6 +100,12 @@ export function CheckDecisionPanel({ check, showLatestBadge = false }: CheckDeci
             )}
           </div>
         )}
+
+        <div className="pt-4 border-t">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            This is an internal screening tool and not legal advice. Always confirm right-to-work status using official documents and, where appropriate, legal counsel or the competent authorities.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

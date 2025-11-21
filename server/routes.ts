@@ -53,6 +53,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Demo/Dev routes (only available in non-production)
+  app.post("/api/demo/seed", isAuthenticated, async (req: any, res) => {
+    // Only allow in non-production environments
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: "Demo seeding not allowed in production" });
+    }
+
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Create demo employees
+      const employee1 = await storage.createEmployee({
+        userId,
+        firstName: "Anna",
+        lastName: "Schmidt",
+        dateOfBirth: "1990-05-15",
+      });
+
+      const employee2 = await storage.createEmployee({
+        userId,
+        firstName: "Raj",
+        lastName: "Patel",
+        dateOfBirth: "1988-11-22",
+      });
+
+      const employee3 = await storage.createEmployee({
+        userId,
+        firstName: "Maria",
+        lastName: "Garcia",
+        dateOfBirth: "1992-03-08",
+      });
+
+      // Create demo checks with various statuses
+      const futureDate = new Date();
+      futureDate.setFullYear(futureDate.getFullYear() + 2);
+      
+      const pastDate = new Date();
+      pastDate.setFullYear(pastDate.getFullYear() - 1);
+      
+      const nearFutureDate = new Date();
+      nearFutureDate.setMonth(nearFutureDate.getMonth() + 2);
+
+      // Create checks by evaluating through the rules engine
+      // ELIGIBLE check
+      const eligibleInput = mapToRulesEngineInput({
+        documentType: "EU_BLUE_CARD",
+        expiryDate: futureDate,
+      });
+      const eligibleEval = evaluateRightToWork(eligibleInput);
+      
+      await storage.createRightToWorkCheck({
+        userId,
+        employeeId: employee1.id,
+        documentType: "EU_BLUE_CARD",
+        documentNumber: "DEMO-BC-001",
+        expiryDate: futureDate.toISOString().split('T')[0],
+        ...eligibleEval,
+      });
+
+      // NOT_ELIGIBLE check (expired)
+      const notEligibleInput = mapToRulesEngineInput({
+        documentType: "EAT",
+        expiryDate: pastDate,
+      });
+      const notEligibleEval = evaluateRightToWork(notEligibleInput);
+      
+      await storage.createRightToWorkCheck({
+        userId,
+        employeeId: employee2.id,
+        documentType: "EAT",
+        documentNumber: "DEMO-EAT-002",
+        expiryDate: pastDate.toISOString().split('T')[0],
+        ...notEligibleEval,
+      });
+
+      // NEEDS_REVIEW check (Fiktionsbescheinigung)
+      const needsReviewInput = mapToRulesEngineInput({
+        documentType: "FIKTIONSBESCHEINIGUNG",
+        expiryDate: nearFutureDate,
+      });
+      const needsReviewEval = evaluateRightToWork(needsReviewInput);
+      
+      await storage.createRightToWorkCheck({
+        userId,
+        employeeId: employee3.id,
+        documentType: "FIKTIONSBESCHEINIGUNG",
+        documentNumber: "DEMO-FIKT-003",
+        expiryDate: nearFutureDate.toISOString().split('T')[0],
+        ...needsReviewEval,
+      });
+
+      // Standalone candidate checks
+      await storage.createRightToWorkCheck({
+        userId,
+        firstName: "John",
+        lastName: "Candidate",
+        documentType: "EU_BLUE_CARD",
+        documentNumber: "DEMO-BC-CAND",
+        expiryDate: futureDate.toISOString().split('T')[0],
+        ...eligibleEval,
+      });
+
+      await storage.createRightToWorkCheck({
+        userId,
+        firstName: "Sarah",
+        lastName: "Applicant",
+        documentType: "EAT",
+        documentNumber: "DEMO-EAT-CAND",
+        expiryDate: nearFutureDate.toISOString().split('T')[0],
+        ...eligibleEval,
+      });
+
+      res.json({
+        message: "Demo data seeded successfully",
+        employees: 3,
+        checks: 5,
+      });
+    } catch (error: any) {
+      console.error("Error seeding demo data:", error);
+      res.status(500).json({ error: "Failed to seed demo data" });
+    }
+  });
+
   // Employee routes
   app.get("/api/employees", isAuthenticated, async (req: any, res) => {
     try {
@@ -179,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (let i = 0; i < records.length; i++) {
         try {
-          const record = records[i];
+          const record = records[i] as any;
           console.log("[IMPORT] Processing row", i + 1, ":", record);
           
           const validatedData = insertEmployeeSchema.parse({
@@ -317,6 +440,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching check:", error);
       res.status(500).json({ error: "Failed to fetch check" });
+    }
+  });
+
+  app.delete("/api/checks/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const check = await storage.getRightToWorkCheckById(req.params.id);
+      
+      if (!check) {
+        return res.status(404).json({ error: "Check not found" });
+      }
+      
+      // Verify ownership
+      if (check.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      await storage.deleteRightToWorkCheck(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting check:", error);
+      res.status(500).json({ error: "Failed to delete check" });
     }
   });
 

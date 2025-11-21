@@ -259,10 +259,14 @@ export function evaluateRightToWork(
     reasons.push('No obvious red flags based on the information provided.');
   }
 
-  const summary =
-    status === 'ELIGIBLE'
-      ? 'Likely eligible to work in Germany based on the provided residence title and conditions.'
-      : 'Needs manual review – potential restrictions or uncertainties identified.';
+  let summary: string;
+  if (status === 'ELIGIBLE') {
+    summary = 'Likely eligible to work in Germany based on the provided residence title and conditions.';
+  } else if (status === 'NOT_ELIGIBLE') {
+    summary = 'Not eligible to work in Germany based on the current residence title and information provided (manual review recommended before any employment decision).';
+  } else {
+    summary = 'Needs manual review – potential restrictions, missing information, or uncertainties were detected.';
+  }
 
   return {
     workStatus: status,

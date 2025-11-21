@@ -1,0 +1,115 @@
+General instructions:
+- Be minimal and efficient with changes and explanations.
+- Only modify files directly needed for this task.
+- Do NOT refactor or rebuild unrelated parts of the app.
+- Do NOT change the database schema.
+- Keep explanations under 3 bullets and reuse existing patterns.
+
+Context:
+- Project: RightToWorkDE (upload-first German right-to-work checker).
+- OCR is implemented in `lib/ocr.ts` and used via `/api/ocr/extract`.
+- The rules engine is in `lib/rightToWork.ts` and used via `mapToRulesEngineInput` in `server/rightToWorkAdapter.ts`.
+- Check decision UI (status badge + summary + details) is rendered via shared components like `CheckDecisionPanel` used on:
+  - the employee detail page
+  - the standalone check detail route `/checks/:id`
+- Product goal: minimal manual input, upload-first, with clear explanations and basic compliance/safety features.
+
+TASK 1 — Tiny rules engine summary tweak
+Goal: make summaries clearer between ELIGIBLE, NEEDS_REVIEW, and NOT_ELIGIBLE.
+
+1) In `lib/rightToWork.ts`, inside `evaluateRightToWork`, update ONLY the `summary` computation at the end of the function.
+- Currently it uses a simple IF/ELSE and treats everything that is not ELIGIBLE as “Needs manual review”.
+- Change it to three explicit branches:
+
+  - For `status === 'ELIGIBLE'`:
+    - Keep the current message:
+      - "Likely eligible to work in Germany based on the provided residence title and conditions."
+
+  - For `status === 'NOT_ELIGIBLE'`:
+    - Use something like:
+      - "Not eligible to work in Germany based on the current residence title and information provided (manual review recommended before any employment decision)."
+
+  - For `status === 'NEEDS_REVIEW'`:
+    - Use something like:
+      - "Needs manual review – potential restrictions, missing information, or uncertainties were detected."
+
+- Keep the function signature and returned object shape the same: `{ workStatus, decisionSummary, decisionDetails }`.
+- Do not change ANY other logic in the function.
+
+TASK 2 — Add a simple disclaimer under the decision panel
+Goal: make it explicit that this tool is not legal advice.
+
+2) In the shared check decision UI (wherever we render the decision summary + status badge and details, e.g. `CheckDecisionPanel` or the main check detail component):
+- Underneath the main decision block (status + summary), add a small disclaimer text block, for example:
+
+  > "This is an internal screening tool and not legal advice. Always confirm right-to-work status using official documents and, where appropriate, legal counsel or the competent authorities."
+
+- Style:
+  - Small font size
+  - Muted/secondary text color
+  - Keep it unobtrusive but clearly visible.
+
+Ensure this disclaimer shows in both:
+- Employee check view
+- Standalone check detail view (`/checks/:id`).
+
+TASK 3 — Add a simple “Print summary” action
+Goal: let HR quickly print a check’s decision.
+
+3) On the check detail view (where the full decision is visible):
+- Add a secondary button near the top of the decision panel, e.g. "Print summary".
+- On click, call `window.print()` on the client.
+- Add minimal print styles (CSS or Tailwind + `@media print`) so that:
+  - The main decision content (status, summary, details, missing information, disclaimer) is clearly visible.
+  - Navigation/sidebar and non-essential UI are hidden or de-emphasized when printing.
+- This does NOT need to generate a PDF file; a clean browser print is sufficient.
+
+TASK 4 — Add ability to delete a right-to-work check (privacy/data hygiene)
+Goal: allow HR to remove checks and stored OCR text if needed.
+
+4) Backend:
+- In the server routes where we currently handle right-to-work checks (e.g. the same place that handles creating/fetching checks), add a DELETE handler for something like: `DELETE /api/checks/:id`.
+- The delete should:
+  - Remove the right-to-work check record for that `id` from the database.
+  - This will also remove any stored `ocrRawText` and `ocrExtractedFields` associated with that check.
+
+5) Frontend:
+- On the standalone check detail page (`/checks/:id`), add a "Delete check" button, clearly separated from primary actions (e.g. styled as a destructive/outline button).
+- When clicked:
+  - Show a confirmation dialog like: "Are you sure you want to delete this check? This will also remove the stored OCR scan data."
+  - If confirmed, call the new DELETE endpoint.
+  - On successful delete:
+    - Redirect the user back to a sensible location (e.g. the main dashboard or the related employee page if you have that context).
+- If the delete fails, show a non-blocking error message.
+
+TASK 5 — Add simple “seed demo data” for quicker demos
+Goal: be able to demo the app without manually creating employees/checks every time.
+
+6) Backend:
+- Add a simple dev-only endpoint, for example: `POST /api/demo/seed`.
+- The endpoint should:
+  - ONLY run when `NODE_ENV !== 'production'` (or guard with a simple configuration constant).
+  - Insert:
+    - 2–3 demo employees.
+    - 3–5 demo right-to-work checks with a mix of:
+      - ELIGIBLE
+      - NOT_ELIGIBLE
+      - NEEDS_REVIEW
+  - For demo checks, you can use fake document numbers, dates in the near future/past, and simple example decision details.
+
+7) Frontend:
+- On the main dashboard page, add a small "Seed demo data" button that:
+  - Is only visible in non-production mode (same condition as the endpoint, or a simple check against an environment flag).
+  - Calls `POST /api/demo/seed` when clicked.
+  - After success, refreshes the dashboard data so the new employees and checks appear.
+
+Constraints recap:
+- Do NOT change the database schema.
+- Do NOT introduce new required data fields on the New Check form.
+- Only add:
+  - The updated summary logic,
+  - The disclaimer text,
+  - The print button,
+  - The delete-check capability,
+  - And the demo seed endpoint + button.
+- Keep all new UI elements simple and consistent with the existing design and components.

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, CheckCircle, AlertTriangle, Plus, Eye, Search, X } from "lucide-react";
+import { Users, CheckCircle, AlertTriangle, Plus, Eye, Search, X, Database } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import { formatDate } from "@/lib/dateUtils";
@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -52,6 +53,27 @@ export default function Dashboard() {
   const { data: standaloneChecks } = useQuery<any[]>({
     queryKey: ["/api/checks/standalone"],
     enabled: isAuthenticated,
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/demo/seed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/checks/standalone"] });
+      toast({
+        title: "Demo data seeded",
+        description: "Sample employees and checks have been created successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to seed demo data. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   useEffect(() => {
@@ -135,12 +157,25 @@ export default function Dashboard() {
         <div className="space-y-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
-            <Link href="/employees/new">
-              <Button data-testid="button-add-employee">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Employee
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+              {import.meta.env.MODE !== 'production' && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => seedMutation.mutate()}
+                  disabled={seedMutation.isPending}
+                  data-testid="button-seed-demo"
+                >
+                  <Database className="h-4 w-4 mr-2" />
+                  {seedMutation.isPending ? "Seeding..." : "Seed Demo Data"}
+                </Button>
+              )}
+              <Link href="/employees/new">
+                <Button data-testid="button-add-employee">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Employee
+                </Button>
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
