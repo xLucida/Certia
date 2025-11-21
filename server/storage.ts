@@ -35,6 +35,7 @@ export interface IStorage {
   // Right-to-work check operations
   createRightToWorkCheck(check: InsertRightToWorkCheck): Promise<RightToWorkCheck>;
   getChecksByEmployeeId(employeeId: string): Promise<RightToWorkCheck[]>;
+  getStandaloneChecksByUserId(userId: string): Promise<RightToWorkCheck[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -186,6 +187,19 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(rightToWorkChecks)
       .where(eq(rightToWorkChecks.employeeId, employeeId))
+      .orderBy(desc(rightToWorkChecks.createdAt));
+  }
+
+  async getStandaloneChecksByUserId(userId: string): Promise<RightToWorkCheck[]> {
+    return await db
+      .select()
+      .from(rightToWorkChecks)
+      .where(
+        and(
+          eq(rightToWorkChecks.userId, userId),
+          sql`${rightToWorkChecks.employeeId} IS NULL`
+        )
+      )
       .orderBy(desc(rightToWorkChecks.createdAt));
   }
 }

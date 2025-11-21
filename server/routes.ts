@@ -187,6 +187,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Right-to-work check routes
+  app.get("/api/checks/standalone", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const checks = await storage.getStandaloneChecksByUserId(userId);
+      res.json(checks);
+    } catch (error: any) {
+      console.error("Error fetching standalone checks:", error);
+      res.status(500).json({ error: "Failed to fetch checks" });
+    }
+  });
+
   app.post("/api/checks", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

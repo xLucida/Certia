@@ -49,6 +49,11 @@ export default function Dashboard() {
     enabled: isAuthenticated,
   });
 
+  const { data: standaloneChecks } = useQuery<any[]>({
+    queryKey: ["/api/checks/standalone"],
+    enabled: isAuthenticated,
+  });
+
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       toast({
@@ -86,20 +91,41 @@ export default function Dashboard() {
     return null;
   }
 
+  // Combine employees with checks and standalone checks into unified view
   const employeesWithLatestCheck = employees?.map(emp => ({
     ...emp,
     latestCheck: emp.checks?.sort((a, b) => 
       new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
     )[0],
+    isStandalone: false,
   })) || [];
 
+  // Map standalone checks to look like employee rows
+  const standaloneCheckRows = standaloneChecks?.map(check => ({
+    id: check.id,
+    firstName: check.firstName || "",
+    lastName: check.lastName || "",
+    email: null,
+    nationality: null,
+    dateOfBirth: null,
+    userId: check.userId,
+    createdAt: check.createdAt,
+    updatedAt: check.updatedAt,
+    checks: [check],
+    latestCheck: check,
+    isStandalone: true,
+  })) || [];
+
+  // Combine both types
+  const allRows = [...employeesWithLatestCheck, ...standaloneCheckRows];
+
   const totalEmployees = employees?.length || 0;
-  const eligibleCount = employeesWithLatestCheck.filter(
-    emp => emp.latestCheck?.workStatus === "ELIGIBLE"
+  const eligibleCount = allRows.filter(
+    row => row.latestCheck?.workStatus === "ELIGIBLE"
   ).length;
   
-  const expiringSoon = employeesWithLatestCheck.filter(
-    emp => emp.latestCheck?.expiryDate && isExpiringSoon(emp.latestCheck.expiryDate)
+  const expiringSoon = allRows.filter(
+    row => row.latestCheck?.expiryDate && isExpiringSoon(row.latestCheck.expiryDate)
   );
 
   return (
@@ -254,7 +280,7 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              {employeesWithLatestCheck.length === 0 ? (
+              {allRows.length === 0 ? (
                 <div className="text-center py-16 px-4">
                   <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-6">
                     <Users className="h-8 w-8 text-primary" />
@@ -299,13 +325,13 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {employeesWithLatestCheck.map((employee, index) => {
-                        const initials = `${employee.firstName[0]}${employee.lastName[0]}`.toUpperCase();
+                      {allRows.map((row, index) => {
+                        const initials = `${row.firstName[0]}${row.lastName[0]}`.toUpperCase();
                         return (
                           <tr 
-                            key={employee.id} 
+                            key={row.id} 
                             className={`hover-elevate active-elevate-2 transition-colors ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}
-                            data-testid={`row-employee-${employee.id}`}
+                            data-testid={`row-${row.isStandalone ? 'candidate' : 'employee'}-${row.id}`}
                           >
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
@@ -315,12 +341,19 @@ export default function Dashboard() {
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <div className="font-semibold text-sm" data-testid={`text-employee-name-${employee.id}`}>
-                                    {employee.firstName} {employee.lastName}
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-sm" data-testid={`text-name-${row.id}`}>
+                                      {row.firstName} {row.lastName}
+                                    </span>
+                                    {row.isStandalone && (
+                                      <span className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground">
+                                        Candidate
+                                      </span>
+                                    )}
                                   </div>
-                                  {employee.dateOfBirth && (
+                                  {row.dateOfBirth && (
                                     <div className="text-xs text-muted-foreground">
-                                      Born {formatDate(employee.dateOfBirth)}
+                                      Born {formatDate(row.dateOfBirth)}
                                     </div>
                                   )}
                                 </div>
@@ -328,29 +361,33 @@ export default function Dashboard() {
                             </td>
                             <td className="px-6 py-4">
                               <span className="text-sm font-mono text-foreground">
-                                {employee.latestCheck?.documentType.replace(/_/g, ' ') || '—'}
+                                {row.latestCheck?.documentType.replace(/_/g, ' ') || '—'}
                               </span>
                             </td>
                             <td className="px-6 py-4">
-                              {employee.latestCheck ? (
-                                <StatusBadge status={employee.latestCheck.workStatus} />
+                              {row.latestCheck ? (
+                                <StatusBadge status={row.latestCheck.workStatus} />
                               ) : (
                                 <span className="text-sm text-muted-foreground">No check</span>
                               )}
                             </td>
                             <td className="px-6 py-4">
                               <span className="text-sm font-mono tabular-nums">
-                                {formatDate(employee.latestCheck?.expiryDate)}
+                                {formatDate(row.latestCheck?.expiryDate)}
                               </span>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
-                                <Link href={`/employees/${employee.id}`}>
-                                  <Button variant="ghost" size="sm" data-testid={`button-view-${employee.id}`}>
-                                    <Eye className="h-4 w-4 mr-1" />
-                                    View
-                                  </Button>
-                                </Link>
+                                {!row.isStandalone ? (
+                                  <Link href={`/employees/${row.id}`}>
+                                    <Button variant="ghost" size="sm" data-testid={`button-view-${row.id}`}>
+                                      <Eye className="h-4 w-4 mr-1" />
+                                      View
+                                    </Button>
+                                  </Link>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">Pre-employment check</span>
+                                )}
                               </div>
                             </td>
                           </tr>
