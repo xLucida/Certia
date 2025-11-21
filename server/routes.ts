@@ -188,14 +188,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // OCR extraction route
+  // OCR extraction route with file validation
   app.post("/api/ocr/extract", isAuthenticated, upload.single("file"), async (req: any, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
+        return res.status(400).json({ 
+          error: "No file uploaded",
+          message: "Please select a file to upload"
+        });
       }
 
-      console.log("[OCR] Processing file:", req.file.originalname, "size:", req.file.size);
+      // Validate MIME type
+      const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedMimeTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ 
+          error: "Invalid file type",
+          message: "Only PDF, JPG, and PNG files are supported"
+        });
+      }
+
+      // Validate file size (10MB limit)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (req.file.size > maxSize) {
+        return res.status(400).json({ 
+          error: "File too large",
+          message: "File size must be less than 10MB"
+        });
+      }
+
+      console.log("[OCR] Processing file:", req.file.originalname, "type:", req.file.mimetype, "size:", req.file.size);
 
       const result = await extractFieldsFromDocument(req.file.buffer);
 
@@ -211,18 +232,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("[OCR] Extraction failed:", error);
       
       if (error.message?.includes('OCR_SPACE_API_KEY')) {
-        return res.status(400).json({ 
+        return res.status(500).json({ 
           error: "OCR service not configured",
+          message: "OCR service is not available. Please contact your administrator."
+        });
+      }
+
+      if (error.message?.includes('OCR.space API')) {
+        return res.status(503).json({
+          error: "OCR service unavailable",
           message: error.message
         });
       }
 
-      res.json({
-        rawText: '',
-        documentTypeGuess: undefined,
-        documentNumberGuess: undefined,
-        expiryDateGuessIso: undefined,
-        error: "OCR extraction failed. Please enter details manually."
+      return res.status(500).json({
+        error: "OCR extraction failed",
+        message: error.message || "Failed to process document. Please enter details manually."
       });
     }
   });

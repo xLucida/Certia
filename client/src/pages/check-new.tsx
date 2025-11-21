@@ -185,53 +185,60 @@ export default function CheckNew() {
 
       const result: OcrExtractionResult = await response.json();
 
-      if (result.error) {
-        setOcrError(result.error);
+      // Handle error responses (4xx, 5xx)
+      if (!response.ok || result.error) {
+        const errorMessage = result.message || result.error || "Failed to process document";
+        setOcrError(errorMessage);
         toast({
-          title: "OCR unavailable",
-          description: result.error,
-          variant: "default",
+          title: "OCR failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Success: check if any fields were extracted
+      if (result.documentTypeGuess) {
+        form.setValue('documentType', result.documentTypeGuess);
+      }
+      if (result.documentNumberGuess) {
+        form.setValue('documentNumber', result.documentNumberGuess);
+      }
+      if (result.expiryDateGuessIso) {
+        form.setValue('expiryDate', result.expiryDateGuessIso);
+      }
+
+      const fieldsFound = [
+        result.documentTypeGuess && 'document type',
+        result.documentNumberGuess && 'document number',
+        result.expiryDateGuessIso && 'expiry date',
+      ].filter(Boolean);
+
+      if (fieldsFound.length > 0) {
+        setOcrAutofilled(true);
+        toast({
+          title: "Fields auto-filled",
+          description: `Found: ${fieldsFound.join(', ')}. Please review and correct if needed.`,
         });
       } else {
-        if (result.documentTypeGuess) {
-          form.setValue('documentType', result.documentTypeGuess);
-        }
-        if (result.documentNumberGuess) {
-          form.setValue('documentNumber', result.documentNumberGuess);
-        }
-        if (result.expiryDateGuessIso) {
-          form.setValue('expiryDate', result.expiryDateGuessIso);
-        }
-
-        const fieldsFound = [
-          result.documentTypeGuess && 'document type',
-          result.documentNumberGuess && 'document number',
-          result.expiryDateGuessIso && 'expiry date',
-        ].filter(Boolean);
-
-        if (fieldsFound.length > 0) {
-          setOcrAutofilled(true);
-          toast({
-            title: "Fields auto-filled",
-            description: `Found: ${fieldsFound.join(', ')}. Please review and correct if needed.`,
-          });
-        } else {
-          toast({
-            title: "OCR completed",
-            description: "No fields could be extracted. Please enter details manually.",
-          });
-        }
+        toast({
+          title: "OCR completed",
+          description: "No fields could be extracted. Please enter details manually.",
+        });
       }
     } catch (error) {
       console.error('OCR extraction error:', error);
-      setOcrError("OCR extraction failed. Please enter details manually.");
+      const errorMessage = "Network error. Please check your connection and try again.";
+      setOcrError(errorMessage);
       toast({
         title: "Error",
-        description: "Failed to process document. Please enter details manually.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsOcrProcessing(false);
+      // Clear the file input so the same file can be uploaded again
+      event.target.value = '';
     }
   };
 

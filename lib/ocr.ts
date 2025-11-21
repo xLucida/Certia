@@ -14,49 +14,39 @@ export async function extractFieldsFromDocument(fileBuffer: Buffer): Promise<Ocr
     throw new Error('OCR_SPACE_API_KEY environment variable is not set. Please configure it in Replit Secrets.');
   }
 
-  try {
-    const formData = new FormData();
-    formData.append('file', fileBuffer, { filename: 'document.pdf' });
-    formData.append('apikey', apiKey);
-    formData.append('language', 'ger');
-    formData.append('isOverlayRequired', 'false');
-    formData.append('detectOrientation', 'true');
-    formData.append('scale', 'true');
-    formData.append('OCREngine', '2');
+  const formData = new FormData();
+  formData.append('file', fileBuffer, { filename: 'document.pdf' });
+  formData.append('apikey', apiKey);
+  formData.append('language', 'ger');
+  formData.append('isOverlayRequired', 'false');
+  formData.append('detectOrientation', 'true');
+  formData.append('scale', 'true');
+  formData.append('OCREngine', '2');
 
-    const response = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      body: formData as any,
-      headers: formData.getHeaders(),
-    });
+  const response = await fetch('https://api.ocr.space/parse/image', {
+    method: 'POST',
+    body: formData as any,
+    headers: formData.getHeaders(),
+  });
 
-    if (!response.ok) {
-      throw new Error(`OCR.space API returned status ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    if (result.IsErroredOnProcessing) {
-      throw new Error(result.ErrorMessage?.[0] || 'OCR processing failed');
-    }
-
-    const rawText = result.ParsedResults?.[0]?.ParsedText || '';
-
-    return {
-      rawText,
-      documentTypeGuess: guessDocumentType(rawText),
-      documentNumberGuess: guessDocumentNumber(rawText),
-      expiryDateGuessIso: guessExpiryDate(rawText),
-    };
-  } catch (error) {
-    console.error('OCR extraction failed:', error);
-    return {
-      rawText: '',
-      documentTypeGuess: undefined,
-      documentNumberGuess: undefined,
-      expiryDateGuessIso: undefined,
-    };
+  if (!response.ok) {
+    throw new Error(`OCR.space API returned status ${response.status}. Please check your API key or try again later.`);
   }
+
+  const result = await response.json();
+
+  if (result.IsErroredOnProcessing) {
+    throw new Error(result.ErrorMessage?.[0] || 'OCR processing failed. The document may not be readable.');
+  }
+
+  const rawText = result.ParsedResults?.[0]?.ParsedText || '';
+
+  return {
+    rawText,
+    documentTypeGuess: guessDocumentType(rawText),
+    documentNumberGuess: guessDocumentNumber(rawText),
+    expiryDateGuessIso: guessExpiryDate(rawText),
+  };
 }
 
 function guessDocumentType(text: string): OcrExtractionResult['documentTypeGuess'] {
