@@ -77,7 +77,10 @@ export const workStatuses = [
 // Right to Work Check table
 export const rightToWorkChecks = pgTable("right_to_work_checks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  employeeId: varchar("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  employeeId: varchar("employee_id").references(() => employees.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
   documentType: varchar("document_type", { enum: documentTypes }).notNull(),
   documentNumber: varchar("document_number"),
   countryOfIssue: varchar("country_of_issue"),
@@ -95,6 +98,10 @@ export const rightToWorkChecksRelations = relations(rightToWorkChecks, ({ one })
   employee: one(employees, {
     fields: [rightToWorkChecks.employeeId],
     references: [employees.id],
+  }),
+  user: one(users, {
+    fields: [rightToWorkChecks.userId],
+    references: [users.id],
   }),
 }));
 
@@ -128,9 +135,12 @@ export const employeeFormSchema = insertEmployeeSchema.omit({ userId: true }).ex
   dateOfBirth: z.string().optional(),
 });
 
-export const checkFormSchema = insertRightToWorkCheckSchema.extend({
+export const checkFormSchema = insertRightToWorkCheckSchema.omit({ userId: true }).extend({
   dateOfIssue: z.string().optional(),
   expiryDate: z.string().min(1, "Expiry date is required"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  employeeId: z.string().optional(),
 });
 
 // Types

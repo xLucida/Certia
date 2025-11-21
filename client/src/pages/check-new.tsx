@@ -4,12 +4,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Header } from "@/components/Header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -18,7 +19,7 @@ import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import type { z } from "zod";
 import type { Employee } from "@shared/schema";
 import type { UploadResult } from "@uppy/core";
-import { ArrowLeft, FileText, Upload } from "lucide-react";
+import { ArrowLeft, FileText, Upload, UserPlus, Users } from "lucide-react";
 import { Link } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
@@ -29,6 +30,7 @@ export default function CheckNew() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>("");
+  const [checkType, setCheckType] = useState<"new" | "existing">("new");
   const searchParams = new URLSearchParams(window.location.search);
   const preselectedEmployeeId = searchParams.get("employeeId");
 
@@ -52,25 +54,45 @@ export default function CheckNew() {
   useEffect(() => {
     if (preselectedEmployeeId) {
       form.setValue("employeeId", preselectedEmployeeId);
+      setCheckType("existing");
     }
   }, [preselectedEmployeeId, form]);
 
   const createMutation = useMutation({
     mutationFn: async (data: CheckFormData) => {
+      // Validate based on check type
+      if (checkType === "new" && (!data.firstName || !data.lastName)) {
+        throw new Error("First name and last name are required for new candidates");
+      }
+      if (checkType === "existing" && !data.employeeId) {
+        throw new Error("Please select an employee");
+      }
+
       const payload = {
         ...data,
         fileUrl: uploadedFileUrl || undefined,
+        // Only include fields relevant to the check type
+        employeeId: checkType === "existing" ? data.employeeId : undefined,
+        firstName: checkType === "new" ? data.firstName : undefined,
+        lastName: checkType === "new" ? data.lastName : undefined,
       };
       return await apiRequest("POST", "/api/checks", payload);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/employees", variables.employeeId] });
+      if (variables.employeeId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/employees", variables.employeeId] });
+      }
       toast({
         title: "Success",
         description: "Right-to-work check created successfully",
       });
-      setLocationPath(`/employees/${variables.employeeId}`);
+      // Redirect to dashboard for standalone checks, employee page for linked checks
+      if (variables.employeeId) {
+        setLocationPath(`/employees/${variables.employeeId}`);
+      } else {
+        setLocationPath("/");
+      }
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -86,7 +108,7 @@ export default function CheckNew() {
       }
       toast({
         title: "Error",
-        description: "Failed to create check. Please try again.",
+        description: error.message || "Failed to create check. Please try again.",
         variant: "destructive",
       });
     },
@@ -148,38 +170,91 @@ export default function CheckNew() {
           <Card>
             <CardHeader>
               <CardTitle>Check Details</CardTitle>
+              <CardDescription>
+                Perform a right-to-work check for a new candidate or existing employee
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="employeeId">
-                    Employee <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={form.watch("employeeId")}
-                    onValueChange={(value) => form.setValue("employeeId", value)}
-                  >
-                    <SelectTrigger data-testid="select-employee">
-                      <SelectValue placeholder="Select an employee" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {employees?.map((employee) => (
-                        <SelectItem 
-                          key={employee.id} 
-                          value={employee.id}
-                          data-testid={`option-employee-${employee.id}`}
-                        >
-                          {employee.firstName} {employee.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {form.formState.errors.employeeId && (
-                    <p className="text-sm text-destructive">
-                      {form.formState.errors.employeeId.message}
-                    </p>
-                  )}
-                </div>
+                <Tabs value={checkType} onValueChange={(value) => setCheckType(value as "new" | "existing")}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="new" data-testid="tab-new-candidate">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      New Candidate
+                    </TabsTrigger>
+                    <TabsTrigger value="existing" data-testid="tab-existing-employee">
+                      <Users className="h-4 w-4 mr-2" />
+                      Existing Employee
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="new" className="space-y-4 mt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName">
+                          First Name <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="firstName"
+                          {...form.register("firstName")}
+                          placeholder="e.g., John"
+                          data-testid="input-first-name"
+                        />
+                        {form.formState.errors.firstName && (
+                          <p className="text-sm text-destructive">
+                            {form.formState.errors.firstName.message}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">
+                          Last Name <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="lastName"
+                          {...form.register("lastName")}
+                          placeholder="e.g., Doe"
+                          data-testid="input-last-name"
+                        />
+                        {form.formState.errors.lastName && (
+                          <p className="text-sm text-destructive">
+                            {form.formState.errors.lastName.message}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="existing" className="space-y-4 mt-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="employeeId">
+                        Select Employee <span className="text-destructive">*</span>
+                      </Label>
+                      <Select
+                        value={form.watch("employeeId")}
+                        onValueChange={(value) => form.setValue("employeeId", value)}
+                      >
+                        <SelectTrigger data-testid="select-employee">
+                          <SelectValue placeholder="Select an employee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {employees?.map((employee) => (
+                            <SelectItem 
+                              key={employee.id} 
+                              value={employee.id}
+                              data-testid={`option-employee-${employee.id}`}
+                            >
+                              {employee.firstName} {employee.lastName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {form.formState.errors.employeeId && (
+                        <p className="text-sm text-destructive">
+                          {form.formState.errors.employeeId.message}
+                        </p>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
 
                 <div className="space-y-3">
                   <Label>

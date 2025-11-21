@@ -189,18 +189,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Right-to-work check routes
   app.post("/api/checks", isAuthenticated, async (req: any, res) => {
     try {
-      // Validate and evaluate work eligibility
-      const { employeeId, documentType, expiryDate, ...otherData } = req.body;
-      
-      // Verify employee exists and belongs to user
-      const employee = await storage.getEmployeeById(employeeId);
-      if (!employee) {
-        return res.status(404).json({ error: "Employee not found" });
-      }
-      
       const userId = req.user.claims.sub;
-      if (employee.userId !== userId) {
-        return res.status(403).json({ error: "Access denied" });
+      const { employeeId, firstName, lastName, documentType, expiryDate, ...otherData } = req.body;
+      
+      // Verify employee exists and belongs to user if employeeId is provided
+      if (employeeId) {
+        const employee = await storage.getEmployeeById(employeeId);
+        if (!employee) {
+          return res.status(404).json({ error: "Employee not found" });
+        }
+        if (employee.userId !== userId) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+      } else {
+        // For standalone checks, require firstName and lastName
+        if (!firstName || !lastName) {
+          return res.status(400).json({ error: "First name and last name are required for new candidate checks" });
+        }
       }
       
       // Evaluate work eligibility
@@ -211,7 +216,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Validate complete data
       const validatedData = insertRightToWorkCheckSchema.parse({
-        employeeId,
+        employeeId: employeeId || null,
+        userId,
+        firstName: firstName || null,
+        lastName: lastName || null,
         documentType,
         expiryDate,
         ...otherData,
