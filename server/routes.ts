@@ -299,6 +299,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/checks/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const check = await storage.getRightToWorkCheckById(req.params.id);
+      
+      if (!check) {
+        return res.status(404).json({ error: "Check not found" });
+      }
+      
+      // Verify ownership
+      if (check.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      res.json(check);
+    } catch (error: any) {
+      console.error("Error fetching check:", error);
+      res.status(500).json({ error: "Failed to fetch check" });
+    }
+  });
+
   app.post("/api/checks", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

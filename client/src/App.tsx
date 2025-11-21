@@ -12,6 +12,7 @@ import EmployeeNew from "@/pages/employee-new";
 import EmployeeEdit from "@/pages/employee-edit";
 import EmployeeDetail from "@/pages/employee-detail";
 import CheckNew from "@/pages/check-new";
+import CheckDetail from "@/pages/check-detail";
 import BulkImport from "@/pages/bulk-import";
 
 function Router() {
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/employees/:id/edit" component={EmployeeEdit} />
       <Route path="/employees/:id" component={EmployeeDetail} />
       <Route path="/checks/new" component={CheckNew} />
+      <Route path="/checks/:id" component={CheckDetail} />
       <Route path="/import" component={BulkImport} />
       <Route component={NotFound} />
     </Switch>

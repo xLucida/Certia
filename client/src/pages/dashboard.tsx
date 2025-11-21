@@ -378,16 +378,12 @@ export default function Dashboard() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
-                                {!row.isStandalone ? (
-                                  <Link href={`/employees/${row.id}`}>
-                                    <Button variant="ghost" size="sm" data-testid={`button-view-${row.id}`}>
-                                      <Eye className="h-4 w-4 mr-1" />
-                                      View
-                                    </Button>
-                                  </Link>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">Pre-employment check</span>
-                                )}
+                                <Link href={row.isStandalone ? `/checks/${row.id}` : `/employees/${row.id}`}>
+                                  <Button variant="ghost" size="sm" data-testid={`button-view-${row.id}`}>
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    View
+                                  </Button>
+                                </Link>
                               </div>
                             </td>
                           </tr>
