@@ -7,11 +7,13 @@ RTW-DE is an HR compliance SaaS application for managing employee right-to-work 
 **Core Capabilities:**
 - Employee management with biographical data (full CRUD operations including edit)
 - Bulk employee import via CSV upload with validation
-- Right-to-work check creation and tracking
+- **Dual-mode right-to-work checks:**
+  - Pre-employment checks for candidates (without employee records)
+  - Compliance checks for existing employees
 - Automated eligibility evaluation based on German visa rules
 - Document upload and storage via Replit Object Storage
-- Dashboard with compliance status overview and advanced filtering
-- Search and filter employees by name/email, work status, document type, and expiry dates
+- Unified dashboard displaying both employee-linked and standalone candidate checks
+- Advanced filtering by name, work status, document type, and expiry dates
 - Premium UI design inspired by Linear and Stripe aesthetics
 
 ## User Preferences
@@ -21,6 +23,15 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 **November 21, 2025:**
+- **Standalone Right-to-Work Checks (Pre-Employment Screening):** Major workflow enhancement
+  - Right-to-work checks can now be created independently without requiring employee records first
+  - Schema updated: `rightToWorkChecks.employeeId` is now nullable, added `firstName/lastName` fields for candidate names
+  - Check creation form redesigned with tabs: "New Candidate" vs "Existing Employee" modes
+  - Dashboard displays unified view of both employee-linked and standalone checks
+  - Standalone checks show "Candidate" badge to distinguish from employee records
+  - New API endpoint: GET `/api/checks/standalone` for fetching candidate checks
+  - Cache invalidation strategy: standalone checks query properly invalidated after creation
+  - Bug fixes: empty date string handling, workStatus auto-evaluation, storage layer null guards
 - **Design Overhaul:** Implemented Linear/Stripe-inspired premium aesthetic
   - Dashboard stat cards: text-5xl numbers with color-coded gradients (green for eligible, amber for expiring, red for not eligible)
   - Table improvements: zebra striping, employee avatars with initials, stronger hover states, better spacing
@@ -115,13 +126,17 @@ Preferred communication style: Simple, everyday language.
 - `users`: Stores authenticated user profiles from Replit Auth
 - `employees`: Employee records with biographical data (linked to users)
 - `rightToWorkChecks`: Work authorization documents and evaluation results
+  - **Nullable `employeeId`**: Allows standalone checks for candidates
+  - **Candidate fields**: `firstName`, `lastName` for pre-employment checks
+  - **Always required**: `userId` for ownership, `workStatus` for evaluation
 - `sessions`: Server-side session storage for authentication
 - `notification_preferences`: User email notification settings (future use)
 - `audit_logs`: Activity tracking for compliance (future use)
 
 **Relationships:**
 - Users → Employees (one-to-many)
-- Employees → RightToWorkChecks (one-to-many)
+- Users → RightToWorkChecks (one-to-many, both employee-linked and standalone)
+- Employees → RightToWorkChecks (optional one-to-many, only for employee-linked checks)
 
 **Key Design Decisions:**
 - **Rationale:** Drizzle chosen for TypeScript-first design and lighter weight than Prisma

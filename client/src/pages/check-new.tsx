@@ -86,6 +86,9 @@ export default function CheckNew() {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       if (variables.employeeId) {
         queryClient.invalidateQueries({ queryKey: ["/api/employees", variables.employeeId] });
+      } else {
+        // Invalidate standalone checks when creating a new candidate check
+        queryClient.invalidateQueries({ queryKey: ["/api/checks/standalone"] });
       }
       toast({
         title: "Success",
