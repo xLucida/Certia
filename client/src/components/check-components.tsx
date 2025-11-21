@@ -122,12 +122,38 @@ export function CheckAuditTrail({ check }: CheckAuditTrailProps) {
 
   let extractedFieldsObj = null;
   try {
-    extractedFieldsObj = check.ocrExtractedFields && typeof check.ocrExtractedFields === 'string' 
-      ? JSON.parse(check.ocrExtractedFields) 
-      : null;
+    if (check.ocrExtractedFields) {
+      if (typeof check.ocrExtractedFields === 'string') {
+        extractedFieldsObj = JSON.parse(check.ocrExtractedFields);
+      } else {
+        extractedFieldsObj = check.ocrExtractedFields;
+      }
+    }
   } catch (e) {
     console.error('Failed to parse OCR extracted fields', e);
   }
+
+  const employerNameGuess = extractedFieldsObj?.employerNameGuess as string | undefined;
+  const employmentPermissionGuess = extractedFieldsObj?.employmentPermissionGuess as
+    | 'ANY_EMPLOYMENT_ALLOWED'
+    | 'RESTRICTED'
+    | 'UNKNOWN'
+    | undefined;
+
+  const hasInsights = employerNameGuess || employmentPermissionGuess;
+
+  const getPermissionLabel = (permission: typeof employmentPermissionGuess): string => {
+    switch (permission) {
+      case 'ANY_EMPLOYMENT_ALLOWED':
+        return 'Employment permission: likely any employment allowed';
+      case 'RESTRICTED':
+        return 'Employment permission: likely restricted (e.g. employer/role-specific)';
+      case 'UNKNOWN':
+        return 'Employment permission: not clear from the scan';
+      default:
+        return '';
+    }
+  };
 
   return (
     <Collapsible>
@@ -147,6 +173,19 @@ export function CheckAuditTrail({ check }: CheckAuditTrailProps) {
       <CollapsibleContent>
         <Card className="mt-2">
           <CardContent className="pt-6 space-y-4">
+            {hasInsights && (
+              <div className="p-3 rounded-lg bg-muted/30 border border-muted">
+                <p className="text-sm font-medium mb-2">Scan Insights</p>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  {employerNameGuess && (
+                    <p>Possible employer name: <span className="font-medium">{employerNameGuess}</span></p>
+                  )}
+                  {employmentPermissionGuess && (
+                    <p>{getPermissionLabel(employmentPermissionGuess)}</p>
+                  )}
+                </div>
+              </div>
+            )}
             {extractedFieldsObj && (
               <div>
                 <p className="text-sm font-medium mb-2">Extracted Fields</p>

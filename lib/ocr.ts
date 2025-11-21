@@ -5,6 +5,8 @@ export interface OcrExtractionResult {
   documentTypeGuess?: 'EU_BLUE_CARD' | 'EAT' | 'FIKTIONSBESCHEINIGUNG' | 'OTHER';
   documentNumberGuess?: string;
   expiryDateGuessIso?: string;
+  employerNameGuess?: string;
+  employmentPermissionGuess?: 'ANY_EMPLOYMENT_ALLOWED' | 'RESTRICTED' | 'UNKNOWN';
 }
 
 export async function extractFieldsFromDocument(fileBuffer: Buffer): Promise<OcrExtractionResult> {
@@ -46,6 +48,8 @@ export async function extractFieldsFromDocument(fileBuffer: Buffer): Promise<Ocr
     documentTypeGuess: guessDocumentType(rawText),
     documentNumberGuess: guessDocumentNumber(rawText),
     expiryDateGuessIso: guessExpiryDate(rawText),
+    employerNameGuess: guessEmployerName(rawText),
+    employmentPermissionGuess: guessEmploymentPermission(rawText),
   };
 }
 
@@ -187,4 +191,60 @@ function formatDateToIso(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function guessEmployerName(text: string): string | undefined {
+  const lines = text.split('\n');
+  const keywords = ['arbeitgeber', 'employer', 'firma', 'company'];
+
+  for (let i = 0; i < lines.length; i++) {
+    const lineLower = lines[i].toLowerCase();
+    
+    for (const keyword of keywords) {
+      if (lineLower.includes(keyword)) {
+        const nextLine = lines[i + 1];
+        if (nextLine && nextLine.trim().length > 3) {
+          return nextLine.trim();
+        }
+        
+        const afterKeyword = lines[i].substring(lineLower.indexOf(keyword) + keyword.length).trim();
+        if (afterKeyword.length > 3) {
+          return afterKeyword;
+        }
+      }
+    }
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === trimmed.toUpperCase() && 
+        trimmed.length > 5 &&
+        (trimmed.endsWith('GMBH') || trimmed.endsWith('AG') || trimmed.endsWith('UG'))) {
+      return trimmed;
+    }
+  }
+
+  return undefined;
+}
+
+function guessEmploymentPermission(text: string): OcrExtractionResult['employmentPermissionGuess'] {
+  const lower = text.toLowerCase();
+
+  if (lower.includes('erwerbstätigkeit erlaubt') || 
+      lower.includes('beschäftigung gestattet') ||
+      lower.includes('any employment permitted') ||
+      lower.includes('employment permitted')) {
+    return 'ANY_EMPLOYMENT_ALLOWED';
+  }
+
+  if (lower.includes('nur bei') ||
+      lower.includes('nur als') ||
+      lower.includes('nur in') ||
+      lower.includes('beschäftigung nur bei') ||
+      lower.includes('beschäftigung nur als') ||
+      lower.includes('employment only')) {
+    return 'RESTRICTED';
+  }
+
+  return 'UNKNOWN';
 }

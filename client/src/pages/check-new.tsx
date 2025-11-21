@@ -32,6 +32,8 @@ interface OcrExtractionResult {
   documentTypeGuess?: 'EU_BLUE_CARD' | 'EAT' | 'FIKTIONSBESCHEINIGUNG' | 'OTHER';
   documentNumberGuess?: string;
   expiryDateGuessIso?: string;
+  employerNameGuess?: string;
+  employmentPermissionGuess?: 'ANY_EMPLOYMENT_ALLOWED' | 'RESTRICTED' | 'UNKNOWN';
   error?: string;
   message?: string;
 }
@@ -103,6 +105,8 @@ export default function CheckNew() {
           documentTypeGuess: ocrResult.documentTypeGuess,
           documentNumberGuess: ocrResult.documentNumberGuess,
           expiryDateGuessIso: ocrResult.expiryDateGuessIso,
+          employerNameGuess: ocrResult.employerNameGuess,
+          employmentPermissionGuess: ocrResult.employmentPermissionGuess,
         } : undefined,
       };
       return await apiRequest("POST", "/api/checks", payload);

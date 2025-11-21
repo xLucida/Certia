@@ -1,0 +1,216 @@
+Replit settings for this task:
+- Autonomy: Autonomous – Medium
+- App testing: ON
+
+General instructions:
+- Be minimal and efficient with changes and explanations.
+- Only modify files directly needed for this task.
+- Do NOT refactor or rebuild unrelated parts of the app.
+- Do NOT change the database schema.
+- Keep explanations under 3 bullets and reuse existing patterns.
+
+Context:
+- Project: RightToWorkDE (upload-first German right-to-work checker).
+- OCR is implemented in `lib/ocr.ts` and exposed via `/api/ocr/extract` in `server/routes.ts`.
+- New checks are created via `/api/checks`, and OCR audit data is passed from the frontend (`check-new.tsx`) as `ocrRawText` and `ocrExtractedFields`.
+- Check decision and audit trail UI live in `client/src/components/check-components.tsx`.
+- Routing is handled with wouter in `client/src/App.tsx`.
+- Main navigation is in `client/src/components/Header.tsx`.
+- Product goal: upload-first, minimal typing, clear explanations, and transparent “what we could / could not determine”.
+
+TASK 1 — Extend OCR result with “employer” + “employment permission” guesses (backend)
+
+Goal: Add ONE extra “smart” guess from OCR without changing the rules engine, just surfacing hints in the audit trail.
+
+1) In `lib/ocr.ts`, extend `OcrExtractionResult`:
+
+- Add:
+  - `employerNameGuess?: string;`
+  - `employmentPermissionGuess?: 'ANY_EMPLOYMENT_ALLOWED' | 'RESTRICTED' | 'UNKNOWN';`
+
+2) In `extractFieldsFromDocument`, after `const rawText = ...`, and in the returned object, include two new helper calls:
+
+- `employerNameGuess: guessEmployerName(rawText),`
+- `employmentPermissionGuess: guessEmploymentPermission(rawText),`
+
+3) Implement two helper functions in the same file (below `guessExpiryDate` is fine):
+
+- `function guessEmployerName(text: string): string | undefined`:
+  - Strategy:
+    - Split into lines.
+    - Look for lines containing keywords like:
+      - `"arbeitgeber"`, `"employer"`, `"firma"`, `"company"`.
+    - If found:
+      - First try the **next line** as the employer name (trim whitespace, ignore very short lines).
+      - If not usable, use the part of the same line after the keyword.
+    - As a fallback, if any line looks like an ALL CAPS company name ending with `GMBH`, `AG`, or `UG`, return that.
+    - Otherwise return `undefined`.
+
+- `function guessEmploymentPermission(text: string): OcrExtractionResult['employmentPermissionGuess']`:
+  - Convert to lowercase once: `const lower = text.toLowerCase()`.
+  - If `lower` includes **any** of:
+    - `"erwerbstätigkeit erlaubt"`, `"beschäftigung gestattet"`, `"any employment permitted"`, `"employment permitted"`
+    - → return `'ANY_EMPLOYMENT_ALLOWED'`.
+  - Else if `lower` includes indications of restriction, e.g.:
+    - `"nur bei"`, `"nur als"`, `"nur in"`, `"beschäftigung nur bei"`, `"beschäftigung nur als"`, `"employment only"`
+    - → return `'RESTRICTED'`.
+  - Else:
+    - → return `'UNKNOWN'`.
+
+Keep the existing document type / number / expiry logic exactly as-is.
+
+TASK 2 — Mirror the new OCR fields on the frontend
+
+Goal: Keep types in sync so we can store the extra guesses in the audit trail.
+
+4) In `client/src/pages/check-new.tsx`, update the local `OcrExtractionResult` interface:
+
+- Add:
+  - `employerNameGuess?: string;`
+  - `employmentPermissionGuess?: 'ANY_EMPLOYMENT_ALLOWED' | 'RESTRICTED' | 'UNKNOWN';`
+
+5) In the `createMutation` payload inside `check-new.tsx`, extend `ocrExtractedFields` so we store the new guesses:
+
+Currently:
+
+```ts
+ocrExtractedFields: ocrResult ? {
+  documentTypeGuess: ocrResult.documentTypeGuess,
+  documentNumberGuess: ocrResult.documentNumberGuess,
+  expiryDateGuessIso: ocrResult.expiryDateGuessIso,
+} : undefined,
+Update it to:
+
+ts
+Copy code
+ocrExtractedFields: ocrResult ? {
+  documentTypeGuess: ocrResult.documentTypeGuess,
+  documentNumberGuess: ocrResult.documentNumberGuess,
+  expiryDateGuessIso: ocrResult.expiryDateGuessIso,
+  employerNameGuess: ocrResult.employerNameGuess,
+  employmentPermissionGuess: ocrResult.employmentPermissionGuess,
+} : undefined,
+Do NOT change any other form behaviour (no new auto-fill, no extra required fields).
+
+TASK 3 — Surface the new guesses nicely in the audit trail
+
+Goal: Make these guesses visible under “Document scan details” without changing eligibility logic.
+
+In client/src/components/check-components.tsx, inside CheckAuditTrail:
+
+After you parse extractedFieldsObj from check.ocrExtractedFields, derive:
+
+ts
+Copy code
+const employerNameGuess = extractedFieldsObj?.employerNameGuess as string | undefined;
+const employmentPermissionGuess = extractedFieldsObj?.employmentPermissionGuess as
+  | 'ANY_EMPLOYMENT_ALLOWED'
+  | 'RESTRICTED'
+  | 'UNKNOWN'
+  | undefined;
+Above the existing JSON <pre> of Extracted Fields, add a small “Scan insights” section that only renders if at least one of these is present:
+
+Heading: "Scan insights"
+
+If employerNameGuess exists, show something like:
+
+"Possible employer name: {employerNameGuess}"
+
+If employmentPermissionGuess exists, map it to human-readable text, e.g.:
+
+ANY_EMPLOYMENT_ALLOWED → "Employment permission: likely any employment allowed"
+
+RESTRICTED → "Employment permission: likely restricted (e.g. employer/role-specific)"
+
+UNKNOWN → "Employment permission: not clear from the scan"
+
+Keep the existing JSON <pre> block so power users can still see the raw object.
+
+Do NOT change anything in the rules engine or decision logic; this is purely UI insight.
+
+TASK 4 — Add a Help / FAQ page + navigation
+
+Goal: Give non-technical users a single place to understand what RTW-DE does, doesn’t do, and how OCR + data handling work.
+
+Create a new page file: client/src/pages/help.tsx.
+
+It should:
+
+Use the existing <Header />.
+
+Use the same general layout pattern as landing.tsx / dashboard.tsx (max-width container, spacing).
+
+Include a main heading like: "Help & FAQ".
+
+Suggested sections (feel free to implement as simple stacked cards or headings + paragraphs):
+
+What RTW-DE does
+
+Short explanation: upload German residence documents (e.g. EU Blue Card, eAT, Fiktionsbescheinigung), get a structured screening: eligibility status + what’s clear + what needs manual review.
+
+What RTW-DE does NOT do
+
+Clarify: it’s not legal advice, not a replacement for official checks with Ausländerbehörde, and final hiring decisions remain with HR/legal.
+
+Which documents work best
+
+Mention: EU Blue Card, elektronischer Aufenthaltstitel (eAT), Fiktionsbescheinigung are the primary focus right now.
+
+How OCR & auto-fill work
+
+Explain at a high level: the system scans text, tries to auto-fill document type, number, expiry and now some hints like employer/permission.
+
+Emphasize there can be errors; HR must review the auto-filled values before saving.
+
+Data storage & deletion
+
+Explain: checks and OCR scan data are stored as part of the audit trail.
+
+Mention: HR can delete a check at any time, which also removes the stored OCR text for that check.
+
+Keep the copy concise and practical (no marketing fluff).
+
+Wire the Help page into the router and header:
+
+In client/src/App.tsx:
+
+Import the new Help page: import Help from "@/pages/help";
+
+Add a route inside <Switch>:
+
+<Route path="/help" component={Help} />
+
+In client/src/components/Header.tsx:
+
+In the main <nav> block (next to Dashboard / Employees / New Check / Import), add a new nav item:
+
+Help / FAQ linking to "/help".
+
+Example pattern (matching existing buttons):
+
+tsx
+Copy code
+<Link href="/help" data-testid="link-help">
+  <Button variant="ghost" className="font-medium">
+    Help / FAQ
+  </Button>
+</Link>
+Constraints recap:
+
+Do NOT touch the rules engine in lib/rightToWork.ts.
+
+Do NOT add any new required fields to the New Check form.
+
+Do NOT change the database schema.
+
+Only:
+
+Extend OCR result shape,
+
+Pass the extra guesses through to ocrExtractedFields,
+
+Surface them in the audit trail,
+
+Add the Help page + /help route + header link.
+
+Keep new UI minimal, consistent with existing design, and mobile-frien

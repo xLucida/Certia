@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, LogOut, Building2 } from "lucide-react";
+import { User, LogOut, Building2, HelpCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export function Header() {
@@ -51,6 +51,12 @@ export function Header() {
             <Link href="/import" data-testid="link-bulk-import">
               <Button variant="ghost" className="font-medium">
                 Import
+              </Button>
+            </Link>
+            <Link href="/help" data-testid="link-help">
+              <Button variant="ghost" className="font-medium">
+                <HelpCircle className="h-4 w-4 mr-2" />
+                Help
               </Button>
             </Link>
           </nav>
