@@ -1,0 +1,53 @@
+Replit settings:
+- Autonomy: Autonomous – Medium
+- App testing: OFF (copy + frontend only)
+
+Goal:
+Rename the product from “RTW-DE” to “Certia” and update key marketing copy to reflect the new brand, without changing any backend logic or database schema.
+
+General instructions:
+- FRONTEND ONLY: modify React/Tailwind/client files and static text. Do NOT touch server code, lib/rightToWork.ts, lib/ocr.ts, or schema/migrations.
+- Be minimal and precise. Only change text/labels and, if needed, minor layout to accommodate new copy.
+- Keep all routes, components, and behavior identical.
+
+Tasks:
+
+1) Brand rename:
+- Replace visible “RTW-DE” branding in:
+  - App header / top-left logo
+  - Sidebar navigation
+  - Browser <title> / meta where applicable
+- New name: “Certia”
+- Where space allows (e.g., sidebar under logo), add a small subtitle: “Right-to-work for Germany”.
+
+2) Landing hero copy:
+- H1: “Right-to-Work Clarity for Germany”
+- Subheadline: “Manage work eligibility, visa documents, and expiries in one place. Upload German residence permits and get a clear, structured right-to-work decision for every employee.”
+- Primary CTA button text: “Get Started with Certia”.
+- Update the four feature cards descriptions to:
+  - Document Management: “Store and organize all visa and work-permit documents in one secure workspace.”
+  - Automated Checks: “Turn German residence documents into structured right-to-work decisions with clear reasons.”
+  - Expiry Alerts: “See which documents are expiring soon and act before work authorization lapses.”
+  - Stay Compliant: “Give HR a simple system to monitor work eligibility and document history over time.”
+- “Simplified HR Compliance” section:
+  - Title: “Simplified Right-to-Work Compliance”
+  - Body: “Certia helps HR teams manage right-to-work compliance for employees in Germany. Track EU Blue Cards, EAT permits, Fiktionsbescheinigungen, and other residence titles with automated eligibility checks, audit-friendly history, and expiry monitoring.”
+
+3) Dashboard description:
+- Under the main “Dashboard” heading, add or update a short description line:
+  - “Overview of employees, right-to-work checks, and upcoming visa expiries.”
+- Ensure metric cards still read:
+  - Total employees: “Active employee records”
+  - Eligible workers: “Currently authorized to work”
+  - Expiring soon: “Documents expiring within 60 days”
+
+4) Footer:
+- Change any footer text:
+  - From: “© 2024 RTW-DE. All rights reserved.”
+  - To:   “© 2024 Certia. All rights reserved.”
+- If there is a tagline line, use: “Certia – right-to-work clarity for German HR.”
+
+Constraints:
+- Do NOT alter any API calls, enums, or internal identifiers named RTW-DE in code unless they are purely visual labels. If unsure, leave them as-is.
+- Do NOT change environment variables or database names.
+- Keep all layout responsive and aligned after copy changes.
