@@ -193,7 +193,7 @@ export default function Dashboard() {
     <div className="max-w-7xl mx-auto px-6 py-8">
       <div className="space-y-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Dashboard</h1>
             <div className="flex gap-2 flex-wrap">
               {import.meta.env.MODE !== 'production' && (
                 <Button 
@@ -226,11 +226,11 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="border-l-4 border-l-primary/40 bg-gradient-to-br from-card to-background">
+            <Card className="card-hover border-l-4 border-l-primary/40 bg-gradient-to-br from-card to-background shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Total Employees</CardTitle>
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-primary" />
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Total Employees</CardTitle>
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                  <Users className="h-6 w-6 text-primary" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -241,11 +241,11 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-accent/60 bg-gradient-to-br from-card to-background">
+            <Card className="card-hover border-l-4 border-l-accent/60 bg-gradient-to-br from-card to-background shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Eligible Workers</CardTitle>
-                <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center">
-                  <CheckCircle className="h-5 w-5 text-accent" />
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Eligible Workers</CardTitle>
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center">
+                  <CheckCircle className="h-6 w-6 text-accent" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -256,11 +256,11 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-amber-500/60 bg-gradient-to-br from-card to-background">
+            <Card className="card-hover border-l-4 border-l-amber-500/60 bg-gradient-to-br from-card to-background shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Expiring Soon</CardTitle>
-                <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Expiring Soon</CardTitle>
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-500" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -294,33 +294,41 @@ export default function Dashboard() {
             </Alert>
           )}
 
-          <Card>
-            <CardHeader>
+          <Card className="border-2 shadow-sm bg-gradient-to-br from-card to-background">
+            <CardHeader className="border-b bg-amber-50/50 dark:bg-amber-950/10">
               <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-base font-semibold">
-                  Cases requiring review
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  {openCases.length} open · {resolvedCases.length} resolved on this device
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+                  </div>
+                  <CardTitle className="text-lg font-bold">
+                    Cases requiring review
+                  </CardTitle>
+                </div>
+                <p className="text-sm text-muted-foreground font-medium">
+                  {openCases.length} open · {resolvedCases.length} resolved
                 </p>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="p-6">
               {casesRequiringReview.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  No checks currently require manual review. You&apos;re all caught up.
-                </p>
+                <div className="flex items-center gap-3 text-muted-foreground p-4 bg-muted/30 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-accent" />
+                  <p className="text-sm">
+                    No checks currently require manual review. You&apos;re all caught up.
+                  </p>
+                </div>
               )}
 
               {openCases.length > 0 && (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto -mx-6 px-6">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-muted/30">
-                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Person</TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Expiry</TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Actions</TableHead>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Person</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Status</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Expiry</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -329,23 +337,25 @@ export default function Dashboard() {
                         if (!check) return null;
                         const name = `${row.firstName} ${row.lastName}`.trim() || "Unnamed";
                         return (
-                          <TableRow key={check.id} data-testid={`row-case-${check.id}`}>
-                            <TableCell>{name}</TableCell>
+                          <TableRow key={check.id} className="hover:bg-muted/50 transition-colors" data-testid={`row-case-${check.id}`}>
+                            <TableCell className="font-medium">{name}</TableCell>
                             <TableCell>
                               <StatusBadge status={check.workStatus} />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="text-muted-foreground">
                               {check.expiryDate ? formatDate(check.expiryDate) : "—"}
                             </TableCell>
                             <TableCell className="flex flex-wrap gap-2">
                               <Link href={row.isStandalone ? `/checks/${check.id}` : `/employees/${row.id}`}>
-                                <Button variant="outline" size="sm" data-testid={`button-view-case-${check.id}`}>
-                                  View check
+                                <Button variant="outline" size="sm" className="button-transition" data-testid={`button-view-case-${check.id}`}>
+                                  <Eye className="h-3.5 w-3.5 mr-1.5" />
+                                  View
                                 </Button>
                               </Link>
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="button-transition"
                                 onClick={() => {
                                   const checkId = check.id;
                                   setResolvedCaseIds(prev =>
@@ -354,7 +364,8 @@ export default function Dashboard() {
                                 }}
                                 data-testid={`button-mark-reviewed-${check.id}`}
                               >
-                                Mark as reviewed
+                                <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                                Mark reviewed
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -367,10 +378,10 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
+          <Card className="border-2 shadow-sm">
+            <CardHeader className="border-b bg-muted/20">
               <div className="flex items-center justify-between flex-wrap gap-4">
-                <CardTitle>Employees & Work Status</CardTitle>
+                <CardTitle className="text-xl font-bold">Employees & Work Status</CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -481,11 +492,11 @@ export default function Dashboard() {
                   <table className="w-full" data-testid="table-employees">
                     <thead className="border-b bg-muted/30">
                       <tr className="text-left">
-                        <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Employee</th>
-                        <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Document Type</th>
-                        <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
-                        <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Expiry Date</th>
-                        <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">Employee</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">Document Type</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">Expiry Date</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -494,7 +505,7 @@ export default function Dashboard() {
                         return (
                           <tr 
                             key={row.id} 
-                            className={`hover-elevate active-elevate-2 transition-colors ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}
+                            className="hover:bg-muted/50 transition-colors duration-150"
                             data-testid={`row-${row.isStandalone ? 'candidate' : 'employee'}-${row.id}`}
                           >
                             <td className="px-6 py-4">
@@ -543,7 +554,7 @@ export default function Dashboard() {
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
                                 <Link href={row.isStandalone ? `/checks/${row.id}` : `/employees/${row.id}`}>
-                                  <Button variant="ghost" size="sm" data-testid={`button-view-${row.id}`}>
+                                  <Button variant="ghost" size="sm" className="button-transition" data-testid={`button-view-${row.id}`}>
                                     <Eye className="h-4 w-4 mr-1" />
                                     View
                                   </Button>
