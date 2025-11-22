@@ -1,7 +1,44 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { HelpCircle, CheckCircle, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { HelpCircle, CheckCircle, AlertCircle, Check, X, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Help() {
+  const [ocrRawText, setOcrRawText] = useState("");
+  const [ocrExtractedFields, setOcrExtractedFields] = useState("");
+  const [currentRulesStatus, setCurrentRulesStatus] = useState("NEEDS_REVIEW");
+  const [isLoading, setIsLoading] = useState(false);
+  const [testResult, setTestResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleRunTest = async () => {
+    setIsLoading(true);
+    setError(null);
+    setTestResult(null);
+
+    try {
+      const response = await apiRequest("/api/venice/test", {
+        method: "POST",
+        body: JSON.stringify({
+          ocrRawText,
+          ocrExtractedFields,
+          currentRulesStatus,
+        }),
+      });
+
+      setTestResult(response);
+    } catch (err) {
+      setError("Failed to run Venice test. Please check your connection.");
+      console.error("Venice test error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
       <div className="space-y-8">
@@ -170,6 +207,156 @@ export default function Help() {
                       Manual review by HR or legal counsel is recommended. This is the conservative default when information is incomplete.
                     </p>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 shadow-sm border-primary/20">
+              <CardHeader className="border-b bg-gradient-to-br from-primary/5 to-background">
+                <CardTitle className="text-xl">AI Diagnostics (Venice.ai)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <p className="text-muted-foreground">
+                  Use this section to verify that Certia's AI decision engine (Venice.ai) is configured correctly and to run quick test decisions. 
+                  This is for internal testing only.
+                </p>
+
+                {testResult && (
+                  <div className="space-y-4 p-4 rounded-lg bg-muted/30 border">
+                    <div className="space-y-2">
+                      <p className="font-semibold text-sm">Configuration Status:</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          {testResult.config?.hasApiKey ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-600" />
+                          )}
+                          <span>API Key {testResult.config?.hasApiKey ? "configured" : "missing"}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          {testResult.config?.hasModelId ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-red-600" />
+                          )}
+                          <span>Model ID {testResult.config?.hasModelId ? "configured" : "missing"}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          {testResult.config?.hasBaseUrl ? (
+                            <Check className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <X className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <span>Base URL {testResult.config?.hasBaseUrl ? "configured" : "default"}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {testResult.aiReview && (
+                      <div className="space-y-3 pt-4 border-t">
+                        <p className="font-semibold text-sm">AI Decision:</p>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={
+                              testResult.aiReview.status === "ELIGIBLE"
+                                ? "default"
+                                : testResult.aiReview.status === "NOT_ELIGIBLE"
+                                ? "destructive"
+                                : "secondary"
+                            }
+                            data-testid={`badge-ai-status-${testResult.aiReview.status.toLowerCase()}`}
+                          >
+                            {testResult.aiReview.status}
+                          </Badge>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="font-semibold text-sm">Explanation:</p>
+                          <p className="text-sm text-muted-foreground">{testResult.aiReview.explanation}</p>
+                        </div>
+                        {testResult.aiReview.missingInformation && testResult.aiReview.missingInformation.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="font-semibold text-sm">Missing Information:</p>
+                            <ul className="list-disc list-inside space-y-1">
+                              {testResult.aiReview.missingInformation.map((item: string, idx: number) => (
+                                <li key={idx} className="text-sm text-muted-foreground">
+                                  {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {error && (
+                  <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                )}
+
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <label htmlFor="ocr-raw-text" className="text-sm font-medium">
+                      OCR Raw Text
+                    </label>
+                    <Textarea
+                      id="ocr-raw-text"
+                      placeholder="Paste OCR text from a German residence document here..."
+                      value={ocrRawText}
+                      onChange={(e) => setOcrRawText(e.target.value)}
+                      rows={4}
+                      data-testid="textarea-ocr-raw-text"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="ocr-extracted-fields" className="text-sm font-medium">
+                      Extracted Fields JSON (optional)
+                    </label>
+                    <Textarea
+                      id="ocr-extracted-fields"
+                      placeholder='{"documentType": "EU_BLUE_CARD", "expiryDate": "2026-12-31"}'
+                      value={ocrExtractedFields}
+                      onChange={(e) => setOcrExtractedFields(e.target.value)}
+                      rows={3}
+                      data-testid="textarea-extracted-fields"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="rules-status" className="text-sm font-medium">
+                      Current Rules Status
+                    </label>
+                    <Select value={currentRulesStatus} onValueChange={setCurrentRulesStatus}>
+                      <SelectTrigger id="rules-status" data-testid="select-rules-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ELIGIBLE">ELIGIBLE</SelectItem>
+                        <SelectItem value="NOT_ELIGIBLE">NOT_ELIGIBLE</SelectItem>
+                        <SelectItem value="NEEDS_REVIEW">NEEDS_REVIEW</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button
+                    onClick={handleRunTest}
+                    disabled={isLoading}
+                    className="w-full"
+                    data-testid="button-run-ai-test"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Running test...
+                      </>
+                    ) : (
+                      "Run AI Test"
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
