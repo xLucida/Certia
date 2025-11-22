@@ -1,6 +1,20 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
-const PUBLIC_UPLOAD_SECRET = process.env.PUBLIC_UPLOAD_SECRET || "dev-public-upload-secret";
+function getPublicUploadSecret(): string {
+  const secret = process.env.PUBLIC_UPLOAD_SECRET;
+  
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("PUBLIC_UPLOAD_SECRET environment variable must be set in production");
+    }
+    console.warn("⚠️  WARNING: Using fixed development PUBLIC_UPLOAD_SECRET. Set PUBLIC_UPLOAD_SECRET env var for production!");
+    return "certia-dev-secret-do-not-use-in-production-replace-with-env-var";
+  }
+  
+  return secret;
+}
+
+const PUBLIC_UPLOAD_SECRET = getPublicUploadSecret();
 
 export type PublicUploadPayload = {
   uid: string;      // employer userId

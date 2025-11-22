@@ -24,11 +24,11 @@ export default function EmployeeDetail() {
 
   const generateLinkMutation = useMutation({
     mutationFn: async (empId: string) => {
-      return apiRequest<{ token: string; urlPath: string; expiresAt: number }>({
-        url: "/api/public-upload/link",
-        method: "POST",
-        body: { employeeId: empId, expiresInDays: 14 },
+      const response = await apiRequest("POST", "/api/public-upload/link", { 
+        employeeId: empId, 
+        expiresInDays: 14 
       });
+      return await response.json();
     },
     onSuccess: async (data) => {
       const fullUrl = `${window.location.origin}${data.urlPath}`;
