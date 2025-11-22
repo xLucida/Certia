@@ -280,56 +280,56 @@ export default function CheckNew() {
       <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Link href="/employees">
-              <Button variant="ghost" size="sm" data-testid="button-back">
+              <Button variant="ghost" size="sm" className="button-transition" data-testid="button-back">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
             </Link>
-            <h1 className="text-3xl font-semibold" data-testid="text-page-title">New Right-to-Work Check</h1>
+            <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">New Right-to-Work Check</h1>
           </div>
 
-          <div className="flex items-center justify-between max-w-md mx-auto">
-            <div className="flex flex-col items-center gap-2 flex-1">
-              <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 ${currentStep >= 1 ? 'bg-primary border-primary text-primary-foreground' : 'bg-muted border-muted-foreground/20 text-muted-foreground'}`}>
-                <Upload className="h-5 w-5" />
+          <div className="flex items-center justify-between max-w-2xl mx-auto py-4">
+            <div className="flex flex-col items-center gap-2.5 flex-1">
+              <div className={`h-12 w-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${currentStep >= 1 ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg shadow-primary/25' : 'bg-muted border-muted-foreground/20 text-muted-foreground'}`}>
+                <Upload className="h-6 w-6" />
               </div>
-              <span className={`text-xs font-medium ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>Upload</span>
+              <span className={`text-sm font-semibold transition-colors ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>Upload</span>
             </div>
-            <div className={`h-0.5 flex-1 ${currentStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
-            <div className="flex flex-col items-center gap-2 flex-1">
-              <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 ${currentStep >= 2 ? 'bg-primary border-primary text-primary-foreground' : 'bg-muted border-muted-foreground/20 text-muted-foreground'}`}>
-                <FileText className="h-5 w-5" />
+            <div className={`h-1 flex-1 mx-4 rounded-full transition-all duration-500 ${currentStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
+            <div className="flex flex-col items-center gap-2.5 flex-1">
+              <div className={`h-12 w-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${currentStep >= 2 ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg shadow-primary/25' : 'bg-muted border-muted-foreground/20 text-muted-foreground'}`}>
+                <FileText className="h-6 w-6" />
               </div>
-              <span className={`text-xs font-medium ${currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>Review</span>
+              <span className={`text-sm font-semibold transition-colors ${currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>Review</span>
             </div>
-            <div className={`h-0.5 flex-1 ${currentStep >= 3 ? 'bg-primary' : 'bg-muted'}`} />
-            <div className="flex flex-col items-center gap-2 flex-1">
-              <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 ${currentStep >= 3 ? 'bg-primary border-primary text-primary-foreground' : 'bg-muted border-muted-foreground/20 text-muted-foreground'}`}>
-                <CheckCircle className="h-5 w-5" />
+            <div className={`h-1 flex-1 mx-4 rounded-full transition-all duration-500 ${currentStep >= 3 ? 'bg-primary' : 'bg-muted'}`} />
+            <div className="flex flex-col items-center gap-2.5 flex-1">
+              <div className={`h-12 w-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${currentStep >= 3 ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg shadow-primary/25' : 'bg-muted border-muted-foreground/20 text-muted-foreground'}`}>
+                <CheckCircle className="h-6 w-6" />
               </div>
-              <span className={`text-xs font-medium ${currentStep >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>Confirm</span>
+              <span className={`text-sm font-semibold transition-colors ${currentStep >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>Confirm</span>
             </div>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Check Details</CardTitle>
+          <Card className="border-2 shadow-sm">
+            <CardHeader className="border-b bg-muted/20">
+              <CardTitle className="text-xl">Check Details</CardTitle>
               <CardDescription>
                 Perform a right-to-work check for a new candidate or existing employee
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="mb-8 p-6 border-2 border-primary/20 rounded-lg bg-primary/5">
+            <CardContent className="pt-6">
+              <div className="mb-8 p-6 border-2 border-primary/20 rounded-xl bg-gradient-to-br from-primary/5 to-background shadow-sm">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0">
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Sparkles className="h-6 w-6 text-primary" />
+                    <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                      <Sparkles className="h-7 w-7 text-primary" />
                     </div>
                   </div>
                   <div className="flex-1 space-y-3">
                     <div>
-                      <p className="text-base font-semibold">Step 1: Upload Document</p>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-base font-bold">Step 1: Upload Document</p>
+                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                         Upload your visa document to automatically extract key fields. We'll analyze it and pre-fill the form below.
                       </p>
                     </div>
@@ -369,9 +369,9 @@ export default function CheckNew() {
                 </div>
               </div>
 
-              <div className="mb-6">
-                <h3 className="text-sm font-medium mb-4">Step 2: Review & Corrections</h3>
-                <p className="text-xs text-muted-foreground mb-6">
+              <div className="mb-6 p-4 bg-muted/30 rounded-lg border">
+                <h3 className="text-base font-bold mb-2">Step 2: Review & Corrections</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Review the auto-filled fields below and make corrections as needed. Fields marked with ✨ were extracted from your document.
                 </p>
               </div>
