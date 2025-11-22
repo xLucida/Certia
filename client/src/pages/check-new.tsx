@@ -19,7 +19,7 @@ import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import type { z } from "zod";
 import type { Employee } from "@shared/schema";
 import type { UploadResult } from "@uppy/core";
-import { ArrowLeft, FileText, Upload, UserPlus, Users, Sparkles, AlertCircle } from "lucide-react";
+import { ArrowLeft, FileText, Upload, UserPlus, Users, Sparkles, AlertCircle, CheckCircle } from "lucide-react";
 import { Link } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -273,6 +273,8 @@ export default function CheckNew() {
     setIsSubmitting(false);
   };
 
+  const currentStep = !uploadedFileUrl ? 1 : !ocrConfirmed && ocrAutofilled ? 2 : 2;
+
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
       <div className="space-y-6">
@@ -284,6 +286,29 @@ export default function CheckNew() {
               </Button>
             </Link>
             <h1 className="text-3xl font-semibold" data-testid="text-page-title">New Right-to-Work Check</h1>
+          </div>
+
+          <div className="flex items-center justify-between max-w-md mx-auto">
+            <div className="flex flex-col items-center gap-2 flex-1">
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 ${currentStep >= 1 ? 'bg-primary border-primary text-primary-foreground' : 'bg-muted border-muted-foreground/20 text-muted-foreground'}`}>
+                <Upload className="h-5 w-5" />
+              </div>
+              <span className={`text-xs font-medium ${currentStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>Upload</span>
+            </div>
+            <div className={`h-0.5 flex-1 ${currentStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
+            <div className="flex flex-col items-center gap-2 flex-1">
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 ${currentStep >= 2 ? 'bg-primary border-primary text-primary-foreground' : 'bg-muted border-muted-foreground/20 text-muted-foreground'}`}>
+                <FileText className="h-5 w-5" />
+              </div>
+              <span className={`text-xs font-medium ${currentStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>Review</span>
+            </div>
+            <div className={`h-0.5 flex-1 ${currentStep >= 3 ? 'bg-primary' : 'bg-muted'}`} />
+            <div className="flex flex-col items-center gap-2 flex-1">
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 ${currentStep >= 3 ? 'bg-primary border-primary text-primary-foreground' : 'bg-muted border-muted-foreground/20 text-muted-foreground'}`}>
+                <CheckCircle className="h-5 w-5" />
+              </div>
+              <span className={`text-xs font-medium ${currentStep >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>Confirm</span>
+            </div>
           </div>
 
           <Card>

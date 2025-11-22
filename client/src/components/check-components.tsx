@@ -1,10 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { StatusBadge } from "@/components/StatusBadge";
-import { AlertCircle, ChevronDown, FileText, Download } from "lucide-react";
+import { AlertCircle, ChevronDown, FileText, Download, CheckCircle, XCircle, AlertTriangle, Badge as BadgeIcon } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import type { RightToWorkCheck } from "@shared/schema";
+import { Badge } from "@/components/ui/badge";
 
 interface CheckDecisionPanelProps {
   check: RightToWorkCheck;
@@ -19,21 +20,74 @@ export function CheckDecisionPanel({ check, showLatestBadge = false }: CheckDeci
     !detail.startsWith('We could not determine from the information provided')
   ) || [];
 
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'ELIGIBLE':
+        return {
+          icon: CheckCircle,
+          bgClass: 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800',
+          iconClass: 'text-green-600 dark:text-green-400',
+          textClass: 'text-green-900 dark:text-green-100',
+          title: 'Eligible to Work',
+          subtitle: 'This individual is authorized to work in Germany',
+        };
+      case 'NOT_ELIGIBLE':
+        return {
+          icon: XCircle,
+          bgClass: 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800',
+          iconClass: 'text-red-600 dark:text-red-400',
+          textClass: 'text-red-900 dark:text-red-100',
+          title: 'Not Eligible',
+          subtitle: 'Work authorization could not be confirmed',
+        };
+      case 'NEEDS_REVIEW':
+      default:
+        return {
+          icon: AlertTriangle,
+          bgClass: 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800',
+          iconClass: 'text-amber-600 dark:text-amber-400',
+          textClass: 'text-amber-900 dark:text-amber-100',
+          title: 'Needs Review',
+          subtitle: 'Manual review required to confirm work eligibility',
+        };
+    }
+  };
+
+  const statusConfig = getStatusConfig(check.workStatus);
+  const StatusIcon = statusConfig.icon;
+
   return (
     <Card data-testid={`card-check-${check.id}`}>
-      <CardHeader>
-        <div className="flex items-start justify-between flex-wrap gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <StatusBadge status={check.workStatus} />
+      <div className={`p-6 border-b ${statusConfig.bgClass}`}>
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0">
+            <div className={`h-12 w-12 rounded-full ${statusConfig.bgClass} flex items-center justify-center border-2`}>
+              <StatusIcon className={`h-6 w-6 ${statusConfig.iconClass}`} />
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h3 className={`text-xl font-semibold ${statusConfig.textClass}`}>
+                {statusConfig.title}
+              </h3>
               {showLatestBadge && (
-                <span className="text-xs text-muted-foreground">Latest</span>
+                <Badge variant="secondary" className="text-xs">
+                  <BadgeIcon className="h-3 w-3 mr-1" />
+                  Latest Check
+                </Badge>
               )}
             </div>
-            <CardTitle className="text-lg">
-              {formatDocumentType(check.documentType)}
-            </CardTitle>
+            <p className={`text-sm mt-1 ${statusConfig.textClass} opacity-90`}>
+              {statusConfig.subtitle}
+            </p>
           </div>
+        </div>
+      </div>
+      <CardHeader>
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <CardTitle className="text-lg">
+            {formatDocumentType(check.documentType)}
+          </CardTitle>
           <div className="text-right text-sm text-muted-foreground">
             <p>Created {check.createdAt ? formatDate(check.createdAt instanceof Date ? check.createdAt.toISOString() : check.createdAt) : '—'}</p>
           </div>
@@ -174,14 +228,35 @@ export function CheckAuditTrail({ check }: CheckAuditTrailProps) {
         <Card className="mt-2">
           <CardContent className="pt-6 space-y-4">
             {hasInsights && (
-              <div className="p-3 rounded-lg bg-muted/30 border border-muted">
-                <p className="text-sm font-medium mb-2">Scan Insights</p>
-                <div className="space-y-1 text-sm text-muted-foreground">
+              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-semibold text-primary">Scan Insights</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
                   {employerNameGuess && (
-                    <p>Possible employer name: <span className="font-medium">{employerNameGuess}</span></p>
+                    <Badge variant="secondary" className="gap-1.5">
+                      <span className="text-xs text-muted-foreground">Employer:</span>
+                      <span className="font-medium">{employerNameGuess}</span>
+                    </Badge>
                   )}
-                  {employmentPermissionGuess && (
-                    <p>{getPermissionLabel(employmentPermissionGuess)}</p>
+                  {employmentPermissionGuess === 'ANY_EMPLOYMENT_ALLOWED' && (
+                    <Badge variant="secondary" className="gap-1.5 bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800">
+                      <CheckCircle className="h-3 w-3" />
+                      <span>Any employment allowed</span>
+                    </Badge>
+                  )}
+                  {employmentPermissionGuess === 'RESTRICTED' && (
+                    <Badge variant="secondary" className="gap-1.5 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span>Restricted employment</span>
+                    </Badge>
+                  )}
+                  {employmentPermissionGuess === 'UNKNOWN' && (
+                    <Badge variant="secondary" className="gap-1.5">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>Permission unclear</span>
+                    </Badge>
                   )}
                 </div>
               </div>
