@@ -2,7 +2,7 @@
 
 ## Overview
 
-RTW-DE is an HR compliance SaaS application designed to manage employee right-to-work eligibility in Germany. It provides HR teams with tools to track visa documentation, assess work authorization status, and monitor expiry dates for various German work permits like EU Blue Cards, Employment Authorization Titles (EAT), and Fiktionsbescheinigung documents. The system supports full CRUD operations for employee management, bulk employee imports, and dual-mode right-to-work checks for both pre-employment candidates and existing employees. It features automated eligibility evaluation based on German visa rules, document upload and storage, and a unified dashboard with advanced filtering capabilities. The application aims to offer a premium user experience inspired by Linear and Stripe.
+RTW-DE is an HR compliance SaaS application designed to manage employee right-to-work eligibility in Germany. It provides HR teams with tools to track visa documentation, assess work authorization status, and monitor expiry dates for various German work permits like EU Blue Cards, Employment Authorization Titles (EAT), and Fiktionsbescheinigung documents. The system supports full CRUD operations for employee management, bulk employee imports, and dual-mode right-to-work checks for both pre-employment candidates and existing employees. It features automated eligibility evaluation based on German visa rules, document upload and storage, and a unified dashboard with advanced filtering capabilities. The application delivers a premium SaaS user experience with deep navy/ink primary colors (#0F172A), subtle gradients, refined typography, and polished micro-interactions throughout.
 
 ## User Preferences
 
@@ -12,7 +12,15 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 
-The frontend uses React 18+ with TypeScript, Vite for tooling, and Wouter for routing. UI components are built with shadcn/ui on Radix UI primitives, styled using Tailwind CSS, following a premium design inspired by Linear and Stripe. State management relies on TanStack Query for server state and React Hook Form with Zod for form handling.
+The frontend uses React 18+ with TypeScript, Vite for tooling, and Wouter for routing. UI components are built with shadcn/ui on Radix UI primitives, styled using Tailwind CSS with a premium design system featuring:
+- Deep navy/ink primary colors (#0F172A) for professional enterprise feel
+- Refined success (#10B981), warning (#F59E0B), and error (#EF4444) color palette
+- Enhanced typography scale with improved letter-spacing and line-height
+- Subtle gradients across cards, buttons, and interactive elements
+- Premium micro-interactions with button-transition and card-hover utility classes
+- Consistent spacing, shadows, and visual hierarchy across all pages
+
+State management relies on TanStack Query for server state and React Hook Form with Zod for form handling.
 
 ### Backend Architecture
 

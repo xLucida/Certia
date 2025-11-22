@@ -273,7 +273,30 @@ export default function CheckNew() {
     setIsSubmitting(false);
   };
 
-  const currentStep = !uploadedFileUrl ? 1 : !ocrConfirmed && ocrAutofilled ? 2 : 2;
+  // Step logic: 1=Upload, 2=Review/Fill form, 3=Ready to confirm
+  const documentType = form.watch("documentType");
+  const expiryDate = form.watch("expiryDate");
+  const firstName = form.watch("firstName");
+  const lastName = form.watch("lastName");
+  const employeeId = form.watch("employeeId");
+  
+  // Check if user has started filling the form (beyond default values)
+  const hasStartedFillingForm = (checkType === "new" && (firstName || lastName))
+    || (checkType === "existing" && employeeId && employeeId !== preselectedEmployeeId)
+    || expiryDate;
+  
+  // Step 3 is reached when required fields are filled
+  const hasRequiredFields = checkType === "new" 
+    ? firstName && lastName && documentType && expiryDate
+    : employeeId && documentType && expiryDate;
+  
+  // Step progression:
+  // Step 1: Initial state - no upload and no form started
+  // Step 2: File uploaded OR user has started filling form
+  // Step 3: All required fields filled and ready to submit
+  const currentStep = hasRequiredFields ? 3 
+    : (ocrAutofilled || ocrUsed || uploadedFileUrl || hasStartedFillingForm) ? 2 
+    : 1;
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
