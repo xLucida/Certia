@@ -12,6 +12,7 @@ import { extractFieldsFromDocument } from "../lib/ocr";
 import { insertEmployeeSchema, insertRightToWorkCheckSchema } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
+import { createPublicUploadToken, verifyPublicUploadToken } from "./publicUploadToken";
 
 // Simple in-memory rate limiter for OCR endpoint (MVP level)
 // Map of userId -> array of request timestamps
@@ -621,6 +622,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid check data", details: error.errors });
       }
       res.status(500).json({ error: "Failed to create check" });
+    }
+  });
+
+  // Public upload link routes
+  // Create upload link (authenticated - for HR users)
+  app.post("/api/public-upload/link", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { employeeId, expiresInDays } = req.body || {};
+
+      if (!employeeId) {
+        return res.status(400).json({ error: "employeeId is required" });
+      }
+
+      // Ensure employee belongs to this user
+      const employee = await storage.getEmployeeById(employeeId);
+      if (!employee) {
+        return res.status(404).json({ error: "Employee not found" });
+      }
+      if (employee.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const days = typeof expiresInDays === "number" && expiresInDays > 0 ? expiresInDays : 14;
+      const exp = Date.now() + days * 24 * 60 * 60 * 1000;
+
+      const token = createPublicUploadToken({
+        uid: userId,
+        empId: employeeId,
+        exp,
+      });
+
+      const urlPath = `/upload?token=${encodeURIComponent(token)}`;
+
+      return res.json({ token, urlPath, expiresAt: exp });
+    } catch (err) {
+      console.error("Error creating public upload link:", err);
+      return res.status(500).json({ error: "Failed to create public upload link" });
+    }
+  });
+
+  // Validate token (public - no auth)
+  app.get("/api/public-upload/validate", async (req: any, res) => {
+    try {
+      const token = req.query.token as string | undefined;
+      if (!token) {
+        return res.status(400).json({ valid: false, error: "Missing token" });
+      }
+
+      const payload = verifyPublicUploadToken(token);
+      if (!payload) {
+        return res.status(400).json({ valid: false, error: "Invalid or expired token" });
+      }
+
+      // For privacy, DO NOT return employee details; just say it's valid.
+      return res.json({ valid: true });
+    } catch (err) {
+      console.error("Error validating public upload token:", err);
+      return res.status(500).json({ valid: false, error: "Server error" });
+    }
+  });
+
+  // Submit upload (public - no auth)
+  app.post("/api/public-upload/submit", upload.single("document"), async (req: any, res) => {
+    try {
+      const token = req.body.token as string | undefined;
+      if (!token) {
+        return res.status(400).json({ error: "Missing token" });
+      }
+
+      const payload = verifyPublicUploadToken(token);
+      if (!payload) {
+        return res.status(400).json({ error: "Invalid or expired token" });
+      }
+
+      const { uid: userId, empId: employeeId } = payload;
+
+      // Basic sanity check: employee still exists and belongs to this user
+      const employee = await storage.getEmployeeById(employeeId);
+      if (!employee) {
+        return res.status(404).json({ error: "Employee not found" });
+      }
+      if (employee.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No document uploaded" });
+      }
+
+      // Validate MIME type
+      const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        return res.status(400).json({ 
+          error: "Invalid file type",
+          message: "Only PDF, JPG, and PNG files are supported"
+        });
+      }
+
+      // Validate file size (10MB limit)
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        return res.status(400).json({ 
+          error: "File too large",
+          message: "File size must be less than 10MB"
+        });
+      }
+
+      console.log("[PUBLIC UPLOAD] Processing file:", file.originalname, "for employee:", employeeId);
+
+      // Run OCR on the uploaded file
+      const ocrResult = await extractFieldsFromDocument(file.buffer);
+
+      console.log("[PUBLIC UPLOAD] OCR complete:", {
+        hasRawText: ocrResult.rawText.length > 0,
+        documentTypeGuess: ocrResult.documentTypeGuess,
+        hasExpiryDate: !!ocrResult.expiryDateGuessIso,
+      });
+
+      // Prepare data for rules engine
+      const documentType = ocrResult.documentTypeGuess || "UNKNOWN";
+      const expiryDateStr = ocrResult.expiryDateGuessIso || null;
+      const expiryDateObj = expiryDateStr ? new Date(expiryDateStr) : null;
+
+      // Map to rules engine input and evaluate
+      const rulesEngineInput = mapToRulesEngineInput({
+        documentType,
+        expiryDate: expiryDateObj,
+      });
+
+      const evaluation = evaluateRightToWork(rulesEngineInput);
+
+      console.log("[PUBLIC UPLOAD] Evaluation complete:", {
+        workStatus: evaluation.workStatus,
+        decisionSummary: evaluation.decisionSummary,
+      });
+
+      // Create right-to-work check linked to employee
+      const createdCheck = await storage.createRightToWorkCheck({
+        userId,
+        employeeId,
+        firstName: null,
+        lastName: null,
+        documentType: documentType !== "UNKNOWN" ? documentType : null,
+        documentNumber: ocrResult.documentNumberGuess || null,
+        expiryDate: expiryDateStr,
+        workStatus: evaluation.workStatus,
+        decisionSummary: evaluation.decisionSummary,
+        decisionDetails: evaluation.decisionDetails,
+        ocrRawText: ocrResult.rawText,
+        ocrExtractedFields: JSON.stringify({
+          documentTypeGuess: ocrResult.documentTypeGuess,
+          documentNumberGuess: ocrResult.documentNumberGuess,
+          expiryDateGuessIso: ocrResult.expiryDateGuessIso,
+          employerNameGuess: ocrResult.employerNameGuess,
+          employmentPermissionGuess: ocrResult.employmentPermissionGuess,
+        }),
+      });
+
+      console.log("[PUBLIC UPLOAD] Check created:", createdCheck.id);
+
+      return res.json({
+        success: true,
+        checkId: createdCheck.id,
+        workStatus: evaluation.workStatus,
+        decisionSummary: evaluation.decisionSummary,
+      });
+    } catch (err: any) {
+      console.error("Error submitting public upload:", err);
+      return res.status(500).json({ 
+        error: "Failed to process upload",
+        message: err.message || "An unexpected error occurred"
+      });
     }
   });
 
