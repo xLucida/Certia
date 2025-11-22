@@ -6,7 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, CheckCircle, AlertTriangle, Plus, Eye, Search, X, Database } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Users, CheckCircle, AlertTriangle, Plus, Eye, Search, X, Database, Download } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import { formatDate } from "@/lib/dateUtils";
@@ -26,6 +27,25 @@ export default function Dashboard() {
   const [documentType, setDocumentType] = useState<string>("");
   const [expiryFrom, setExpiryFrom] = useState<string>("");
   const [expiryTo, setExpiryTo] = useState<string>("");
+
+  const [resolvedCaseIds, setResolvedCaseIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem("rtwde_resolved_case_ids");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("rtwde_resolved_case_ids", JSON.stringify(resolvedCaseIds));
+    } catch {
+      // ignore
+    }
+  }, [resolvedCaseIds]);
 
   const buildQueryString = () => {
     const params = new URLSearchParams();
@@ -146,12 +166,35 @@ export default function Dashboard() {
     row => row.latestCheck?.expiryDate && isExpiringSoon(row.latestCheck.expiryDate)
   );
 
+  const casesRequiringReview = allRows.filter(row => 
+    row.latestCheck && (row.latestCheck.workStatus === "NEEDS_REVIEW" || row.latestCheck.workStatus === "NOT_ELIGIBLE")
+  );
+
+  const openCases = casesRequiringReview.filter(row => {
+    const checkId = row.latestCheck?.id;
+    return checkId && !resolvedCaseIds.includes(checkId);
+  });
+
+  const resolvedCases = casesRequiringReview.filter(row => {
+    const checkId = row.latestCheck?.id;
+    return checkId && resolvedCaseIds.includes(checkId);
+  });
+
+  const handleViewExpiringDocs = () => {
+    const today = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 60);
+    
+    setExpiryFrom(today.toISOString().split('T')[0]);
+    setExpiryTo(futureDate.toISOString().split('T')[0]);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
       <div className="space-y-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {import.meta.env.MODE !== 'production' && (
                 <Button 
                   variant="outline" 
@@ -163,6 +206,16 @@ export default function Dashboard() {
                   {seedMutation.isPending ? "Seeding..." : "Seed Demo Data"}
                 </Button>
               )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  window.open("/api/checks/export", "_blank");
+                }}
+                data-testid="button-export-checks"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export checks (CSV)
+              </Button>
               <Link href="/employees/new">
                 <Button data-testid="button-add-employee">
                   <Plus className="h-4 w-4 mr-2" />
@@ -224,13 +277,95 @@ export default function Dashboard() {
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               <AlertDescription className="text-amber-900 dark:text-amber-100">
                 <p className="font-semibold mb-2">Attention Required</p>
-                <p className="text-sm">
+                <p className="text-sm mb-3">
                   {expiringSoon.length} employee document{expiringSoon.length !== 1 ? 's' : ''} expiring within the next 60 days. 
                   Review and renew these documents to maintain compliance.
                 </p>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleViewExpiringDocs}
+                  className="bg-white dark:bg-background hover:bg-white/90 dark:hover:bg-background/90"
+                  data-testid="button-view-expiring-docs"
+                >
+                  View expiring documents
+                </Button>
               </AlertDescription>
             </Alert>
           )}
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base font-semibold">
+                  Cases requiring review
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {openCases.length} open · {resolvedCases.length} resolved on this device
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {casesRequiringReview.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No checks currently require manual review. You&apos;re all caught up.
+                </p>
+              )}
+
+              {openCases.length > 0 && (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30">
+                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Person</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Expiry</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {openCases.map((row) => {
+                        const check = row.latestCheck;
+                        if (!check) return null;
+                        const name = `${row.firstName} ${row.lastName}`.trim() || "Unnamed";
+                        return (
+                          <TableRow key={check.id} data-testid={`row-case-${check.id}`}>
+                            <TableCell>{name}</TableCell>
+                            <TableCell>
+                              <StatusBadge status={check.workStatus} />
+                            </TableCell>
+                            <TableCell>
+                              {check.expiryDate ? formatDate(check.expiryDate) : "—"}
+                            </TableCell>
+                            <TableCell className="flex flex-wrap gap-2">
+                              <Link href={row.isStandalone ? `/checks/${check.id}` : `/employees/${row.id}`}>
+                                <Button variant="outline" size="sm" data-testid={`button-view-case-${check.id}`}>
+                                  View check
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const checkId = check.id;
+                                  setResolvedCaseIds(prev =>
+                                    prev.includes(checkId) ? prev : [...prev, checkId]
+                                  );
+                                }}
+                                data-testid={`button-mark-reviewed-${check.id}`}
+                              >
+                                Mark as reviewed
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

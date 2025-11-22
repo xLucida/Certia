@@ -422,6 +422,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/checks/export", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const employeesWithChecks = await storage.getEmployeesByUserId(userId);
+      const standaloneChecks = await storage.getStandaloneChecksByUserId(userId);
+
+      type ExportRow = {
+        recordType: "EMPLOYEE" | "CANDIDATE";
+        name: string;
+        documentType: string;
+        documentNumber: string;
+        workStatus: string;
+        expiryDate: string;
+        createdAt: string;
+        decisionSummary: string;
+      };
+
+      const rows: ExportRow[] = [];
+
+      for (const emp of employeesWithChecks) {
+        for (const check of emp.checks) {
+          rows.push({
+            recordType: "EMPLOYEE",
+            name: `${emp.firstName ?? ""} ${emp.lastName ?? ""}`.trim(),
+            documentType: check.documentType ?? "",
+            documentNumber: check.documentNumber ?? "",
+            workStatus: check.workStatus ?? "",
+            expiryDate: check.expiryDate ?? "",
+            createdAt: check.createdAt?.toISOString?.() ?? String(check.createdAt ?? ""),
+            decisionSummary: check.decisionSummary ?? "",
+          });
+        }
+      }
+
+      for (const check of standaloneChecks) {
+        rows.push({
+          recordType: "CANDIDATE",
+          name: `${check.firstName ?? ""} ${check.lastName ?? ""}`.trim(),
+          documentType: check.documentType ?? "",
+          documentNumber: check.documentNumber ?? "",
+          workStatus: check.workStatus ?? "",
+          expiryDate: check.expiryDate ?? "",
+          createdAt: check.createdAt?.toISOString?.() ?? String(check.createdAt ?? ""),
+          decisionSummary: check.decisionSummary ?? "",
+        });
+      }
+
+      const headers: (keyof ExportRow)[] = [
+        "recordType",
+        "name",
+        "documentType",
+        "documentNumber",
+        "workStatus",
+        "expiryDate",
+        "createdAt",
+        "decisionSummary",
+      ];
+
+      const escapeCsvValue = (value: unknown): string => {
+        if (value === null || value === undefined) return "";
+        const str = String(value);
+        if (str.includes('"') || str.includes(",") || str.includes("\n") || str.includes("\r")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const lines = [
+        headers.join(","),
+        ...rows.map((row) =>
+          headers
+            .map((header) => escapeCsvValue(row[header]))
+            .join(",")
+        ),
+      ];
+
+      const csv = lines.join("\n");
+
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", 'attachment; filename="right-to-work-checks.csv"');
+      res.send(csv);
+    } catch (error) {
+      console.error("Error exporting checks:", error);
+      res.status(500).json({ error: "Failed to export checks" });
+    }
+  });
+
   app.get("/api/checks/:id", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

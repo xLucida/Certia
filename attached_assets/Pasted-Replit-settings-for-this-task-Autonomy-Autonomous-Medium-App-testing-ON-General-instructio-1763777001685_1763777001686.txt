@@ -1,0 +1,406 @@
+Replit settings for this task:
+- Autonomy: Autonomous – Medium
+- App testing: ON
+
+General instructions:
+- Be minimal and efficient with changes and explanations.
+- Only modify files directly needed for this task.
+- Do NOT refactor or rebuild unrelated parts of the app.
+- Do NOT change the database schema.
+- Keep explanations under 3 bullets and reuse existing patterns.
+
+Context:
+- Project: RightToWorkDE (upload-first German right-to-work checker).
+- Main dashboard: client/src/pages/dashboard.tsx
+  - Uses /api/employees and /api/checks/standalone to build a combined `allRows` array with `latestCheck` and `isStandalone`.
+  - Already computes:
+    - `totalEmployees`
+    - `eligibleCount`
+    - `expiringSoon` using `isExpiringSoon(expiryDate, 60)`
+  - Already has:
+    - “Expiring Soon” metric card
+    - An alert if there are expiringSoon > 0
+    - Seed demo data button (dev only)
+    - Main employees/candidates table.
+- Check UI: client/src/components/check-components.tsx (read-only for this task).
+- Help / FAQ page: client/src/pages/help.tsx
+- Backend routes: server/routes.ts
+  - Already uses storage.getEmployeesByUserId(userId) and storage.getStandaloneChecksByUserId(userId).
+  - Right-to-work checks stored in rightToWorkChecks table from shared/schema.ts.
+- Product goal: Give HR an operational workspace:
+  - A “cases inbox” for checks that need manual review
+  - Easy export for audits
+  - Better use of expiry info
+  - Clear, practical playbooks in Help.
+
+==================================================
+TASK A — “Cases requiring review” inbox (local triage only)
+==================================================
+
+Goal:
+- Show a dedicated “Cases requiring review” section on the dashboard.
+- Include checks where `workStatus` is NEEDS_REVIEW or NOT_ELIGIBLE.
+- Allow marking a case as “reviewed” (locally) without changing the database.
+
+Implementation details:
+
+1) In client/src/pages/dashboard.tsx:
+   - Reuse the existing `allRows` array (combining employees + standalone checks).
+   - After `const expiringSoon = ...`, compute:
+
+     - `const casesRequiringReview = allRows.filter(row => row.latestCheck && (row.latestCheck.workStatus === "NEEDS_REVIEW" || row.latestCheck.workStatus === "NOT_ELIGIBLE"));`
+
+   - Add local state to track which case check IDs are “resolved” on this device:
+
+     - Use React state with initial value from localStorage (guarded for SSR / typeof window):
+
+       ```ts
+       const [resolvedCaseIds, setResolvedCaseIds] = useState<string[]>(() => {
+         if (typeof window === "undefined") return [];
+         try {
+           const raw = window.localStorage.getItem("rtwde_resolved_case_ids");
+           return raw ? JSON.parse(raw) : [];
+         } catch {
+           return [];
+         }
+       });
+       ```
+
+     - Use useEffect to persist back to localStorage whenever `resolvedCaseIds` changes:
+
+       ```ts
+       useEffect(() => {
+         if (typeof window === "undefined") return;
+         try {
+           window.localStorage.setItem("rtwde_resolved_case_ids", JSON.stringify(resolvedCaseIds));
+         } catch {
+           // ignore
+         }
+       }, [resolvedCaseIds]);
+       ```
+
+   - Derive open vs resolved cases:
+
+     ```ts
+     const openCases = casesRequiringReview.filter(row => {
+       const checkId = row.latestCheck?.id;
+       return checkId && !resolvedCaseIds.includes(checkId);
+     });
+
+     const resolvedCases = casesRequiringReview.filter(row => {
+       const checkId = row.latestCheck?.id;
+       return checkId && resolvedCaseIds.includes(checkId);
+     });
+     ```
+
+2) Add UI card on the dashboard:
+   - Place it **below** the existing metrics cards (Total Employees / Currently authorized / Expiring Soon) and **above** the main filter + table card.
+   - Use the same Card components (`Card`, `CardHeader`, `CardContent`).
+   - Example structure (feel free to adapt styling to match):
+
+     ```tsx
+     <Card>
+       <CardHeader>
+         <div className="flex items-center justify-between gap-2">
+           <CardTitle className="text-base font-semibold">
+             Cases requiring review
+           </CardTitle>
+           <p className="text-xs text-muted-foreground">
+             {openCases.length} open · {resolvedCases.length} resolved on this device
+           </p>
+         </div>
+       </CardHeader>
+       <CardContent className="space-y-3">
+         {casesRequiringReview.length === 0 && (
+           <p className="text-sm text-muted-foreground">
+             No checks currently require manual review. You&apos;re all caught up.
+           </p>
+         )}
+
+         {openCases.length > 0 && (
+           <div className="overflow-x-auto">
+             <table className="w-full text-sm">
+               <thead className="border-b bg-muted/30">
+                 <tr className="text-left">
+                   <th className="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Person</th>
+                   <th className="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</th>
+                   <th className="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Expiry</th>
+                   <th className="px-4 py-2 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Actions</th>
+                 </tr>
+               </thead>
+               <tbody className="divide-y divide-border">
+                 {openCases.map((row) => {
+                   const check = row.latestCheck;
+                   if (!check) return null;
+                   const name = `${row.firstName} ${row.lastName}`.trim() || "Unnamed";
+                   return (
+                     <tr key={check.id}>
+                       <td className="px-4 py-2">{name}</td>
+                       <td className="px-4 py-2">
+                         <StatusBadge status={check.workStatus} />
+                       </td>
+                       <td className="px-4 py-2">
+                         {check.expiryDate ? formatDate(check.expiryDate) : "—"}
+                       </td>
+                       <td className="px-4 py-2 flex flex-wrap gap-2">
+                         <Link href={row.isStandalone ? `/checks/${check.id}` : `/employees/${row.id}`}>
+                           <Button variant="outline" size="xs">
+                             View check
+                           </Button>
+                         </Link>
+                         <Button
+                           variant="ghost"
+                           size="xs"
+                           onClick={() => {
+                             const checkId = check.id;
+                             setResolvedCaseIds(prev =>
+                               prev.includes(checkId) ? prev : [...prev, checkId]
+                             );
+                           }}
+                         >
+                           Mark as reviewed
+                         </Button>
+                       </td>
+                     </tr>
+                   );
+                 })}
+               </tbody>
+             </table>
+           </div>
+         )}
+       </CardContent>
+     </Card>
+     ```
+
+   - Keep everything purely client-side (no new API routes). The “Mark as reviewed” state being local to the browser is OK for now.
+
+==================================================
+TASK C — CSV export endpoint + “Export checks” button
+==================================================
+
+Goal:
+- Let HR download a CSV of all right-to-work checks (employees + standalone) for audits.
+
+1) Backend: add a new route in server/routes.ts
+
+   - In `registerRoutes`, near the other `/api/checks` routes, add:
+
+     ```ts
+     app.get("/api/checks/export", isAuthenticated, async (req: any, res) => {
+       try {
+         const userId = req.user.claims.sub;
+
+         const employeesWithChecks = await storage.getEmployeesByUserId(userId);
+         const standaloneChecks = await storage.getStandaloneChecksByUserId(userId);
+
+         type ExportRow = {
+           recordType: "EMPLOYEE" | "CANDIDATE";
+           name: string;
+           documentType: string;
+           documentNumber: string;
+           workStatus: string;
+           expiryDate: string;
+           createdAt: string;
+           decisionSummary: string;
+         };
+
+         const rows: ExportRow[] = [];
+
+         for (const emp of employeesWithChecks) {
+           for (const check of emp.checks) {
+             rows.push({
+               recordType: "EMPLOYEE",
+               name: `${emp.firstName ?? ""} ${emp.lastName ?? ""}`.trim(),
+               documentType: check.documentType ?? "",
+               documentNumber: check.documentNumber ?? "",
+               workStatus: check.workStatus ?? "",
+               expiryDate: check.expiryDate ?? "",
+               createdAt: check.createdAt?.toISOString?.() ?? String(check.createdAt ?? ""),
+               decisionSummary: check.decisionSummary ?? "",
+             });
+           }
+         }
+
+         for (const check of standaloneChecks) {
+           rows.push({
+             recordType: "CANDIDATE",
+             name: `${check.firstName ?? ""} ${check.lastName ?? ""}`.trim(),
+             documentType: check.documentType ?? "",
+             documentNumber: check.documentNumber ?? "",
+             workStatus: check.workStatus ?? "",
+             expiryDate: check.expiryDate ?? "",
+             createdAt: check.createdAt?.toISOString?.() ?? String(check.createdAt ?? ""),
+             decisionSummary: check.decisionSummary ?? "",
+           });
+         }
+
+         const headers: (keyof ExportRow)[] = [
+           "recordType",
+           "name",
+           "documentType",
+           "documentNumber",
+           "workStatus",
+           "expiryDate",
+           "createdAt",
+           "decisionSummary",
+         ];
+
+         const escapeCsvValue = (value: unknown): string => {
+           if (value === null || value === undefined) return "";
+           const str = String(value);
+           if (str.includes('"') || str.includes(",") || str.includes("\n") || str.includes("\r")) {
+             return `"${str.replace(/"/g, '""')}"`;
+           }
+           return str;
+         };
+
+         const lines = [
+           headers.join(","),
+           ...rows.map((row) =>
+             headers
+               .map((header) => escapeCsvValue(row[header]))
+               .join(",")
+           ),
+         ];
+
+         const csv = lines.join("\n");
+
+         res.setHeader("Content-Type", "text/csv; charset=utf-8");
+         res.setHeader("Content-Disposition", 'attachment; filename="right-to-work-checks.csv"');
+         res.send(csv);
+       } catch (error) {
+         console.error("Error exporting checks:", error);
+         res.status(500).json({ error: "Failed to export checks" });
+       }
+     });
+     ```
+
+   - Do NOT change the database schema.
+
+2) Frontend: add “Export checks (CSV)” button on the dashboard
+
+   - In client/src/pages/dashboard.tsx:
+     - At the top imports, also import `Download` from "lucide-react" (alongside Users, CheckCircle, AlertTriangle, Plus, Eye, Search, X, Database).
+
+   - In the header area where the “Dashboard” title and “Seed Demo Data / Add Employee” buttons are rendered, add a new button for export.
+     - For example, inside the `div` with `className="flex gap-2"` that currently holds Seed and Add Employee:
+
+       ```tsx
+       <Button
+         variant="outline"
+         onClick={() => {
+           window.open("/api/checks/export", "_blank");
+         }}
+         data-testid="button-export-checks"
+       >
+         <Download className="h-4 w-4 mr-2" />
+         Export checks (CSV)
+       </Button>
+       ```
+
+   - Keep behavior simple: opening the URL in a new tab is enough to trigger a CSV download.
+
+==================================================
+TASK B — Better expiry monitoring: quick filter from alert
+==================================================
+
+Goal:
+- Make the existing “Expiring Soon” alert actionable by letting users jump straight to expiring documents in the table.
+
+1) In client/src/pages/dashboard.tsx:
+   - You already compute `expiringSoon` and render an `<Alert>` block when `expiringSoon.length > 0`.
+   - Inside that Alert (below the descriptive text), add a small secondary button like “View expiring documents”.
+
+   - On click, it should:
+     - Set the `expiryFrom` and `expiryTo` filter state to “today” and “today + 60 days”.
+     - This will reuse the existing filter + fetch behavior.
+
+   - Example:
+
+     ```tsx
+     {expiringSoon.length > 0 && (
+       <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+         <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+         <AlertDescription className="text-amber-900 dark:text-amber-100 space-y-3">
+           <div>
+             <p className="font-semibold mb-1">Attention Required</p>
+             <p className="text-sm">
+               {expiringSoon.length} employee document{expiringSoon.length !== 1 ? "s" : ""} expiring within the next 60 days.
+               Review and renew these documents to maintain compliance.
+             </p>
+           </div>
+           <Button
+             variant="outline"
+             size="sm"
+             onClick={() => {
+               const today = new Date();
+               const in60 = new Date();
+               in60.setDate(today.getDate() + 60);
+               const toIso = (d: Date) => d.toISOString().slice(0, 10);
+               setExpiryFrom(toIso(today));
+               setExpiryTo(toIso(in60));
+             }}
+           >
+             View expiring documents
+           </Button>
+         </AlertDescription>
+       </Alert>
+     )}
+     ```
+
+   - This should not change any backend logic; it just sets filter state and lets the existing query mechanism handle the rest.
+
+==================================================
+TASK E — Knowledge & playbooks on the Help page
+==================================================
+
+Goal:
+- Extend the Help / FAQ page with practical, short “what to do when…” playbooks, without changing routing.
+
+1) In client/src/pages/help.tsx:
+   - Keep all existing sections (“What RTW-DE does”, “What it does not do”, “Which documents work best”, “How OCR works”, “Data storage and deletion”, etc.).
+   - At the bottom (after existing cards), add a new `<Card>` with “Practical playbooks”.
+
+   - Example:
+
+     ```tsx
+     <Card>
+       <CardHeader>
+         <CardTitle>Practical playbooks</CardTitle>
+       </CardHeader>
+       <CardContent className="space-y-4 text-muted-foreground">
+         <div>
+           <p className="font-medium">When a check is marked &quot;Needs review&quot;</p>
+           <ul className="list-disc list-inside space-y-1 ml-4">
+             <li>Open the case from the dashboard and review the &quot;Missing information&quot; section.</li>
+             <li>Compare the uploaded document with the decision details and scan insights.</li>
+             <li>Contact your internal HR / legal contact or the Ausländerbehörde if anything remains unclear.</li>
+           </ul>
+         </div>
+         <div>
+           <p className="font-medium">When a document is expiring soon</p>
+           <ul className="list-disc list-inside space-y-1 ml-4">
+             <li>Use the dashboard &quot;Expiring soon&quot; alert to see which documents are within 60 days of expiry.</li>
+             <li>Reach out to the employee to start the renewal process early.</li>
+             <li>Create a new check once the renewed document is available and attach the new document.</li>
+           </ul>
+         </div>
+         <div>
+           <p className="font-medium">When a check is &quot;Not eligible&quot;</p>
+           <ul className="list-disc list-inside space-y-1 ml-4">
+             <li>Do not onboard the person into active employment based on this check alone.</li>
+             <li>Validate the result against the original documents and any internal guidance from HR/legal.</li>
+             <li>If you believe the decision is incorrect, run a new check with updated or clearer documentation.</li>
+           </ul>
+         </div>
+       </CardContent>
+     </Card>
+     ```
+
+   - Keep the tone practical and non-legal; this is operational guidance, not legal advice.
+
+Constraints recap:
+- Do NOT change the database schema.
+- Do NOT refactor unrelated components or routes.
+- Use existing patterns (Cards, Buttons, StatusBadge, formatDate, etc.).
+- Keep all new UI mobile-friendly and consistent with the current design.
