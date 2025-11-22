@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Plus, Eye, Calendar, ArrowUpDown, AlertTriangle } from "lucide-react";
+import { Users, Plus, Eye, Calendar, ArrowUpDown, AlertTriangle, ArrowUp, ArrowDown } from "lucide-react";
 import { Link } from "wouter";
 import { formatDate } from "@/lib/dateUtils";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -31,6 +31,13 @@ export default function Employees() {
     }
   };
 
+  const getLatestCheck = (employee: Employee) => {
+    if (!employee.checks || employee.checks.length === 0) return null;
+    return employee.checks.sort((a, b) => 
+      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
+    )[0];
+  };
+
   const sortedEmployees = useMemo(() => {
     if (!employees) return [];
     
@@ -42,14 +49,18 @@ export default function Employees() {
           comparison = `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
           break;
         case 'status': {
-          const aStatus = a.checks?.[0]?.workStatus || 'ZZZZZ';
-          const bStatus = b.checks?.[0]?.workStatus || 'ZZZZZ';
+          const aCheck = getLatestCheck(a);
+          const bCheck = getLatestCheck(b);
+          const aStatus = aCheck?.workStatus || 'ZZZZZ';
+          const bStatus = bCheck?.workStatus || 'ZZZZZ';
           comparison = aStatus.localeCompare(bStatus);
           break;
         }
         case 'expiry': {
-          const aExpiry = a.checks?.[0]?.expiryDate || '9999-12-31';
-          const bExpiry = b.checks?.[0]?.expiryDate || '9999-12-31';
+          const aCheck = getLatestCheck(a);
+          const bCheck = getLatestCheck(b);
+          const aExpiry = aCheck?.expiryDate || '9999-12-31';
+          const bExpiry = bCheck?.expiryDate || '9999-12-31';
           comparison = aExpiry.localeCompare(bExpiry);
           break;
         }
@@ -122,7 +133,11 @@ export default function Employees() {
                           data-testid="button-sort-name"
                         >
                           <span className="font-semibold">Name</span>
-                          <ArrowUpDown className="h-4 w-4" />
+                          {sortField === 'name' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                          ) : (
+                            <ArrowUpDown className="h-4 w-4 opacity-40" />
+                          )}
                         </button>
                       </TableHead>
                       <TableHead>Email</TableHead>
@@ -133,7 +148,11 @@ export default function Employees() {
                           data-testid="button-sort-status"
                         >
                           <span className="font-semibold">Status</span>
-                          <ArrowUpDown className="h-4 w-4" />
+                          {sortField === 'status' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                          ) : (
+                            <ArrowUpDown className="h-4 w-4 opacity-40" />
+                          )}
                         </button>
                       </TableHead>
                       <TableHead>
@@ -143,7 +162,11 @@ export default function Employees() {
                           data-testid="button-sort-expiry"
                         >
                           <span className="font-semibold">Expiry</span>
-                          <ArrowUpDown className="h-4 w-4" />
+                          {sortField === 'expiry' ? (
+                            sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                          ) : (
+                            <ArrowUpDown className="h-4 w-4 opacity-40" />
+                          )}
                         </button>
                       </TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -151,7 +174,7 @@ export default function Employees() {
                   </TableHeader>
                   <TableBody>
                     {sortedEmployees.map((employee) => {
-                      const latestCheck = employee.checks?.[0];
+                      const latestCheck = getLatestCheck(employee);
                       const expiryWarning = latestCheck?.expiryDate && isExpiringSoon(latestCheck.expiryDate);
                       
                       return (
