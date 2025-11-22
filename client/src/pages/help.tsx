@@ -1,13 +1,10 @@
-import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HelpCircle } from "lucide-react";
 
 export default function Help() {
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="space-y-8">
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="space-y-8">
           <div className="flex items-center gap-3">
             <HelpCircle className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-semibold">Help & FAQ</h1>
@@ -164,7 +161,6 @@ export default function Help() {
             </Card>
           </div>
         </div>
-      </main>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
-import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,35 +19,29 @@ export default function EmployeeDetail() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <Skeleton className="h-10 w-64 mb-8" />
-          <div className="space-y-6">
-            <Skeleton className="h-48" />
-            <Skeleton className="h-96" />
-          </div>
-        </main>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <Skeleton className="h-10 w-64 mb-8" />
+        <div className="space-y-6">
+          <Skeleton className="h-48" />
+          <Skeleton className="h-96" />
+        </div>
       </div>
     );
   }
 
   if (!employee) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <Card>
-            <CardContent className="py-16 text-center">
-              <p className="text-muted-foreground">Employee not found</p>
-              <Link href="/employees">
-                <Button className="mt-4" variant="outline">
-                  Back to Employees
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </main>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <Card>
+          <CardContent className="py-16 text-center">
+            <p className="text-muted-foreground">Employee not found</p>
+            <Link href="/employees">
+              <Button className="mt-4" variant="outline">
+                Back to Employees
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -58,10 +51,8 @@ export default function EmployeeDetail() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="space-y-8">
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="space-y-8">
           <div className="flex items-center gap-4">
             <Link href="/employees">
               <Button variant="ghost" size="sm" data-testid="button-back">
@@ -156,7 +147,6 @@ export default function EmployeeDetail() {
             )}
           </div>
         </div>
-      </main>
     </div>
   );
 }

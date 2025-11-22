@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
-import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -56,46 +55,36 @@ export default function CheckDetail() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <Skeleton className="h-10 w-64 mb-8" />
-          <div className="space-y-6">
-            <Skeleton className="h-48" />
-            <Skeleton className="h-96" />
-          </div>
-        </main>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <Skeleton className="h-10 w-64 mb-8" />
+        <div className="space-y-6">
+          <Skeleton className="h-48" />
+          <Skeleton className="h-96" />
+        </div>
       </div>
     );
   }
 
   if (!check) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <Card>
-            <CardContent className="py-16 text-center">
-              <p className="text-muted-foreground">Check not found</p>
-              <Link href="/">
-                <Button className="mt-4" variant="outline">
-                  Back to Dashboard
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </main>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <Card>
+          <CardContent className="py-16 text-center">
+            <p className="text-muted-foreground">Check not found</p>
+            <Link href="/">
+              <Button className="mt-4" variant="outline">
+                Back to Dashboard
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="print:hidden">
-        <Header />
-      </div>
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="space-y-8">
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="space-y-8">
           <div className="flex items-center gap-4 print:hidden">
             <Link href="/">
               <Button variant="ghost" size="sm" data-testid="button-back">
@@ -155,7 +144,6 @@ export default function CheckDetail() {
             </Button>
           </div>
         </div>
-      </main>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>

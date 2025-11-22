@@ -3,7 +3,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -275,10 +274,8 @@ export default function CheckNew() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="max-w-2xl mx-auto px-6 py-8">
-        <div className="space-y-6">
+    <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Link href="/employees">
               <Button variant="ghost" size="sm" data-testid="button-back">
@@ -607,7 +604,6 @@ export default function CheckNew() {
             </CardContent>
           </Card>
         </div>
-      </main>
     </div>
   );
 }

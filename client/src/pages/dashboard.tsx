@@ -1,5 +1,4 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -92,19 +91,16 @@ export default function Dashboard() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="space-y-8">
-            <Skeleton className="h-10 w-64" />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Skeleton className="h-32" />
-              <Skeleton className="h-32" />
-              <Skeleton className="h-32" />
-            </div>
-            <Skeleton className="h-96" />
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="space-y-8">
+          <Skeleton className="h-10 w-64" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
           </div>
-        </main>
+          <Skeleton className="h-96" />
+        </div>
       </div>
     );
   }
@@ -151,10 +147,8 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="space-y-8">
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="space-y-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
             <div className="flex gap-2">
@@ -431,7 +425,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-      </main>
     </div>
   );
 }

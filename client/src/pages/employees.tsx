@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,25 +14,20 @@ export default function Employees() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <Skeleton className="h-10 w-48 mb-8" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-40" />
-            ))}
-          </div>
-        </main>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <Skeleton className="h-10 w-48 mb-8" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-40" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="space-y-8">
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="space-y-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <h1 className="text-3xl font-semibold" data-testid="text-page-title">Employees</h1>
             <Link href="/employees/new">
@@ -105,7 +99,6 @@ export default function Employees() {
             </div>
           )}
         </div>
-      </main>
     </div>
   );
 }

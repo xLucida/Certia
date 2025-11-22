@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -88,10 +87,8 @@ export default function BulkImport() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="max-w-4xl mx-auto px-6 py-8">
-        <div className="space-y-8">
+    <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="space-y-8">
           <div>
             <h1 className="text-3xl font-semibold mb-2">Bulk Employee Import</h1>
             <p className="text-muted-foreground">
@@ -220,7 +217,6 @@ export default function BulkImport() {
             </Card>
           )}
         </div>
-      </main>
     </div>
   );
 }

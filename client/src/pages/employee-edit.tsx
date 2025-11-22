@@ -3,7 +3,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
-import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,40 +103,32 @@ export default function EmployeeEdit() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="max-w-2xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        </main>
+      <div className="max-w-2xl mx-auto px-6 py-8">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
 
   if (!employee) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="max-w-2xl mx-auto px-6 py-8">
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Employee not found</p>
-            <Link href="/employees">
-              <Button variant="outline" className="mt-4">
-                Back to Employees
-              </Button>
-            </Link>
-          </div>
-        </main>
+      <div className="max-w-2xl mx-auto px-6 py-8">
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Employee not found</p>
+          <Link href="/employees">
+            <Button variant="outline" className="mt-4">
+              Back to Employees
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="max-w-2xl mx-auto px-6 py-8">
-        <div className="space-y-6">
+    <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Link href={`/employees/${employeeId}`}>
               <Button variant="ghost" size="sm" data-testid="button-back">
@@ -241,7 +232,6 @@ export default function EmployeeEdit() {
             </CardContent>
           </Card>
         </div>
-      </main>
     </div>
   );
 }
