@@ -2,7 +2,7 @@
 
 ## Overview
 
-RTW-DE is an HR compliance SaaS application designed to manage employee right-to-work eligibility in Germany. It provides HR teams with tools to track visa documentation, assess work authorization status, and monitor expiry dates for various German work permits like EU Blue Cards, Employment Authorization Titles (EAT), and Fiktionsbescheinigung documents. The system supports full CRUD operations for employee management, bulk employee imports, and dual-mode right-to-work checks for both pre-employment candidates and existing employees. It features automated eligibility evaluation based on German visa rules, document upload and storage, and a unified dashboard with advanced filtering capabilities. The application delivers a premium SaaS user experience with deep navy/ink primary colors (#0F172A), subtle gradients, refined typography, and polished micro-interactions throughout.
+RTW-DE is an HR compliance SaaS application designed to manage employee right-to-work eligibility in Germany. It provides HR teams with tools to track visa documentation, assess work authorization status, and monitor expiry dates for various German work permits like EU Blue Cards, Employment Authorization Titles (EAT), and Fiktionsbescheinigung documents. The system supports full CRUD operations for employee management, bulk employee imports, and dual-mode right-to-work checks for both pre-employment candidates and existing employees. It features automated eligibility evaluation based on German visa rules, document upload and storage, public upload links for secure document collection from employees, and a unified dashboard with advanced filtering capabilities. The application delivers a premium SaaS user experience with deep navy/ink primary colors (#0F172A), subtle gradients, refined typography, and polished micro-interactions throughout.
 
 ## User Preferences
 
@@ -37,6 +37,35 @@ Authentication is handled by Replit Auth (OpenID Connect) via Passport.js, using
 ### File Upload & Storage
 
 File uploads are managed via Google Cloud Storage, accessed through the Replit Object Storage sidecar. Uppy.js facilitates client-side file management and direct-to-storage uploads (S3-compatible API), supporting PDF, JPG, JPEG, and PNG formats.
+
+### Public Upload Link System
+
+The application includes a secure public upload link feature that allows HR users to request documents from employees without requiring them to log in. Key components:
+
+**Token System (server/publicUploadToken.ts):**
+- Uses HMAC-SHA256 signing for secure token generation
+- Tokens contain encrypted payload: userId, employeeId, and expiry timestamp
+- 14-day default expiry with configurable duration
+- Timing-safe comparison for validation
+- Requires `PUBLIC_UPLOAD_SECRET` environment variable in production
+- Fixed development secret for testing (stable across restarts)
+
+**Backend Endpoints:**
+- `POST /api/public-upload/link` (authenticated) - Generates secure upload link for an employee
+- `GET /api/public-upload/validate` (public) - Validates token without revealing employee data
+- `POST /api/public-upload/submit` (public) - Accepts document upload, runs OCR, creates check
+
+**Frontend:**
+- "Request Documents" button on employee detail page generates link and copies to clipboard
+- Public upload page (`/upload?token=...`) provides drag-and-drop file upload interface
+- No authentication required for candidates to submit documents
+- Automatic OCR processing and right-to-work evaluation on submission
+
+**Security:**
+- No employee personal data leaked to unauthenticated users
+- Tokens expire automatically
+- File validation (type, size) on both client and server
+- Links can only be used for the specific employee they were generated for
 
 ## External Dependencies
 
