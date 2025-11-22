@@ -24,7 +24,26 @@ State management relies on TanStack Query for server state and React Hook Form w
 
 ### Backend Architecture
 
-The backend is built with Express.js and TypeScript, using ESM. It features RESTful APIs under `/api` and employs session-based authentication with Replit Auth. A key component is the work eligibility evaluation engine, `workEligibility.ts`, which implements German visa compliance rules, providing conservative evaluations that default to "NEEDS_REVIEW" for ambiguous data.
+The backend is built with Express.js and TypeScript, using ESM. It features RESTful APIs under `/api` and employs session-based authentication with Replit Auth.
+
+**AI-Powered Decision Engine:**
+The application uses Venice AI as the primary right-to-work decision engine, with the traditional rules engine (`lib/rightToWork.ts`) running as a guardrail. The Venice integration (`server/veniceClient.ts`) provides:
+- OpenAI-compatible API integration for right-to-work assessment
+- Conservative decision-making with German visa compliance prompts
+- Type-safe request/response handling with structured outputs
+- Graceful fallback when Venice is not configured (returns UNKNOWN)
+
+**Guardrail System:**
+When a new check is created, both Venice AI and the rules engine evaluate the document:
+- **Agreement**: If AI and rules agree on status, use AI's decision and explanation
+- **Disagreement**: If AI and rules disagree, downgrade to NEEDS_REVIEW for safety
+- **AI Unavailable**: If Venice returns UNKNOWN, use rules engine result
+- All evaluations and conflicts are recorded in decisionDetails for full audit trail
+
+**Environment Variables (Production):**
+- `VENICE_API_KEY`: Required for Venice AI integration
+- `VENICE_MODEL_ID`: Model identifier for Venice API
+- `VENICE_API_BASE_URL`: Defaults to https://api.venice.ai
 
 ### Data Storage
 
