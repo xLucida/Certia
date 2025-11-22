@@ -86,7 +86,7 @@ export default function Help() {
               </CardHeader>
               <CardContent className="space-y-4 text-muted-foreground pt-6">
                 <p>
-                  When you upload a document, RTW-DE uses optical character recognition (OCR) to scan the text and automatically extract:
+                  When you upload a document, Certia uses optical character recognition (OCR) to scan the text and automatically extract:
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li className="leading-relaxed">Document type (EU Blue Card, eAT, etc.)</li>
