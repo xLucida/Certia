@@ -21,16 +21,14 @@ export default function Help() {
     setTestResult(null);
 
     try {
-      const response = await apiRequest("/api/venice/test", {
-        method: "POST",
-        body: JSON.stringify({
-          ocrRawText,
-          ocrExtractedFields,
-          currentRulesStatus,
-        }),
+      const response = await apiRequest("POST", "/api/venice/test", {
+        ocrRawText,
+        ocrExtractedFields,
+        currentRulesStatus,
       });
 
-      setTestResult(response);
+      const data = await response.json();
+      setTestResult(data);
     } catch (err) {
       setError("Failed to run Venice test. Please check your connection.");
       console.error("Venice test error:", err);
