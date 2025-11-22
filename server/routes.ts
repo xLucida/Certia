@@ -13,6 +13,7 @@ import { insertEmployeeSchema, insertRightToWorkCheckSchema } from "@shared/sche
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 import { createPublicUploadToken, verifyPublicUploadToken } from "./publicUploadToken";
+import { getVeniceRightToWorkDecision } from "./veniceClient";
 
 // Simple in-memory rate limiter for OCR endpoint (MVP level)
 // Map of userId -> array of request timestamps
@@ -595,10 +596,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dateOfIssue: dateOfIssueObj,
       });
       
-      // Evaluate work eligibility using comprehensive rules engine
-      const evaluation = evaluateRightToWork(rulesEngineInput);
+      // Evaluate work eligibility using comprehensive rules engine (as guardrail)
+      const rulesResult = evaluateRightToWork(rulesEngineInput);
       
-      // Build validated data with evaluation results
+      // Parse OCR extracted fields safely
+      let parsedOcrFields = null;
+      if (ocrExtractedFields) {
+        try {
+          parsedOcrFields = typeof ocrExtractedFields === 'string' 
+            ? JSON.parse(ocrExtractedFields) 
+            : ocrExtractedFields;
+        } catch (e) {
+          console.warn("Failed to parse ocrExtractedFields:", e);
+        }
+      }
+      
+      // Call Venice AI as primary decision engine
+      const veniceResult = await getVeniceRightToWorkDecision({
+        currentRulesStatus: rulesResult.workStatus,
+        ocrRawText,
+        ocrExtractedFields: parsedOcrFields,
+      });
+      
+      // Merge AI and rules results with conservative guardrails
+      const aiStatus = veniceResult.status;
+      const rulesStatus = rulesResult.workStatus;
+      let finalStatus: string = rulesStatus;
+      let conflictDetail: string | null = null;
+      
+      if (aiStatus !== "UNKNOWN") {
+        // If AI and rules agree, use AI status
+        if (aiStatus === rulesStatus) {
+          finalStatus = aiStatus as any;
+        } else {
+          // If AI and rules disagree, downgrade to NEEDS_REVIEW for safety
+          finalStatus = "NEEDS_REVIEW" as any;
+          conflictDetail = `AI status (${aiStatus}) did not match rules-engine status (${rulesStatus}); final status set to NEEDS_REVIEW for safety per guardrail policy.`;
+        }
+      } else {
+        // AI returned UNKNOWN, use rules result
+        finalStatus = rulesStatus;
+      }
+      
+      // Build decision summary - prefer AI explanation if available and non-empty, else use rules summary
+      let decisionSummary: string;
+      if (aiStatus !== "UNKNOWN" && veniceResult.explanation && veniceResult.explanation.trim().length > 0) {
+        decisionSummary = veniceResult.explanation;
+      } else {
+        decisionSummary = rulesResult.decisionSummary;
+      }
+      
+      const decisionDetails: string[] = [];
+      
+      // Only add AI decision details if AI provided a meaningful result (not UNKNOWN)
+      if (aiStatus !== "UNKNOWN" && veniceResult.explanation) {
+        decisionDetails.push("AI decision: " + veniceResult.explanation);
+        if (veniceResult.missingInformation.length > 0) {
+          veniceResult.missingInformation.forEach(item => {
+            decisionDetails.push("AI missing information: " + item);
+          });
+        }
+      }
+      
+      // Append all rules engine details (for transparency)
+      decisionDetails.push(...rulesResult.decisionDetails);
+      
+      // Add conflict detail if present
+      if (conflictDetail) {
+        decisionDetails.push(conflictDetail);
+      }
+      
+      // Build validated data with merged evaluation results
       const validatedData = {
         employeeId: employeeId || null,
         userId,
@@ -606,9 +674,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: lastName || null,
         documentType,
         expiryDate,
-        workStatus: evaluation.workStatus,
-        decisionSummary: evaluation.decisionSummary,
-        decisionDetails: evaluation.decisionDetails,
+        workStatus: finalStatus,
+        decisionSummary,
+        decisionDetails,
         ocrRawText: ocrRawText || null,
         ocrExtractedFields: ocrExtractedFields || null,
         ...otherData,

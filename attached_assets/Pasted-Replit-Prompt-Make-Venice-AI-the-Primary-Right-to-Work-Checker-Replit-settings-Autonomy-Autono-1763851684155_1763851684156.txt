@@ -1,0 +1,270 @@
+Replit Prompt — Make Venice AI the Primary Right-to-Work Checker
+Replit settings:
+- Autonomy: Autonomous – Medium
+- App testing: ON
+
+Goal:
+Make my Venice.ai model the PRIMARY right-to-work decision engine for Certia, using OCR output + existing metadata. The existing rules engine still runs as a guardrail and fallback, but the stored workStatus and primary decision summary should come from AI when possible.
+
+Very important constraints:
+- Do NOT change the database schema (no new tables or columns).
+- Do NOT remove or bypass the existing rules engine logic; it should continue to run in the background as a safety net.
+- For each new check:
+  - Prefer the AI status if it returns a valid value.
+  - Fall back to the rules engine status if AI fails or returns UNKNOWN.
+  - If AI and rules strongly disagree (e.g. AI says ELIGIBLE but rules say NOT_ELIGIBLE), downgrade final status to NEEDS_REVIEW and record a detail about the conflict.
+- Venice is allowed to drive the final workStatus and summary, but must never silently contradict a clearly more restrictive rules result.
+
+Context (current app):
+- Rules engine: lib/rightToWork.ts
+  - main function: evaluateRightToWork(...) → { workStatus, decisionSummary, decisionDetails }
+- Adapter that maps request data into the rules engine:
+  - server/rightToWorkAdapter.ts (or similarly named; this is called in the check creation route).
+- OCR:
+  - lib/ocr.ts and /api/ocr/extract
+  - Checks already store ocrRawText and ocrExtractedFields.
+- Check creation:
+  - There is a server route that creates right-to-work checks (e.g. POST /api/checks); it currently calls evaluateRightToWork via the adapter and stores workStatus, decisionSummary, decisionDetails.
+- Check detail UI:
+  - Standalone check detail route (e.g. client/src/pages/check-detail.tsx).
+  - Shared UI components: client/src/components/check-components.tsx (CheckDecisionPanel, audit trail, etc.).
+
+Venice API:
+- I will configure these env vars:
+  - VENICE_API_BASE_URL (e.g. https://api.venice.ai)
+  - VENICE_API_KEY
+  - VENICE_MODEL_ID
+- Assume an OpenAI-style chat completions API:
+  - POST ${VENICE_API_BASE_URL}/v1/chat/completions
+  - Headers: Authorization: Bearer ${VENICE_API_KEY}, Content-Type: application/json
+  - Body includes:
+    - "model": process.env.VENICE_MODEL_ID
+    - "messages": [system, user]
+    - "temperature": 0
+
+==================================================
+TASK 1 — Venice client helper (server-side)
+==================================================
+
+Create a small helper to call Venice and parse an AI right-to-work decision.
+
+1) Add a new file: server/veniceClient.ts
+
+2) Define types:
+
+```ts
+export type VeniceRtWStatus = "ELIGIBLE" | "NOT_ELIGIBLE" | "NEEDS_REVIEW" | "UNKNOWN";
+
+export type VeniceReviewInput = {
+  currentRulesStatus: string;
+  ocrRawText?: string | null;
+  ocrExtractedFields?: any; // parsed JSON
+};
+
+export type VeniceReviewResult = {
+  status: VeniceRtWStatus;
+  explanation: string;
+  missingInformation: string[];
+};
+
+
+Implement:
+
+export async function getVeniceRightToWorkDecision(
+  input: VeniceReviewInput
+): Promise<VeniceReviewResult> { ... }
+
+
+Implementation details:
+
+If VENICE_API_KEY or VENICE_MODEL_ID is missing:
+
+Return a safe default:
+
+return {
+  status: "UNKNOWN",
+  explanation: "Venice.ai integration is not configured.",
+  missingInformation: [],
+};
+
+
+Build a prompt that:
+
+Explains that this is about German right-to-work based on residence documents.
+
+Includes:
+
+currentRulesStatus
+
+ocrRawText (trimmed, maybe limited to ~4000 chars)
+
+ocrExtractedFields as JSON string.
+
+Example system message:
+
+"You are a cautious German right-to-work compliance assistant. Based on OCR text and extracted fields from German residence permits (e.g., EU Blue Card, eAT, Fiktionsbescheinigung), decide if a person appears ELIGIBLE, NOT_ELIGIBLE, or NEEDS_REVIEW to work in Germany. When in doubt or when information is missing, choose NEEDS_REVIEW. Do not guess. Focus on the permit wording (e.g., 'Erwerbstätigkeit gestattet')."
+
+Example user message (build dynamically):
+
+"Current rules-engine status: <currentRulesStatus>.\n\nOCR raw text:\n<...>\n\nExtracted fields JSON:\n<...>\n\nReturn ONLY a JSON object with keys: status (one of 'ELIGIBLE','NOT_ELIGIBLE','NEEDS_REVIEW','UNKNOWN'), explanation (string), missingInformation (string[])."
+
+Call the Venice API with fetch():
+
+Handle network/parse errors defensively.
+
+Parse the assistant message content as JSON.
+
+If parsing fails, log a warning and return status="UNKNOWN" with explanation "Failed to parse Venice response" and empty missingInformation.
+
+==================================================
+TASK 2 — Integrate Venice into the check creation pipeline
+
+Goal:
+When a new right-to-work check is created, use Venice AI as the primary decision engine, with the rules engine as guardrail/fallback.
+
+Find the server route that creates right-to-work checks (e.g. POST /api/checks). It likely:
+
+Validates inputs
+
+Calls something like mapToRulesEngineInput(...)
+
+Calls evaluateRightToWork(...)
+
+Stores workStatus, decisionSummary, decisionDetails, and OCR fields via storage.createRightToWorkCheck.
+
+Refactor this part to:
+
+Still call the rules engine as before:
+
+const rulesInput = mapToRulesEngineInput(...);
+const rulesResult = evaluateRightToWork(rulesInput);
+
+
+Parse OCR fields where available from the same request context:
+
+Use ocrRawText and ocrExtractedFields that are already being stored.
+
+Ensure ocrExtractedFields is parsed from JSON string before passing to Venice.
+
+Call Venice:
+
+const veniceResult = await getVeniceRightToWorkDecision({
+  currentRulesStatus: rulesResult.workStatus,
+  ocrRawText,
+  ocrExtractedFields,
+});
+
+
+Decide FINAL status and messages:
+
+Compute finalStatus:
+
+const aiStatus = veniceResult.status;
+const rulesStatus = rulesResult.workStatus;
+
+let finalStatus = rulesStatus;
+let conflictDetail: string | null = null;
+
+if (aiStatus !== "UNKNOWN") {
+  // Prefer AI
+  finalStatus = aiStatus as any;
+}
+
+// Guardrail: if AI and rules clearly conflict, downgrade to NEEDS_REVIEW
+const isConflict =
+  aiStatus !== "UNKNOWN" &&
+  aiStatus !== rulesStatus &&
+  (aiStatus === "ELIGIBLE" || rulesStatus === "ELIGIBLE");
+
+if (isConflict) {
+  finalStatus = "NEEDS_REVIEW" as any;
+  conflictDetail = `AI status (${aiStatus}) did not match rules-engine status (${rulesStatus}); final status set to NEEDS_REVIEW.`;
+}
+
+// If AI failed/unknown, keep rulesStatus.
+
+
+Build decisionSummary and decisionDetails:
+
+decisionSummary:
+
+Prefer veniceResult.explanation if aiStatus !== "UNKNOWN".
+
+Otherwise use rulesResult.decisionSummary.
+
+decisionDetails:
+
+Start with an array:
+
+If aiStatus !== "UNKNOWN":
+
+["AI decision: " + veniceResult.explanation]
+
+Append each item from veniceResult.missingInformation as:
+
+"AI missing information: " + item
+
+Append all rulesResult.decisionDetails entries (to retain legacy explanations).
+
+If conflictDetail exists, append it as well.
+
+Store the final values:
+
+When calling storage.createRightToWorkCheck (or equivalent), use:
+
+workStatus: finalStatus
+
+decisionSummary: summary computed above
+
+decisionDetails: array built above (string[])
+
+Continue storing ocrRawText and ocrExtractedFields as before.
+
+Do NOT add new columns; just reuse existing ones.
+
+==================================================
+TASK 3 — UI: Clarify that decision is AI-based with guardrails
+
+Goal:
+Make it clear in the check detail UI that:
+
+Status/summary are driven by AI
+
+There is a rules engine guardrail
+
+This is not legal advice
+
+In the main check decision UI (CheckDecisionPanel in client/src/components/check-components.tsx or the equivalent), add a small note under the decision summary:
+
+Text example:
+
+“Decision generated by Certia AI using document scan and internal rules. This is an internal screening tool and not legal advice. Always confirm right-to-work status using official documents and, where appropriate, legal counsel or the competent authorities.”
+
+Style:
+
+Small font
+
+Muted/secondary text color
+
+Keep it unobtrusive but clearly visible.
+
+If conflictDetail was added to decisionDetails, it will already appear in the existing details list. Ensure details rendering still works correctly.
+
+==================================================
+TASK 4 — Safety and tests
+
+Ensure that:
+
+If Venice throws or returns invalid JSON, the check creation still succeeds using the rules engine result.
+
+We never crash on missing or malformed ocrExtractedFields JSON (wrap parse in try/catch).
+
+Keep all existing enums and types consistent (workStatus values remain ELIGIBLE, NOT_ELIGIBLE, NEEDS_REVIEW).
+
+Run the app and verify:
+
+New Check flow still works end-to-end.
+
+Newly created checks show AI-driven decisions.
+
+If you temporarily unset VENICE_API_KEY, the app falls back to rules-only decisions with a safe explanation.
