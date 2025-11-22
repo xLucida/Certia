@@ -1,21 +1,66 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckDecisionPanel, CheckAuditTrail } from "@/components/check-components";
-import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 import type { EmployeeWithChecks } from "@shared/schema";
 
 export default function EmployeeDetail() {
   const [, params] = useRoute("/employees/:id");
   const employeeId = params?.id;
+  const { toast } = useToast();
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const { data: employee, isLoading } = useQuery<EmployeeWithChecks>({
     queryKey: ["/api/employees", employeeId],
     enabled: !!employeeId,
   });
+
+  const generateLinkMutation = useMutation({
+    mutationFn: async (empId: string) => {
+      return apiRequest<{ token: string; urlPath: string; expiresAt: number }>({
+        url: "/api/public-upload/link",
+        method: "POST",
+        body: { employeeId: empId, expiresInDays: 14 },
+      });
+    },
+    onSuccess: async (data) => {
+      const fullUrl = `${window.location.origin}${data.urlPath}`;
+      try {
+        await navigator.clipboard.writeText(fullUrl);
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 3000);
+        toast({
+          title: "Upload Link Copied",
+          description: "The secure upload link has been copied to your clipboard. Valid for 14 days.",
+        });
+      } catch (err) {
+        toast({
+          title: "Link Generated",
+          description: fullUrl,
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to Generate Link",
+        description: error.message || "Could not create upload link. Please try again.",
+      });
+    },
+  });
+
+  const handleRequestDocuments = () => {
+    if (employeeId) {
+      generateLinkMutation.mutate(employeeId);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -78,13 +123,31 @@ export default function EmployeeDetail() {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Link href={`/employees/${employee.id}/edit`}>
                     <Button variant="outline" data-testid="button-edit-employee">
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit
                     </Button>
                   </Link>
+                  <Button
+                    variant="outline"
+                    onClick={handleRequestDocuments}
+                    disabled={generateLinkMutation.isPending}
+                    data-testid="button-request-documents"
+                  >
+                    {linkCopied ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Link Copied
+                      </>
+                    ) : (
+                      <>
+                        <Link2 className="h-4 w-4 mr-2" />
+                        Request Documents
+                      </>
+                    )}
+                  </Button>
                   <Link href={`/checks/new?employeeId=${employee.id}`}>
                     <Button data-testid="button-add-check">
                       <Plus className="h-4 w-4 mr-2" />
