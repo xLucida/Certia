@@ -178,6 +178,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Venice AI diagnostics endpoint
+  app.post("/api/venice/test", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ocrRawText, ocrExtractedFields, currentRulesStatus } = req.body || {};
+
+      const hasBaseUrl = !!process.env.VENICE_API_BASE_URL;
+      const hasApiKey = !!process.env.VENICE_API_KEY;
+      const hasModelId = !!process.env.VENICE_MODEL_ID;
+
+      const config = {
+        hasBaseUrl,
+        hasApiKey,
+        hasModelId,
+      };
+
+      if (!hasApiKey || !hasModelId) {
+        return res.json({
+          config,
+          aiReview: {
+            status: "UNKNOWN",
+            explanation: "Venice.ai is not fully configured (missing API key or model id). Update VENICE_* env vars.",
+            missingInformation: [],
+          },
+        });
+      }
+
+      let parsedExtracted: any = undefined;
+      if (typeof ocrExtractedFields === "string") {
+        try {
+          parsedExtracted = JSON.parse(ocrExtractedFields);
+        } catch (err) {
+          console.warn("Failed to parse ocrExtractedFields in /api/venice/test:", err);
+        }
+      } else if (ocrExtractedFields) {
+        parsedExtracted = ocrExtractedFields;
+      }
+
+      const rulesStatus =
+        typeof currentRulesStatus === "string" && currentRulesStatus.length > 0
+          ? currentRulesStatus
+          : "NEEDS_REVIEW";
+
+      const aiReview = await getVeniceRightToWorkDecision({
+        currentRulesStatus: rulesStatus,
+        ocrRawText: ocrRawText || "",
+        ocrExtractedFields: parsedExtracted,
+      });
+
+      return res.json({ config, aiReview });
+    } catch (err) {
+      console.error("Error in /api/venice/test:", err);
+      return res.status(500).json({
+        config: {
+          hasBaseUrl: !!process.env.VENICE_API_BASE_URL,
+          hasApiKey: !!process.env.VENICE_API_KEY,
+          hasModelId: !!process.env.VENICE_MODEL_ID,
+        },
+        error: "Failed to call Venice.ai test endpoint",
+      });
+    }
+  });
+
   // Employee routes
   app.get("/api/employees", isAuthenticated, async (req: any, res) => {
     try {
