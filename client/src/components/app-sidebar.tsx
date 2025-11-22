@@ -81,7 +81,10 @@ export function AppSidebar() {
             <div className="h-8 w-8 bg-primary rounded-md flex items-center justify-center">
               <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg font-semibold">RTW-DE</span>
+            <div className="flex flex-col">
+              <span className="text-lg font-semibold">Certia</span>
+              <span className="text-xs text-muted-foreground">Right-to-work for Germany</span>
+            </div>
           </div>
         </Link>
       </SidebarHeader>

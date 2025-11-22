@@ -29,7 +29,7 @@ export function Header() {
         <div className="flex items-center gap-8">
           <Link href="/" data-testid="link-home">
             <span className="text-xl font-semibold text-foreground hover-elevate active-elevate-2 px-3 py-2 rounded-md cursor-pointer">
-              RTW-DE
+              Certia
             </span>
           </Link>
           <nav className="hidden md:flex items-center gap-1">

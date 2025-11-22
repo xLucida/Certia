@@ -11,7 +11,7 @@ export default function Landing() {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <h1 className="text-xl font-bold tracking-tight">RTW-DE</h1>
+          <h1 className="text-xl font-bold tracking-tight">Certia</h1>
           <Button onClick={handleLogin} variant="outline" className="button-transition" data-testid="button-login">
             Log In
           </Button>
@@ -25,15 +25,15 @@ export default function Landing() {
               <div className="space-y-8">
                 <div className="space-y-4">
                   <h2 className="text-5xl lg:text-6xl font-bold text-foreground leading-tight">
-                    Right-to-Work Compliance for Germany
+                    Right-to-Work Clarity for Germany
                   </h2>
                   <p className="text-xl text-muted-foreground leading-relaxed">
-                    Upload German residence documents → structured eligibility screening, document tracking, and expiry alerts in one place.
+                    Manage work eligibility, visa documents, and expiries in one place. Upload German residence permits and get a clear, structured right-to-work decision for every employee.
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Button onClick={handleLogin} size="lg" className="button-transition text-base" data-testid="button-get-started">
-                    Get Started
+                    Get Started with Certia
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                   <Button onClick={handleLogin} variant="outline" size="lg" className="button-transition text-base">
@@ -109,7 +109,7 @@ export default function Landing() {
                   </div>
                   <h3 className="font-bold text-lg">Document Management</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Store and track all employee visa documents in one secure location
+                    Store and organize all visa and work-permit documents in one secure workspace.
                   </p>
                 </div>
               </CardContent>
@@ -123,7 +123,7 @@ export default function Landing() {
                   </div>
                   <h3 className="font-bold text-lg">Automated Checks</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Automatically evaluate work eligibility based on German visa rules
+                    Turn German residence documents into structured right-to-work decisions with clear reasons.
                   </p>
                 </div>
               </CardContent>
@@ -137,7 +137,7 @@ export default function Landing() {
                   </div>
                   <h3 className="font-bold text-lg">Expiry Alerts</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Get notified about documents expiring within 60 days
+                    See which documents are expiring soon and act before work authorization lapses.
                   </p>
                 </div>
               </CardContent>
@@ -151,7 +151,7 @@ export default function Landing() {
                   </div>
                   <h3 className="font-bold text-lg">Stay Compliant</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Ensure all employees have valid work authorization at all times
+                    Give HR a simple system to monitor work eligibility and document history over time.
                   </p>
                 </div>
               </CardContent>
@@ -164,10 +164,10 @@ export default function Landing() {
             <CardContent className="p-10 lg:p-12">
               <div className="max-w-3xl mx-auto">
                 <h3 className="text-3xl lg:text-4xl font-bold mb-6 text-center">
-                  Simplified HR Compliance
+                  Simplified Right-to-Work Compliance
                 </h3>
                 <p className="text-lg text-muted-foreground text-center mb-8 leading-relaxed">
-                  RTW-DE helps HR teams manage right-to-work compliance for employees in Germany with confidence and ease.
+                  Certia helps HR teams manage right-to-work compliance for employees in Germany. Track EU Blue Cards, EAT permits, Fiktionsbescheinigungen, and other residence titles with automated eligibility checks, audit-friendly history, and expiry monitoring.
                 </p>
                 <div className="grid md:grid-cols-3 gap-6 mb-8">
                   <div className="flex items-start gap-3">
@@ -205,8 +205,9 @@ export default function Landing() {
       </main>
 
       <footer className="border-t mt-16 py-8">
-        <div className="max-w-7xl mx-auto px-6 text-center text-sm text-muted-foreground">
-          <p>© 2024 RTW-DE. All rights reserved.</p>
+        <div className="max-w-7xl mx-auto px-6 text-center space-y-2">
+          <p className="text-sm text-muted-foreground">© 2024 Certia. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground">Certia – right-to-work clarity for German HR.</p>
         </div>
       </footer>
     </div>

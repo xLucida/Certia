@@ -12,17 +12,17 @@ export default function Help() {
             <h1 className="text-3xl font-bold tracking-tight">Help & FAQ</h1>
           </div>
           <p className="text-muted-foreground text-lg mb-8">
-            Everything you need to know about using RTW-DE for German work eligibility screening
+            Everything you need to know about using Certia for German work eligibility screening
           </p>
 
           <div className="space-y-6">
             <Card className="border-2 shadow-sm">
               <CardHeader className="border-b bg-gradient-to-br from-primary/5 to-background">
-                <CardTitle className="text-xl">What RTW-DE Does</CardTitle>
+                <CardTitle className="text-xl">What Certia Does</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 text-muted-foreground pt-6">
                 <p>
-                  RTW-DE (Right-to-Work Germany) helps HR teams manage employee work eligibility screening for German residence documents.
+                  Certia helps HR teams manage employee work eligibility screening for German residence documents.
                 </p>
                 <p>
                   Upload German residence documents like EU Blue Cards, elektronischer Aufenthaltstitel (eAT), or Fiktionsbescheinigung, and get:
@@ -38,14 +38,14 @@ export default function Help() {
 
             <Card className="border-2 shadow-sm border-amber-200 dark:border-amber-800">
               <CardHeader className="border-b bg-amber-50/50 dark:bg-amber-950/10">
-                <CardTitle className="text-xl">What RTW-DE Does NOT Do</CardTitle>
+                <CardTitle className="text-xl">What Certia Does NOT Do</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 text-muted-foreground pt-6">
                 <p className="font-semibold text-amber-900 dark:text-amber-100">
                   This tool is not legal advice and does not replace official verification.
                 </p>
                 <p>
-                  RTW-DE provides an initial screening to help HR teams organize and track right-to-work documentation. 
+                  Certia provides an initial screening to help HR teams organize and track right-to-work documentation. 
                   It does not:
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
@@ -66,7 +66,7 @@ export default function Help() {
               </CardHeader>
               <CardContent className="space-y-4 text-muted-foreground pt-6">
                 <p>
-                  RTW-DE is optimized for German residence documents, particularly:
+                  Certia is optimized for German residence documents, particularly:
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li className="leading-relaxed"><strong>EU Blue Card (Blaue Karte EU)</strong> – for highly qualified workers</li>
