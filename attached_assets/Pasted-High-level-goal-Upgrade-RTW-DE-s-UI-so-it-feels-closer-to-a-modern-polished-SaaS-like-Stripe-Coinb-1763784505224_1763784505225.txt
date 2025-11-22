@@ -1,0 +1,156 @@
+High-level goal:
+Upgrade RTW-DE’s UI so it feels closer to a modern, polished SaaS like Stripe/Coinbase (clean, confident, minimal but premium), without changing any backend logic, database schema, or core flows.
+
+GENERAL INSTRUCTIONS
+- Scope: VISUAL + UX polish only.
+- Only modify files in the frontend/client (React/Tailwind/shadcn). Do NOT touch server routes, lib/rightToWork.ts, lib/ocr.ts, or any database/schema files.
+- Keep all existing pages and flows as they are: no new routes, no new forms, no new business logic.
+- Keep existing copy mostly intact; minor wording tweaks are OK if they improve clarity or design rhythm.
+- Be minimal and efficient with changes. Prefer local Tailwind class updates and small design helpers over big refactors.
+- Reuse existing components where possible.
+
+CONTEXT
+- Project: RTW-DE (Right-to-Work compliance tool for Germany).
+- Key pages:
+  - Landing / marketing page (hero + feature row + “Simplified HR Compliance” section).
+  - Dashboard (metrics, cases requiring review, employees/work status table).
+  - Employees list.
+  - New Right-to-Work Check page.
+  - Import (Bulk Employee Import).
+  - Help / FAQ page.
+- Tech stack: React (client/src/pages), Tailwind, shadcn-style components (Card, Button, etc.).
+
+==================================================
+TASK 1 — Introduce a more premium visual theme
+==================================================
+
+Goal:
+Define a small design system (colors, typography scale, subtle gradients) that makes the app feel more like Stripe/Coinbase while staying professional and accessible.
+
+1) Colors:
+- Define a primary “ink/navy” color (deep blue/gray) and a refined success/warning palette. Avoid neon or loud colors.
+- Apply this consistently:
+  - Header + sidebar background: subtle tinted background instead of plain white.
+  - Buttons: primary button with the new primary color; hover states slightly darker with smooth transitions.
+  - Status badges: success (Eligible) uses a refined green; warnings/needs review use amber; not-eligible uses a more serious red, all with soft background tints.
+
+2) Background & surfaces:
+- Add a very light, subtle gradient background behind the landing hero section and dashboard top area.
+- Keep cards on white/near-white surfaces with soft shadows and rounded corners (rounded-xl or rounded-2xl) to feel more “card-like” and premium.
+
+3) Typography:
+- Introduce a clear type scale:
+  - Larger hero H1 on landing.
+  - Distinct section titles (Dashboard, Employees & Work Status, etc.) with a slightly larger size and tighter tracking.
+- Use consistent font weights (e.g., font-semibold for key titles, regular for body).
+- If the project already uses a modern font like Inter/SF-like stack, keep it; otherwise, ensure the Tailwind font stack is set to a clean, system sans (no need to add a new webfont for now).
+
+Implementation guidance:
+- Update Tailwind config or global theme tokens ONLY as needed (e.g., primary color, background).
+- Then adjust key containers (header, sidebar, hero, cards) to use these tokens.
+
+==================================================
+TASK 2 — Redesign the landing hero to feel like a real SaaS product
+==================================================
+
+Goal:
+Make the landing hero feel like a real product homepage, with a clear visual anchor and stronger first impression, without changing the overall layout structure too much.
+
+1) Hero layout:
+- Left side: Keep the existing headline/subheadline but tighten slightly and emphasize “upload + structured eligibility checks”.
+  - Headline: keep “Right-to-Work Compliance for Germany”.
+  - Subheadline: emphasize “Upload German residence documents → structured eligibility screening, document tracking, and expiry alerts in one place.”
+- CTA: keep a primary CTA button (e.g., “Get Started”) and optionally a subtle secondary link (e.g., “View dashboard demo” if it already routes to login/dashboard, but do NOT add new routes).
+
+2) Right side: product preview card
+- Add a large, rounded card that shows a simplified screenshot/mock of the Dashboard:
+  - Show the metrics row (Total employees / Eligible workers / Expiring soon).
+  - Show a mini “Case requiring review” snippet.
+- Use existing components (Card, small text, icons) to create this preview; it does NOT need to be a live embed, just a static layout.
+- Put this card in the hero section only; it should look like a product screenshot framed in a card (rounded-2xl, shadow, subtle border).
+
+3) Feature row:
+- Keep the four feature cards (Document Management, Automated Checks, Expiry Alerts, Stay Compliant), but:
+  - Add subtle hover: small translateY and shadow increase.
+  - Use a consistent icon style (same size, same tone).
+  - Make titles slightly bolder and body text slightly smaller for contrast.
+
+4) “Simplified HR Compliance” section:
+- Keep the copy but give the card a softer standout:
+  - Slightly tinted background.
+  - Larger title.
+  - Consider a small bullet list (3 short bullets) summarizing value, instead of just a paragraph.
+
+==================================================
+TASK 3 — Dashboard visual polish & micro-interactions
+==================================================
+
+Goal:
+Improve the look and feel of the Dashboard so it feels more like a modern admin product, without changing any logic.
+
+1) Metrics row:
+- Increase the visual hierarchy: slightly larger titles/numbers, better spacing inside each card.
+- Add subtle icon background circles or small accents next to each metric title.
+- Add hover states: on hover, card slightly lifts (translateY -1 or -2 px) with a tiny shadow change.
+
+2) “Cases requiring review” card:
+- Visually align it with the idea of “inbox / queue”:
+  - Add an icon (e.g., Inbox or AlertTriangle) in the header, tinted amber.
+  - Slightly tinted background for the card border or header to signal importance.
+- Keep the text “X open · Y resolved on this device”; ensure typography matches the new theme.
+- Table rows: add hover background for each row so clicking “View check” feels more interactive.
+
+3) Employees & Work Status table:
+- Add row hover states (soft background).
+- Ensure filters and search input align nicely and share consistent spacing.
+- Keep all behavior the same; just visually refine spacing and typography.
+
+==================================================
+TASK 4 — New Check & Help page subtle improvements
+==================================================
+
+Goal:
+Make the New Right-to-Work Check page and Help page feel more polished and coherent with the new theme.
+
+1) New Check page:
+- Enhance the stepper:
+  - Make the active step more visually prominent (e.g., filled circle + bold label, or an underline/indicator bar).
+  - Animate step transitions with a small opacity/translate transition (CSS/Tailwind only).
+- Group “Step 1: Upload document” in a more prominent card with subtle gradient or border, so it’s clearly the primary action.
+- In “Review & corrections” area:
+  - Add small badges or labels where fields were auto-filled (“✨ Auto-filled from scan”) with consistent styling.
+  - Ensure field spacing is generous and labels are aligned with the new type scale.
+
+2) Help / FAQ page:
+- Use the new color system and typography:
+  - Titles inside cards slightly larger.
+  - Better vertical rhythm between sections.
+- At the bottom, keep or add a small “Practical playbooks” card with clear bullet formatting; no new functionality, just design polish.
+
+==================================================
+TASK 5 — Micro-interactions & global polish
+==================================================
+
+Goal:
+Add small motion and hover details that create a “premium” feel across the app.
+
+1) Buttons:
+- Add a consistent `transition-all` (or transition-colors/transform) on buttons.
+- On hover for primary buttons: slightly darken background and raise 1–2px.
+- On click (active state): slight “press” effect (scale-95 or similar), applied consistently.
+
+2) Cards:
+- For interactive cards (feature cards, metrics cards, case rows):
+  - Apply light hover: background tint + tiny translateY.
+  - Keep motion subtle to avoid feeling gimmicky.
+
+3) Icons:
+- Ensure consistent icon sizes (e.g., 16–20px) and alignment.
+- In navigation and headers, match icon + label spacing and vertical alignment.
+
+Constraints recap:
+- FRONTEND ONLY: Do not touch any backend/server/lib/schema code.
+- No new routes, no auth changes, no database changes.
+- Do not change the actual business logic or data flow; only style, layout, and small copy tweaks where needed.
+- Keep design accessible (good contrast, no ultra-light gray text on white).
+- Make sure existing tests and page navigation still work after your changes.
