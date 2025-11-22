@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,9 +17,16 @@ import CheckNew from "@/pages/check-new";
 import CheckDetail from "@/pages/check-detail";
 import BulkImport from "@/pages/bulk-import";
 import Help from "@/pages/help";
+import PublicUpload from "@/pages/public-upload";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
+
+  // Public routes (no authentication required)
+  if (location.startsWith("/upload")) {
+    return <PublicUpload />;
+  }
 
   if (isLoading) {
     return (
