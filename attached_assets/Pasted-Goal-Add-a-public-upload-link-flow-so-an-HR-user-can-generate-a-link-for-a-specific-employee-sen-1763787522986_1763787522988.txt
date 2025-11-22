@@ -1,0 +1,368 @@
+Goal:
+Add a “public upload link” flow so an HR user can generate a link for a specific employee, send it to the candidate, and the candidate can upload their residence document WITHOUT logging in. On submit, Certia should reuse the existing OCR + rules engine to create a right-to-work check linked to that employer and employee.
+
+Very important constraints:
+- Do NOT change the database schema (no new tables, no column changes).
+- Reuse existing storage, OCR, and rules engine logic for creating right-to-work checks.
+- Keep candidate inputs minimal: they should only need to upload their document; no long forms.
+- Public endpoints must be safe:
+  - Use a signed token to authorize the upload.
+  - Do NOT leak any extra employee or account data to unauthenticated users.
+
+Context (current architecture):
+- Backend routes: `server/routes.ts`
+  - Uses `isAuthenticated` and `req.user.claims.sub` to get `userId`.
+  - Has routes for `/api/checks` and `/api/ocr/extract`.
+- Rules engine: `lib/rightToWork.ts`, wired via `mapToRulesEngineInput` in `server/rightToWorkAdapter.ts`.
+- OCR: `lib/ocr.ts`, used in `/api/ocr/extract`.
+- Right-to-work checks and employees are stored using helpers from `@shared/schema` via `storage` functions.
+- Frontend:
+  - Routing: `client/src/App.tsx` with `wouter`.
+  - Employee detail page: `client/src/pages/employee-detail.tsx`.
+  - New check page: `client/src/pages/check-new.tsx` (already has file upload + OCR flow).
+  - Components for decisions and audit: `client/src/components/check-components.tsx`.
+
+==================================================
+TASK 1 — Signed token helper for public upload (no DB changes)
+==================================================
+
+Goal:
+Create a small helper that issues and verifies a signed token for public uploads. The token encodes employer userId, employeeId, and an expiry time. No database storage is used; token validity is checked cryptographically.
+
+1) Create a new helper module (for example):
+   - `server/publicUploadToken.ts` (or similar, in server side code).
+
+2) In this module, implement:
+
+   - A function to get the secret (from env, with safe default for dev):
+
+     ```ts
+     const PUBLIC_UPLOAD_SECRET = process.env.PUBLIC_UPLOAD_SECRET || "dev-public-upload-secret";
+     ```
+
+   - Use Node’s built-in `crypto` module (no new external dependencies) to sign and verify tokens via HMAC-SHA256.
+
+   - Define a payload type like:
+
+     ```ts
+     type PublicUploadPayload = {
+       uid: string;      // employer userId
+       empId: string;    // employeeId
+       exp: number;      // unix timestamp in ms
+     };
+     ```
+
+   - Implement:
+
+     ```ts
+     export function createPublicUploadToken(payload: PublicUploadPayload): string { ... }
+     export function verifyPublicUploadToken(token: string): PublicUploadPayload | null { ... }
+     ```
+
+   - Implementation details:
+     - Encode payload as JSON, then base64url.
+     - Compute signature = HMAC-SHA256(PUBLIC_UPLOAD_SECRET, payloadBase64) -> base64url.
+     - Token format: `${payloadBase64}.${signature}`.
+     - `verifyPublicUploadToken` should:
+       - Split on `.`, recompute signature, and compare in a timing-safe way.
+       - Parse payload JSON, ensure `exp >= Date.now()`.
+       - Return the payload if valid and not expired; otherwise return `null`.
+
+   - Do NOT log secrets or full tokens.
+
+3) Default expiry:
+   - Use a default like 14 days if not specified (e.g., `exp = Date.now() + 14 * 24 * 60 * 60 * 1000`).
+
+==================================================
+TASK 2 — Backend endpoints for public upload link + submission
+==================================================
+
+Goal:
+Allow authenticated HR users to create a public upload link for an employee, and unauthenticated candidates to validate and submit uploads using that link.
+
+All changes in `server/routes.ts` (or the main routes registration file).
+
+A) Create link endpoint (authenticated):
+
+1) Add a new route:
+
+   ```ts
+   app.post("/api/public-upload/link", isAuthenticated, async (req: any, res) => {
+     try {
+       const userId = req.user.claims.sub;
+       const { employeeId, expiresInDays } = req.body || {};
+
+       if (!employeeId) {
+         return res.status(400).json({ error: "employeeId is required" });
+       }
+
+       // Ensure employee belongs to this user
+       const employee = await storage.getEmployeeByIdAndUserId(employeeId, userId);
+       if (!employee) {
+         return res.status(404).json({ error: "Employee not found" });
+       }
+
+       const days = typeof expiresInDays === "number" && expiresInDays > 0 ? expiresInDays : 14;
+       const exp = Date.now() + days * 24 * 60 * 60 * 1000;
+
+       const token = createPublicUploadToken({
+         uid: userId,
+         empId: employeeId,
+         exp,
+       });
+
+       const urlPath = `/upload?token=${encodeURIComponent(token)}`;
+
+       return res.json({ token, urlPath, expiresAt: exp });
+     } catch (err) {
+       console.error("Error creating public upload link:", err);
+       return res.status(500).json({ error: "Failed to create public upload link" });
+     }
+   });
+Use createPublicUploadToken from the helper module.
+
+Assume storage.getEmployeeByIdAndUserId exists or implement it using existing patterns for fetching a single employee with userId check.
+
+B) Validate token endpoint (public):
+
+Add a new route:
+
+ts
+Copy code
+app.get("/api/public-upload/validate", async (req: any, res) => {
+  try {
+    const token = req.query.token as string | undefined;
+    if (!token) {
+      return res.status(400).json({ valid: false, error: "Missing token" });
+    }
+
+    const payload = verifyPublicUploadToken(token);
+    if (!payload) {
+      return res.status(400).json({ valid: false, error: "Invalid or expired token" });
+    }
+
+    // For privacy, DO NOT return employee details; just say it's valid.
+    return res.json({ valid: true });
+  } catch (err) {
+    console.error("Error validating public upload token:", err);
+    return res.status(500).json({ valid: false, error: "Server error" });
+  }
+});
+C) Submit upload endpoint (public):
+
+Add a new route that accepts a file + token and creates a right-to-work check:
+
+Reuse the same file upload mechanism as /api/ocr/extract / existing upload handlers (multer or similar).
+
+Reuse the OCR + rules engine pipeline used for /api/checks.
+
+Sketch:
+
+ts
+Copy code
+app.post("/api/public-upload/submit", upload.single("document"), async (req: any, res) => {
+  try {
+    const token = req.body.token as string | undefined;
+    if (!token) {
+      return res.status(400).json({ error: "Missing token" });
+    }
+
+    const payload = verifyPublicUploadToken(token);
+    if (!payload) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+
+    const { uid: userId, empId: employeeId } = payload;
+
+    // Basic sanity check: employee still exists and belongs to this user
+    const employee = await storage.getEmployeeByIdAndUserId(employeeId, userId);
+    if (!employee) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: "No document uploaded" });
+    }
+
+    // Reuse OCR + rules engine to produce a right-to-work check
+    // Pseudocode (adapt to actual helpers you already have):
+    //
+    // 1. Run OCR on the uploaded file and get rawText + extractedFields.
+    // 2. Map extractedFields + employee data into the rules engine input.
+    // 3. Evaluate right-to-work and get workStatus, decisionSummary, decisionDetails.
+    // 4. Store a new right_to_work_checks row linked to userId + employeeId,
+    //    including ocrRawText + ocrExtractedFields.
+
+    const ocrResult = await runOcrForPublicUpload(file); // Implement by reusing lib/ocr.ts + existing patterns.
+    const { workStatus, decisionSummary, decisionDetails } =
+      await evaluateRightToWorkFromOcrAndEmployee({ employee, ocrResult });
+    
+    const createdCheck = await storage.createRightToWorkCheck({
+      userId,
+      employeeId,
+      // Fill documentType, documentNumber, expiryDate from ocrResult where possible (or leave null).
+      documentType: ocrResult.documentTypeGuess ?? null,
+      documentNumber: ocrResult.documentNumberGuess ?? null,
+      expiryDate: ocrResult.expiryDateGuessIso ?? null,
+      workStatus,
+      decisionSummary,
+      decisionDetails,
+      ocrRawText: ocrResult.rawText,
+      ocrExtractedFields: JSON.stringify({
+        documentTypeGuess: ocrResult.documentTypeGuess,
+        documentNumberGuess: ocrResult.documentNumberGuess,
+        expiryDateGuessIso: ocrResult.expiryDateGuessIso,
+        employerNameGuess: ocrResult.employerNameGuess,
+        employmentPermissionGuess: ocrResult.employmentPermissionGuess,
+      }),
+    });
+
+    return res.json({
+      success: true,
+      checkId: createdCheck.id,
+      workStatus,
+      decisionSummary,
+      decisionDetails,
+    });
+  } catch (err) {
+    console.error("Error submitting public upload:", err);
+    return res.status(500).json({ error: "Failed to process upload" });
+  }
+});
+Implementation notes:
+
+Implement any helper functions (runOcrForPublicUpload, evaluateRightToWorkFromOcrAndEmployee) by reusing existing code used for /api/checks + lib/rightToWork.ts + server/rightToWorkAdapter.ts.
+
+Do NOT bypass the rules engine – it should behave like a regular check created via the app.
+
+Keep any new helpers in server code, not in the client.
+
+==================================================
+TASK 3 — Public upload page for candidates (/upload)
+Goal:
+Add a public-facing page where a candidate can upload their document using the link, without logging in.
+
+Create a new page component:
+
+client/src/pages/public-upload.tsx (or similar).
+
+In client/src/App.tsx, add a route:
+
+tsx
+Copy code
+<Route path="/upload" component={PublicUpload} />
+PublicUpload component behavior:
+
+Use useLocation or similar to read token from the query string (?token=...).
+
+On mount:
+
+If no token: show an “Invalid link” state.
+
+If token exists: call GET /api/public-upload/validate?token=....
+
+On { valid: true }: show the upload form.
+
+On { valid: false }: show “This link is invalid or has expired.”
+
+Layout:
+
+Keep branding: show Certia logo and a simple heading like:
+
+“Upload your document”
+
+Subtext: “Certia helps your employer check your right to work in Germany. This page is only used to securely upload your residence document.”
+
+Main content:
+
+A Card with:
+
+File upload (reuse the same upload component/UX from check-new.tsx if possible).
+
+Simple helper text: “Upload a clear photo or scan of your German residence permit or visa.”
+
+Primary button: “Submit document”.
+
+Submission:
+
+On click, send multipart/form-data to POST /api/public-upload/submit with:
+
+document file
+
+token in the form body
+
+Show loading state while submitting.
+
+On success:
+
+Show a success state: “Thanks, your document has been received. Your employer will review your work eligibility in Certia.”
+
+On error:
+
+Show a generic error: “Something went wrong. You may want to contact your employer and ask them to resend the link.”
+
+Navigation:
+
+Do NOT show the full internal app navigation for this public page. Use a minimal header with just the logo/name.
+
+==================================================
+TASK 4 — “Request documents” button on Employee detail page
+Goal:
+Give HR an easy way to generate a public upload link for a specific employee and copy it to send by email.
+
+In client/src/pages/employee-detail.tsx:
+
+Add a button in the header area (where employee name and action buttons are shown):
+
+Label: Request documents from employee
+
+Variant: outline/secondary to keep it distinct from primary internal actions.
+
+On click:
+
+Call POST /api/public-upload/link with { employeeId: currentEmployeeId }.
+
+On success:
+
+Show a small inline panel or dialog with:
+
+Read-only text input containing the link:
+
+For now, derive link as window.location.origin + urlPath where urlPath comes from the API response.
+
+A “Copy link” button using navigator.clipboard.writeText.
+
+Helper text: “Copy this link and send it to the employee so they can upload their residence document.”
+
+On error:
+
+Show a non-blocking error message.
+
+Do NOT send emails from the backend; HR will manually send the link.
+
+==================================================
+TASK 5 — Safety & polish
+Ensure public endpoints (/api/public-upload/validate, /api/public-upload/submit) do NOT use isAuthenticated.
+
+Ensure they:
+
+Only act when the token is valid.
+
+Do not leak employee names, user emails, or any internal identifiers.
+
+Do NOT add any new required fields to existing forms.
+
+Do NOT change database schema or existing routes’ behavior.
+
+Keep UI responsive and visually consistent with the current Certia design.
+
+After implementing, run the app and verify:
+
+Employee detail → Request documents → Link generated and copyable.
+
+Public upload page:
+
+Invalid/expired token → appropriate error UI.
+
+Valid token → upload works and creates a right-to-work check visible to HR.
