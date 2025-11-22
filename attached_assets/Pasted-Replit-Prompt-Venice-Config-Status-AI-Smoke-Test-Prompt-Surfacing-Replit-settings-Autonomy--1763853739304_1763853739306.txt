@@ -1,0 +1,229 @@
+Replit Prompt — Venice Config Status + AI Smoke Test + Prompt Surfacing
+Replit settings:
+- Autonomy: Autonomous – Medium
+- App testing: ON
+
+Goal:
+Add a small “AI diagnostics” layer for the Venice.ai integration so that:
+1) I can see whether the Venice env vars are configured correctly.
+2) I can run quick AI smoke tests without creating/storing real right-to-work checks.
+3) The Venice system prompt is easy to review and tweak in one place.
+
+Very important constraints:
+- Do NOT change the database schema.
+- Do NOT change the existing right-to-work check creation behavior or any routes that persist checks.
+- Do NOT try to set env var values in code. I will set VENICE_* env vars manually in the Replit Secrets UI.
+- Keep this diagnostics functionality lightweight and, where possible, dev-oriented (safe defaults in production).
+
+Context:
+- Venice client helper: server/veniceClient.ts (contains getVeniceRightToWorkDecision).
+- Rules engine: lib/rightToWork.ts (evaluateRightToWork).
+- Existing server routes: server/routes.ts.
+- Existing UI pages:
+  - Dashboard, Employees, New Check, Import, Help/FAQ.
+- Frontend routing: client/src/App.tsx using wouter.
+- Tech stack: TypeScript/React on the client, Node/Express (or similar) on the server.
+
+==================================================
+TASK 1 — Centralize and expose the Venice system prompt (server-side only)
+==================================================
+
+Goal:
+Make the Venice system prompt and base prompt text clearly defined in one place in server/veniceClient.ts so it’s easy to tune later.
+
+1) In server/veniceClient.ts:
+   - Extract the existing system message text into a constant near the top, for example:
+
+     ```ts
+     export const VENICE_SYSTEM_PROMPT = `
+     You are a cautious German right-to-work compliance assistant.
+     Based on OCR text and extracted fields from German residence permits
+     (e.g., EU Blue Card, elektronischer Aufenthaltstitel, Fiktionsbescheinigung),
+     decide if a person appears ELIGIBLE, NOT_ELIGIBLE, or NEEDS_REVIEW to work in Germany.
+
+     Rules:
+     - If key information is missing, choose NEEDS_REVIEW.
+     - If wording explicitly allows employment (e.g., "Erwerbstätigkeit gestattet"), ELIGIBLE is possible.
+     - If wording clearly restricts or forbids employment, choose NOT_ELIGIBLE.
+     - Never guess; when in doubt, pick NEEDS_REVIEW and state what is missing.
+     - Do not provide legal advice; this is for internal screening only.
+     `.trim();
+     ```
+
+   - If there is already a system message string, replace it with VENICE_SYSTEM_PROMPT and use that constant instead.
+   - Keep getVeniceRightToWorkDecision working exactly as before, just using VENICE_SYSTEM_PROMPT.
+
+2) Do NOT export any API that changes the prompt at runtime. The goal is just to have a single, clearly documented constant that I can edit later.
+
+==================================================
+TASK 2 — Backend endpoint: Venice config & test endpoint
+==================================================
+
+Goal:
+Provide a simple authenticated endpoint that:
+- Shows Venice config status (which env vars are present).
+- Allows running a one-off Venice decision on arbitrary OCR text/extractedFields WITHOUT creating a real check.
+
+1) In server/routes.ts (or wherever routes are registered), add a new authenticated route:
+
+   ```ts
+   app.post("/api/venice/test", isAuthenticated, async (req: any, res) => {
+     try {
+       const { ocrRawText, ocrExtractedFields, currentRulesStatus } = req.body || {};
+
+       const hasBaseUrl = !!process.env.VENICE_API_BASE_URL;
+       const hasApiKey = !!process.env.VENICE_API_KEY;
+       const hasModelId = !!process.env.VENICE_MODEL_ID;
+
+       // Basic config report
+       const config = {
+         hasBaseUrl,
+         hasApiKey,
+         hasModelId,
+       };
+
+       // If config is incomplete, return config info but do not call Venice.
+       if (!hasApiKey || !hasModelId) {
+         return res.json({
+           config,
+           aiReview: {
+             status: "UNKNOWN",
+             explanation: "Venice.ai is not fully configured (missing API key or model id). Update VENICE_* env vars.",
+             missingInformation: [],
+           },
+         });
+       }
+
+       // Parse extractedFields if provided as string.
+       let parsedExtracted: any = undefined;
+       if (typeof ocrExtractedFields === "string") {
+         try {
+           parsedExtracted = JSON.parse(ocrExtractedFields);
+         } catch (err) {
+           console.warn("Failed to parse ocrExtractedFields in /api/venice/test:", err);
+         }
+       } else if (ocrExtractedFields) {
+         parsedExtracted = ocrExtractedFields;
+       }
+
+       const rulesStatus =
+         typeof currentRulesStatus === "string" && currentRulesStatus.length > 0
+           ? currentRulesStatus
+           : "NEEDS_REVIEW";
+
+       const aiReview = await getVeniceRightToWorkDecision({
+         currentRulesStatus: rulesStatus,
+         ocrRawText: ocrRawText || "",
+         ocrExtractedFields: parsedExtracted,
+       });
+
+       return res.json({ config, aiReview });
+     } catch (err) {
+       console.error("Error in /api/venice/test:", err);
+       return res.status(500).json({
+         config: {
+           hasBaseUrl: !!process.env.VENICE_API_BASE_URL,
+           hasApiKey: !!process.env.VENICE_API_KEY,
+           hasModelId: !!process.env.VENICE_MODEL_ID,
+         },
+         error: "Failed to call Venice.ai test endpoint",
+       });
+     }
+   });
+
+
+This route:
+
+Must NOT create or update any right-to-work check records in the database.
+
+Should be used purely for diagnostics/smoke tests.
+
+Requires authentication via isAuthenticated, so it’s only usable by logged-in users.
+
+==================================================
+TASK 3 — UI: “AI Diagnostics” panel on the Help/FAQ page
+
+Goal:
+Add a small section on the existing Help/FAQ page where I can:
+
+See Venice config status (which env vars are set).
+
+Run a quick AI test by pasting OCR text and optional extractedFields JSON.
+
+See the AI’s status/explanation/missing info in a readable way.
+
+Locate the Help/FAQ page component (e.g. client/src/pages/help.tsx).
+
+At the bottom of the Help page, add a new section titled:
+
+“AI Diagnostics (Venice.ai)” or similar.
+
+In that section, build a small card with:
+
+A brief description:
+
+“Use this section to verify that Certia’s AI decision engine (Venice.ai) is configured correctly and to run quick test decisions. This is for internal testing only.”
+
+A simple form:
+
+Multi-line textarea for OCR raw text.
+
+Multi-line textarea for Extracted fields JSON (optional).
+
+A small select or text input for Current rules status, defaulting to NEEDS_REVIEW.
+
+A primary button: “Run AI test”.
+
+When the user clicks “Run AI test”:
+
+Call POST /api/venice/test with body:
+
+{
+  ocrRawText: <textarea value>,
+  ocrExtractedFields: <textarea value or empty>,
+  currentRulesStatus: <selected status>,
+}
+
+
+Handle loading state (disable button, show spinner text like “Running...”).
+
+On success, read:
+
+config → show indicators:
+
+For each of hasBaseUrl, hasApiKey, hasModelId, show a small green check or red X (e.g., “API key configured: Yes/No”).
+
+aiReview → show:
+
+aiReview.status (badge style similar to existing status badges).
+
+aiReview.explanation as a text block.
+
+aiReview.missingInformation as a bullet list if length > 0.
+
+On error, show an inline error message but do not break the page.
+
+Styling:
+
+Reuse existing Tailwind utility patterns and card components used elsewhere (e.g., Help cards).
+
+Keep this section visually secondary (not the first thing on the Help page), but readable.
+
+==================================================
+TASK 4 — Safety & sanity checks
+
+Ensure /api/venice/test:
+
+Is behind isAuthenticated.
+
+Does not log full OCR content in production-level detail (keep console.error/console.warn minimal).
+
+Ensure the Help page still loads even if Venice is not configured:
+
+In that case, the diagnostics panel should simply show that API key / model id are missing and skip the call.
+
+Do not modify:
+
+Database schema
+
+Existing check creation routes, except for imports of the new helper if needed.
