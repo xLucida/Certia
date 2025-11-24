@@ -14,6 +14,7 @@ export default function PublicUploadPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
+  const [uploadedFileNames, setUploadedFileNames] = useState<string[]>([]);
 
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get("token");
@@ -45,6 +46,7 @@ export default function PublicUploadPage() {
     },
     onSuccess: (data) => {
       console.log("Upload successful:", data);
+      setUploadedFileNames(selectedFiles.map(f => f.name));
       setUploadSuccess(true);
       setUploadResult(data);
       setSelectedFiles([]);
@@ -148,6 +150,10 @@ export default function PublicUploadPage() {
   }
 
   if (uploadSuccess && uploadResult) {
+    const referenceCode = uploadResult.checkId 
+      ? `CERTIA-${uploadResult.checkId.substring(0, 8).toUpperCase()}`
+      : null;
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30 p-4">
         <Card className="w-full max-w-lg shadow-lg">
@@ -163,6 +169,36 @@ export default function PublicUploadPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
+            {referenceCode && (
+              <div className="bg-muted/50 rounded-lg p-4 border" data-testid="section-reference">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Reference code
+                </p>
+                <p className="text-lg font-mono font-semibold" data-testid="text-reference-code">
+                  {referenceCode}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Keep this code for your records
+                </p>
+              </div>
+            )}
+
+            {uploadedFileNames.length > 0 && (
+              <div className="bg-muted/30 rounded-lg p-4">
+                <p className="text-sm font-medium mb-2">
+                  Uploaded documents ({uploadedFileNames.length}):
+                </p>
+                <ul className="text-sm text-muted-foreground space-y-1.5">
+                  {uploadedFileNames.map((fileName, index) => (
+                    <li key={index} className="flex items-center gap-2" data-testid={`text-uploaded-file-${index}`}>
+                      <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{fileName}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {uploadResult.workStatus && (
               <Alert>
                 <AlertDescription className="text-sm">
@@ -175,7 +211,8 @@ export default function PublicUploadPage() {
                 </AlertDescription>
               </Alert>
             )}
-            <p className="text-sm text-muted-foreground text-center">
+            
+            <p className="text-sm text-muted-foreground text-center pt-2">
               You can now close this window.
             </p>
             <div className="border-t pt-4 mt-6">
@@ -214,6 +251,27 @@ export default function PublicUploadPage() {
               </AlertDescription>
             </Alert>
           )}
+
+          <div className="bg-muted/40 rounded-lg p-4 border border-muted" data-testid="section-data-usage">
+            <h4 className="text-sm font-semibold mb-2">How your data is used</h4>
+            <p className="text-sm text-muted-foreground mb-3">
+              Your documents are securely sent to your prospective employer via Certia.
+            </p>
+            <ul className="text-xs text-muted-foreground space-y-1.5">
+              <li className="flex items-start gap-2">
+                <span className="text-primary mt-0.5">•</span>
+                <span>They are only used to perform a right-to-work check for Germany</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary mt-0.5">•</span>
+                <span>Documents are transmitted over an encrypted connection</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary mt-0.5">•</span>
+                <span>This upload link is time-limited and cannot be reused once expired</span>
+              </li>
+            </ul>
+          </div>
 
           <div
             onDragOver={handleDragOver}

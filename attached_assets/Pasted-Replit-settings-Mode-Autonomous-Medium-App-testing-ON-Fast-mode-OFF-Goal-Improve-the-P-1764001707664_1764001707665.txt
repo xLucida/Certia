@@ -1,0 +1,99 @@
+Replit settings:
+- Mode: Autonomous – Medium
+- App testing: ON
+- Fast mode: OFF
+
+Goal:
+Improve the PUBLIC upload experience (candidate-facing) for Certia so it feels more trustworthy and “real product” level:
+1) Clear “how your data is used” explainer.
+2) A reference code + file summary after successful upload.
+
+Scope:
+- Frontend only for the public upload page.
+- Use existing backend response data (e.g. checkId, any upload result info) – do NOT change backend routes in this prompt.
+- Keep all changes additive and copy/UX focused.
+
+Context:
+- Public upload page lives in something like `client/src/pages/public-upload.tsx`.
+- It already:
+  - Accepts 1–5 files.
+  - Shows selected file names.
+  - Calls `/api/public-upload/submit`.
+  - Shows a success state when upload completes.
+
+==================================================
+TASK 1 — “How your data is used” explainer (before upload)
+==================================================
+
+1) On the public upload page, inside the main card shown BEFORE upload, add a small “How your data is used” block.
+
+- Content (adapt text to match the rest of the tone, but keep the meaning):
+
+  - Heading (small): “How your data is used”
+  - Paragraph:
+    - “Your documents are securely sent to your prospective employer via Certia.”
+  - Bullets (or short sentences):
+    - “They are only used to perform a right-to-work check for Germany.”
+    - “Documents are transmitted over an encrypted connection.”
+    - “This upload link is time-limited and cannot be reused once expired.”
+
+- If the token / backend already includes the employer/company name, you may show:
+  - “You’re sending these documents to [EmployerName] via Certia.”
+  - If that info is not easily available, stick to “your prospective employer”.
+
+2) Make sure this block is visually subtle but clear:
+   - Use `text-sm` and `text-muted-foreground`.
+   - Place it under the main explanation text and above the dropzone.
+
+==================================================
+TASK 2 — Success screen: reference code + file summary
+==================================================
+
+Goal:
+After successful upload, give the candidate a clear confirmation they can reference later.
+
+1) On successful upload, the page already shows a success state (message like “Thank you – your documents have been received.”). Extend this:
+
+- Add a “Reference code” line, e.g.:
+
+  - “Reference code: CERTIA-XXXXXX”
+
+- Implementation detail:
+  - If the upload response already contains a checkId or similar ID, derive this from it.
+    - e.g. `CERTIA-` + first 8 characters of the check ID.
+  - If the exact field name is different, search the existing success-state code and reuse whatever identifier is returned from `/api/public-upload/submit`.
+  - If no identifier is available at all, generate a short random code on the client and show it as a local reference (but prefer using the real checkId if available).
+
+2) Show a short summary of what was uploaded:
+
+- Example:
+
+  - “Uploaded documents (3):”
+  - List:
+    - `bluecard_front.pdf`
+    - `bluecard_back.jpg`
+    - `registration.pdf`
+
+- Use the same `selectedFiles` / upload result structure already in state (you should be able to reuse filenames from the existing code).
+
+3) Keep copy consistent with the rest of the app’s tone. Example final success block:
+
+- “Thank you — your documents have been received.”
+- “Reference code: CERTIA-AB12CD34”
+- “Uploaded documents (3): [file list]”
+- “Your prospective employer will review them and contact you if anything else is needed.”
+
+==================================================
+Constraints & sanity checks
+==================================================
+
+- Do NOT change:
+  - Any API routes.
+  - OCR/AI logic.
+  - Public-upload backend behavior.
+- Only modify the public upload page’s UI and use existing response data.
+- Confirm:
+  - Single-file and multi-file uploads still work.
+  - Success state shows a reference code and file list.
+  - The “How your data is used” block displays correctly before upload.
+- Keep explanation comments short and focused.
