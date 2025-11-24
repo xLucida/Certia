@@ -1,0 +1,127 @@
+Project:
+- Certia (Right-to-work DE)
+- Stack: React + TypeScript + Tailwind + shadcn UI
+- Frontend is under `client/src/...`
+
+Goal:
+Improve the **visual design** (brand feel and premium polish) without changing any business logic. This is a purely visual/UI pass.
+
+Please keep changes focused and minimal:
+- Do NOT touch APIs, rules engine, or Venice/OCR logic.
+- Do NOT add new required fields or flows.
+- Only adjust layout, styling, and simple presentational components.
+
+==================================================
+TASK 1 — Strengthen global brand shell (header + logo)
+==================================================
+
+1) Create a simple Certia logo mark:
+   - In a shared component (e.g. `client/src/components/Header.tsx` or a new `Logo.tsx` used by the header and sidebar), render:
+     - A small rounded square with the brand blue gradient, containing a white "C".
+   - Use existing design tokens / Tailwind utilities (no external assets).
+
+2) In the main app header (and/or sidebar where the app name appears):
+   - Replace plain "Certia" text with:
+     - [Logo mark] + "Certia" wordmark.
+   - Slightly increase letter-spacing and size for the wordmark to feel more premium.
+
+3) Apply a subtle header background:
+   - Use a very soft gradient, e.g. `bg-gradient-to-r from-primary/10 via-background to-background`.
+   - Keep border-bottom, but reduce its contrast so it feels refined.
+
+==================================================
+TASK 2 — Landing page hero: add product preview and depth
+==================================================
+
+File: `client/src/pages/landing.tsx`
+
+1) Hero layout:
+   - Keep the current two-column grid, but:
+     - LEFT: headline, subtext, primary/secondary CTA buttons.
+     - RIGHT: an “App preview” card.
+
+2) App preview card:
+   - Implement as a standalone card component inside the landing page (no new route).
+   - Style:
+     - Rounded `xl` or `2xl`.
+     - Light gradient background (e.g. from `primary/5` to `background`).
+     - Border with low opacity and `shadow-md`.
+   - Content:
+     - Fake mini-dashboard: 3 metric rows (Total employees, Eligible, Expiring soon) with icons and numbers.
+     - A tiny table/list of 2–3 sample checks with status badges (Eligible / Needs review / Expiring soon).
+   - This is static, mock data only. It should NOT depend on real queries.
+
+3) Background & typography:
+   - Wrap the hero section in a more pronounced gradient:
+     - `bg-gradient-to-b from-primary/5 via-background to-background`.
+   - Slightly tighten the hero’s max width and line length so the headline feels punchy.
+   - Increase contrast on the subheading (e.g. slightly darker muted-foreground).
+
+==================================================
+TASK 3 — Dashboard visual hierarchy and card polish
+==================================================
+
+File: `client/src/pages/dashboard.tsx`
+
+1) Page header:
+   - Update the dashboard title section:
+     - Title: “Dashboard”
+     - Add a short subtitle below: “Right-to-work cockpit for your German workforce.”
+   - Align the “Export checks (CSV)” and “Add Employee” buttons to feel like a CTA group with consistent spacing.
+
+2) Metric cards (Total Employees / Eligible Workers / Expiring Soon):
+   - Ensure each card:
+     - Uses a consistent height.
+     - Has a faint gradient or tinted background (e.g. `from-white to-muted/40`).
+     - Has an icon inside a circular badge with stronger color (e.g. primary/success/warning).
+   - Add subtle hover state: small translate-y and shadow (`hover:-translate-y-[1px] hover:shadow-md`).
+
+3) “Cases requiring review” section:
+   - Make the section stand out:
+     - Add a subtle left border in amber (`border-l-4 border-amber-300` or similar).
+     - Use an amber-tinted background (`bg-amber-50/60`) that’s still readable.
+   - Keep the existing text content and behavior, just refine visuals.
+
+4) Employees & Work Status table area:
+   - Put the filters in a soft card header with `bg-muted/40` to visually separate controls from the empty state / table.
+   - Tighten vertical spacing so the section feels like one cohesive block.
+
+==================================================
+TASK 4 — Public upload page polish (candidate-facing)
+==================================================
+
+File: `client/src/pages/public-upload.tsx`
+
+1) Add subtle branding:
+   - At the top of the card, add:
+     - Certia logo mark + word “Certia” (reuse the Logo component from Task 1 if reasonable).
+     - A small muted line: “Secure right-to-work document upload”.
+
+2) Improve dropzone styling:
+   - When idle:
+     - Soft neutral background (`bg-muted/40`).
+     - Slight shadow and rounded `xl`.
+   - On drag over:
+     - Stronger border (`border-primary`) and background tint (`bg-primary/5`).
+   - Keep the icon and text, but center them vertically with a bit more breathing room.
+
+3) Success state:
+   - In the success screen, add a tiny separator and muted line like:
+     - “Powered by Certia” at the bottom of the card.
+
+==================================================
+TASK 5 — Keep it tidy
+==================================================
+
+- Do NOT change:
+  - Any API routes, query keys, or right-to-work logic.
+  - Any Venice/OCR integration.
+- Keep all new styling within:
+  - JSX classNames,
+  - `index.css`,
+  - or small presentational components.
+- Run app tests and confirm:
+  - All existing pages load correctly.
+  - Landing, dashboard, employee pages, and public upload still function exactly as before from a data/flow perspective.
+
+Please summarize the changes you make in <=5 bullet points focusing on visual improvements only.

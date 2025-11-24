@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, Shield, Bell, FileCheck, Users, AlertTriangle, ArrowRight } from "lucide-react";
+import { CertiaLogo } from "@/components/CertiaLogo";
 
 export default function Landing() {
   const handleLogin = () => {
@@ -9,9 +10,12 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b bg-gradient-to-r from-primary/5 via-background to-background backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <h1 className="text-xl font-bold tracking-tight">Certia</h1>
+          <div className="flex items-center gap-2">
+            <CertiaLogo size="default" />
+            <h1 className="text-xl font-bold tracking-wide">Certia</h1>
+          </div>
           <Button onClick={handleLogin} variant="outline" className="button-transition" data-testid="button-login">
             Log In
           </Button>
@@ -19,15 +23,15 @@ export default function Landing() {
       </header>
 
       <main>
-        <section className="relative overflow-hidden bg-gradient-to-b from-primary/5 via-background to-background">
-          <div className="max-w-7xl mx-auto px-6 py-20 lg:py-28">
-            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-              <div className="space-y-8">
-                <div className="space-y-4">
-                  <h2 className="text-5xl lg:text-6xl font-bold text-foreground leading-tight">
+        <section className="relative overflow-hidden bg-gradient-to-b from-primary/10 via-primary/5 to-background">
+          <div className="max-w-7xl mx-auto px-6 py-20 lg:py-32">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+              <div className="space-y-8 max-w-xl">
+                <div className="space-y-5">
+                  <h2 className="text-5xl lg:text-6xl font-bold text-foreground leading-[1.1] tracking-tight">
                     Right-to-Work Clarity for Germany
                   </h2>
-                  <p className="text-xl text-muted-foreground leading-relaxed">
+                  <p className="text-xl text-foreground/80 leading-relaxed">
                     Manage work eligibility, visa documents, and expiries in one place. Upload German residence permits and get a clear, structured right-to-work decision for every employee.
                   </p>
                 </div>
@@ -43,55 +47,60 @@ export default function Landing() {
               </div>
 
               <div className="relative">
-                <Card className="shadow-2xl border-2 rounded-2xl overflow-hidden">
-                  <div className="bg-gradient-to-br from-primary/10 to-background p-1">
-                    <Card className="border-0">
-                      <CardHeader className="border-b bg-card/50 p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex gap-1.5">
-                            <div className="w-3 h-3 rounded-full bg-red-400" />
-                            <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                            <div className="w-3 h-3 rounded-full bg-green-400" />
-                          </div>
-                          <span className="text-sm text-muted-foreground ml-2">Dashboard</span>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-6 space-y-4">
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="bg-background rounded-lg p-3 border">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Users className="h-4 w-4 text-primary" />
-                              <span className="text-xs text-muted-foreground">Total</span>
-                            </div>
-                            <div className="text-2xl font-bold">24</div>
-                          </div>
-                          <div className="bg-background rounded-lg p-3 border">
-                            <div className="flex items-center gap-2 mb-1">
-                              <CheckCircle className="h-4 w-4 text-accent" />
-                              <span className="text-xs text-muted-foreground">Eligible</span>
-                            </div>
-                            <div className="text-2xl font-bold text-accent">21</div>
-                          </div>
-                          <div className="bg-background rounded-lg p-3 border">
-                            <div className="flex items-center gap-2 mb-1">
-                              <AlertTriangle className="h-4 w-4 text-amber-500" />
-                              <span className="text-xs text-muted-foreground">Expiring</span>
-                            </div>
-                            <div className="text-2xl font-bold text-amber-600">3</div>
+                <div className="absolute -inset-4 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl blur-3xl opacity-30" />
+                <Card className="relative shadow-2xl border-2 rounded-2xl overflow-hidden bg-gradient-to-br from-card to-background">
+                  <CardHeader className="border-b bg-gradient-to-r from-muted/40 to-background/50 backdrop-blur-sm p-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-red-400/80 shadow-sm" />
+                        <div className="w-3 h-3 rounded-full bg-yellow-400/80 shadow-sm" />
+                        <div className="w-3 h-3 rounded-full bg-green-400/80 shadow-sm" />
+                      </div>
+                      <span className="text-sm text-muted-foreground ml-2 font-medium">Dashboard Preview</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-5 bg-gradient-to-br from-primary/5 to-transparent">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-background/80 backdrop-blur-sm rounded-xl p-3.5 border shadow-sm hover-elevate">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                            <Users className="h-4 w-4 text-primary" />
                           </div>
                         </div>
-                        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                          <div className="flex items-start gap-3">
-                            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">Cases requiring review</p>
-                              <p className="text-xs text-amber-700 dark:text-amber-200 mt-1">5 open · 2 resolved</p>
-                            </div>
+                        <div className="text-xs text-muted-foreground font-medium mb-1">Total</div>
+                        <div className="text-2xl font-bold">24</div>
+                      </div>
+                      <div className="bg-background/80 backdrop-blur-sm rounded-xl p-3.5 border shadow-sm hover-elevate">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center">
+                            <CheckCircle className="h-4 w-4 text-accent" />
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                        <div className="text-xs text-muted-foreground font-medium mb-1">Eligible</div>
+                        <div className="text-2xl font-bold text-accent">21</div>
+                      </div>
+                      <div className="bg-background/80 backdrop-blur-sm rounded-xl p-3.5 border shadow-sm hover-elevate">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground font-medium mb-1">Expiring</div>
+                        <div className="text-2xl font-bold text-amber-600 dark:text-amber-500">3</div>
+                      </div>
+                    </div>
+                    <div className="bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 rounded-xl p-4 shadow-sm backdrop-blur-sm">
+                      <div className="flex items-start gap-3">
+                        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center shrink-0">
+                          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">Cases requiring review</p>
+                          <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">5 open · 2 resolved</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
               </div>
             </div>

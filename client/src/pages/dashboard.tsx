@@ -226,7 +226,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Dashboard</h1>
-              <p className="text-muted-foreground mt-1">Overview of employees, right-to-work checks, and upcoming visa expiries.</p>
+              <p className="text-foreground/70 mt-1.5 text-base">Right-to-work cockpit for your German workforce.</p>
             </div>
             <div className="flex gap-2 flex-wrap">
               {import.meta.env.MODE !== 'production' && (
@@ -266,46 +266,46 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="card-hover border-l-4 border-l-primary/40 bg-gradient-to-br from-card to-background shadow-sm">
+            <Card className="hover:-translate-y-0.5 transition-all hover:shadow-lg bg-gradient-to-br from-white to-muted/30 dark:from-card dark:to-background min-h-[140px]">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Total Employees</CardTitle>
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Total Employees</CardTitle>
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shadow-sm">
                   <Users className="h-6 w-6 text-primary" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-5xl font-bold tracking-tight" data-testid="text-total-employees">{totalEmployees}</div>
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="text-sm text-muted-foreground mt-2.5">
                   Active employee records
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="card-hover border-l-4 border-l-accent/60 bg-gradient-to-br from-card to-background shadow-sm">
+            <Card className="hover:-translate-y-0.5 transition-all hover:shadow-lg bg-gradient-to-br from-white to-muted/30 dark:from-card dark:to-background min-h-[140px]">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Eligible Workers</CardTitle>
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center">
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Eligible Workers</CardTitle>
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center shadow-sm">
                   <CheckCircle className="h-6 w-6 text-accent" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-5xl font-bold tracking-tight text-accent" data-testid="text-eligible-count">{eligibleCount}</div>
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="text-sm text-muted-foreground mt-2.5">
                   Currently authorized to work
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="card-hover border-l-4 border-l-amber-500/60 bg-gradient-to-br from-card to-background shadow-sm">
+            <Card className="hover:-translate-y-0.5 transition-all hover:shadow-lg bg-gradient-to-br from-white to-muted/30 dark:from-card dark:to-background min-h-[140px]">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Expiring Soon</CardTitle>
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center">
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Expiring Soon</CardTitle>
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center shadow-sm">
                   <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-500" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-5xl font-bold tracking-tight text-amber-600 dark:text-amber-500" data-testid="text-expiring-count">{expiringSoon.length}</div>
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="text-sm text-muted-foreground mt-2.5">
                   Documents expiring in 60 days
                 </p>
               </CardContent>
@@ -334,12 +334,12 @@ export default function Dashboard() {
             </Alert>
           )}
 
-          <Card className="border-2 shadow-sm bg-gradient-to-br from-card to-background">
-            <CardHeader className="border-b bg-amber-50/50 dark:bg-amber-950/10">
+          <Card className="border-2 shadow-sm bg-gradient-to-br from-card to-background border-l-4 border-l-amber-300 dark:border-l-amber-600">
+            <CardHeader className="border-b bg-amber-50/60 dark:bg-amber-950/20">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500/30 to-amber-500/10 flex items-center justify-center shadow-sm">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                   </div>
                   <CardTitle className="text-lg font-bold">
                     Cases requiring review
@@ -516,11 +516,17 @@ export default function Dashboard() {
             </Card>
           )}
 
-          <Card className="border-2 shadow-sm">
-            <CardHeader className="border-b bg-muted/20">
+          <Card className="shadow-sm">
+            <CardHeader className="border-b bg-muted/40">
               <div className="flex items-center justify-between flex-wrap gap-4">
-                <CardTitle className="text-xl font-bold">Employees & Work Status</CardTitle>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div>
+                  <CardTitle className="text-xl font-bold">Employees & Work Status</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Manage employee data and right-to-work checks
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap mt-4">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -589,7 +595,6 @@ export default function Dashboard() {
                       <X className="h-4 w-4" />
                     </Button>
                   )}
-                </div>
               </div>
             </CardHeader>
             <CardContent>

@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut } from "lucide-react";
+import { CertiaLogo } from "@/components/CertiaLogo";
 
 const menuItems = [
   {
@@ -77,12 +78,10 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b px-4 py-4">
         <Link href="/" data-testid="link-home-sidebar">
-          <div className="flex items-center gap-2 cursor-pointer hover-elevate active-elevate-2 px-2 py-1 rounded-md">
-            <div className="h-8 w-8 bg-primary rounded-md flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
-            </div>
+          <div className="flex items-center gap-3 cursor-pointer hover-elevate active-elevate-2 px-2 py-1.5 rounded-md">
+            <CertiaLogo size="default" />
             <div className="flex flex-col">
-              <span className="text-lg font-semibold">Certia</span>
+              <span className="text-lg font-semibold tracking-wide">Certia</span>
               <span className="text-xs text-muted-foreground">Right-to-work for Germany</span>
             </div>
           </div>

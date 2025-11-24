@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, Upload, AlertCircle, Loader2, FileText } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { CertiaLogo } from "@/components/CertiaLogo";
 
 export default function PublicUploadPage() {
   const [, navigate] = useLocation();
@@ -149,8 +150,8 @@ export default function PublicUploadPage() {
   if (uploadSuccess && uploadResult) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30 p-4">
-        <Card className="w-full max-w-lg">
-          <CardHeader className="text-center">
+        <Card className="w-full max-w-lg shadow-lg">
+          <CardHeader className="text-center border-b pb-6">
             <div className="flex justify-center mb-4">
               <div className="h-16 w-16 rounded-full bg-success/10 flex items-center justify-center">
                 <CheckCircle2 className="h-10 w-10 text-success" data-testid="icon-success" />
@@ -161,7 +162,7 @@ export default function PublicUploadPage() {
               Your prospective employer will review them and contact you if anything else is needed.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             {uploadResult.workStatus && (
               <Alert>
                 <AlertDescription className="text-sm">
@@ -177,6 +178,11 @@ export default function PublicUploadPage() {
             <p className="text-sm text-muted-foreground text-center">
               You can now close this window.
             </p>
+            <div className="border-t pt-4 mt-6">
+              <p className="text-xs text-muted-foreground text-center">
+                Powered by <span className="font-semibold">Certia</span>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -185,8 +191,15 @@ export default function PublicUploadPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30 p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
+      <Card className="w-full max-w-2xl shadow-lg">
+        <CardHeader className="text-center border-b pb-6">
+          <div className="flex justify-center mb-4">
+            <div className="flex items-center gap-2">
+              <CertiaLogo size="default" />
+              <span className="text-xl font-bold tracking-wide">Certia</span>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">Secure right-to-work document upload</p>
           <CardTitle className="text-2xl">Upload your right-to-work documents</CardTitle>
           <CardDescription className="text-base mt-2">
             Your documents will be securely sent to your prospective employer so they can check your right to work in Germany.
@@ -207,9 +220,9 @@ export default function PublicUploadPage() {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={`
-              border-2 border-dashed rounded-lg p-8 text-center transition-colors
-              ${isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover-elevate"}
-              ${selectedFile ? "bg-muted/50" : ""}
+              border-2 border-dashed rounded-xl p-10 text-center transition-all
+              ${isDragging ? "border-primary bg-primary/10 shadow-md" : "border-muted-foreground/30 bg-muted/40"}
+              ${selectedFile ? "bg-muted/60 shadow-sm" : "hover-elevate"}
             `}
             data-testid="dropzone-upload"
           >

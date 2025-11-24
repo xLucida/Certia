@@ -50,7 +50,7 @@ function Router() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center h-14 px-4 border-b bg-background shrink-0">
+          <header className="flex items-center h-14 px-4 border-b bg-gradient-to-r from-primary/5 via-background to-background shrink-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
           </header>
           <main className="flex-1 overflow-auto">
