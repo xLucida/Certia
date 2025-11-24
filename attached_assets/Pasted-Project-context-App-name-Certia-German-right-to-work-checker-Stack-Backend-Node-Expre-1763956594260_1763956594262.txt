@@ -1,0 +1,279 @@
+Project context:
+- App name: Certia (German right-to-work checker).
+- Stack:
+  - Backend: Node/Express-style server with routes in `server/routes.ts`, storage in `server/storage.ts` and `@shared/schema`.
+  - Frontend: React + Tailwind, routing in `client/src/App.tsx`.
+- Current key UX:
+  - Dashboard with metrics + “Expiring Documents” and renewals.
+  - Employee detail page with “Right-to-Work Status” panel and check history.
+  - New Check page with upload-first OCR flow and 3-step progress.
+  - Check detail page with:
+    - Status badge, summary, decision details, “Missing information” section.
+    - Legal disclaimer.
+    - Case file notes + notes print-out.
+  - Help / FAQ page explaining what the tool does / doesn’t do, supported docs, statuses, etc.
+- Product goal for this phase:
+  - Add **embedded guidance** so HR users understand:
+    - What each status generally means in practice.
+    - How the decision is made (AI + rules + guardrails).
+    - How to use the tool safely (double-checking docs, when to escalate).
+  - Keep it **lightweight and non-intrusive**: small panels, hints, and links, not heavy modals.
+
+Global constraints:
+- Do NOT change database schema.
+- Do NOT change the rules engine or AI decision logic.
+- Do NOT add new required form fields.
+- Keep changes UX-only and additive, focused on clarity and trust.
+
+==================================================
+TASK 1 — Status interpretation helper & inline guidance
+==================================================
+
+Goal:
+Whenever a right-to-work status is shown (ELIGIBLE / NOT_ELIGIBLE / NEEDS_REVIEW), provide a short, consistent “how to interpret this” explanation so HR knows what to do next.
+
+1.1) Create a small helper + component for status interpretation
+
+1) Add a new helper (for example in `client/src/components/statusInterpretation.tsx` or a similar shared UI location) that:
+
+- Exposes a function:
+
+  ```ts
+  type WorkStatus = "ELIGIBLE" | "NOT_ELIGIBLE" | "NEEDS_REVIEW";
+
+  export function getStatusInterpretation(status: WorkStatus) {
+    return {
+      title: string;        // e.g. “What ELIGIBLE usually means”
+      description: string;  // 1–2 sentence plain language explanation
+      bullets: string[];    // 2–4 practical bullet points
+    };
+  }
+With content like (feel free to tweak wording but keep intent):
+
+ELIGIBLE:
+
+Title: “What ELIGIBLE usually means”
+
+Description: “Based on the current documents, this person appears eligible to work in Germany under the conditions shown.”
+
+Bullets (examples):
+
+“Verify that the scanned document matches the original.”
+
+“Check that the job offer respects any occupation or employer limitations.”
+
+“Track the expiry date and schedule a follow-up check before it expires.”
+
+NOT_ELIGIBLE:
+
+Title: “What NOT ELIGIBLE usually means”
+
+Description: “Based on the current documents, this person does not appear eligible to work in Germany.”
+
+Bullets:
+
+“Do not start or continue employment based solely on this permit.”
+
+“Confirm with the candidate whether they have other valid documents.”
+
+“Consider contacting legal counsel or the local immigration authority if this is unexpected.”
+
+NEEDS_REVIEW:
+
+Title: “What NEEDS REVIEW usually means”
+
+Description: “There are missing details, possible restrictions, or AI/rules conflicts. A human review is required before any decision.”
+
+Bullets:
+
+“Carefully review the original document text (not just the scan).”
+
+“Clarify unclear conditions such as employer, hours, or region.”
+
+“Escalate to HR legal/compliance if you are unsure.”
+
+Create a small React component, e.g. StatusInterpretation, that:
+
+Takes status as a prop.
+
+Uses getStatusInterpretation and renders:
+
+Title
+
+Description
+
+Bulleted list
+
+Styling:
+
+Small card or muted panel.
+
+Use existing card/typography utilities and subtle icon (e.g. an info icon).
+
+Should be visually secondary to the main status badge/summary.
+
+1.2) Use this interpretation in key places
+
+On the check detail page (client/src/pages/check-detail.tsx):
+
+Under the main decision summary/heading (but above “Decision details”), render the StatusInterpretation component for the current check.workStatus.
+
+Ensure it:
+
+Shows only once.
+
+Does not interfere with print layout; it should also print nicely as part of the audit report.
+
+On the employee detail page (client/src/pages/employee-detail.tsx):
+
+Inside the “Right-to-Work Status” card, add a small collapsible area or inline section:
+
+A link-like toggle: “How to interpret this status”
+
+When expanded, show the StatusInterpretation for the latest check status.
+
+Keep it compact on initial load (collapsed by default) to avoid clutter.
+
+Keep behavior purely client-side; no extra API calls.
+
+==================================================
+TASK 2 — “How this decision was made” panel
+Goal:
+Increase trust and transparency by briefly explaining, next to each decision, how Certia arrived at the result (AI + rules + guardrails, conservative bias).
+
+2.1) Add a static “How this decision was made” block on check detail
+
+On the check detail page (same component as in Task 1.2):
+
+Directly under the StatusInterpretation (or adjacent to it), add a small info panel titled e.g.:
+
+Title: “How this decision was made”
+
+Content (static text, do NOT fetch logs; just describe the process):
+
+A short paragraph like:
+
+“Certia combines a rules engine based on German right-to-work guidelines with an AI review of the scanned document. When the AI and rules engine disagree, or key information is missing, the status is set to ‘Needs review’ for safety.”
+
+A tiny bullet list:
+
+“Document was scanned and parsed using OCR.”
+
+“AI reviewed the OCR text and extracted fields.”
+
+“A rules engine checked document type and expiry.”
+
+“Any conflicts or uncertainties automatically downgrade the status to ‘Needs review’.”
+
+Styling:
+
+Reuse existing card / muted panel styling.
+
+Make it subtle but clearly visible (e.g. an info icon with blue/secondary text).
+
+Ensure the block is included in print (as part of the audit report) so auditors see the decision process summary.
+
+==================================================
+TASK 3 — Contextual guidance on New Check, Dashboard, and Help
+Goal:
+Give HR little “training wheels” where they actually work: at the upload step, on status panels, and via the Help page. Keep it lightweight and non-modal.
+
+3.1) New Check page — small, practical hints
+
+On client/src/pages/check-new.tsx:
+
+In Step 1 (Upload Document) panel, add a small “Tips for better scans” section, for example:
+
+Title: “Tips for better scans”
+
+Bullets:
+
+“Use a clear photo or PDF of the full residence permit (front, and back if relevant).”
+
+“Avoid heavy shadows, glare, or cut-off text.”
+
+“If details are unreadable, enter key fields manually in Step 2.”
+
+In Step 2 (Review & Corrections) panel, add a one-line reminder near the auto-filled fields legend:
+
+Text example:
+
+“Fields marked with ✨ were auto-filled from the document. Always verify them against the original.”
+
+Styling:
+
+Use small text (text-sm) and muted color.
+
+Keep it inline with the existing layout; no new modal or drawer.
+
+3.2) Dashboard — link to guidance
+
+On the dashboard (client/src/pages/dashboard.tsx), within the “Employees & Work Status” or renewals area:
+
+Add a small link or helper text, e.g.:
+
+“Not sure how to interpret statuses? See the Help & FAQ.”
+
+Clicking the link should navigate to the Help page route (e.g. /help), reusing existing navigation.
+
+3.3) Help / FAQ — ensure content matches new terminology
+
+On the Help / FAQ page (client/src/pages/help.tsx):
+
+Make sure:
+
+The status explanations for ELIGIBLE / NOT ELIGIBLE / NEEDS REVIEW align with the text used in getStatusInterpretation.
+
+The app name is consistently “Certia” rather than the old name (update static text only where needed).
+
+Optionally add a small section “How Certia makes decisions” that mirrors the static block from Task 2 (you can reuse the same wording).
+
+==================================================
+TASK 4 — Safety & regression checks
+Do NOT change:
+
+Any database schema.
+
+Any right-to-work decision logic (rules engine or Venice AI integration).
+
+Ensure:
+
+All new components are purely UI/UX.
+
+Print views still work:
+
+Per-check print report includes:
+
+Status interpretation.
+
+“How this decision was made.”
+
+Employee audit report remains clean and readable.
+
+Manually verify:
+
+Check detail:
+
+Shows status interpretation and “How this decision was made”.
+
+Prints cleanly with the new sections included.
+
+Employee detail:
+
+“How to interpret this status” toggle appears and shows status interpretation.
+
+New Check:
+
+Upload step shows “Tips for better scans”.
+
+Review step shows reminder about ✨ auto-filled fields.
+
+Dashboard:
+
+Link to Help & FAQ works and does not break layout.
+
+Help page:
+
+Text is consistent with the new guidance and app naming.
+
+Keep changes scoped strictly to embedded guidance and trust-building copy/UX. No unrelated layout redesigns or logic changes.
