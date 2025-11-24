@@ -67,9 +67,15 @@ export function ObjectUploader({
     }
 
     return () => {
-      if (uppy.getPlugin("Dashboard")) {
-        uppy.getPlugin<Dashboard>("Dashboard")?.closeModal();
-        uppy.removePlugin("Dashboard");
+      try {
+        const dashboardPlugin = uppy.getPlugin("Dashboard");
+        if (dashboardPlugin) {
+          uppy.getPlugin<Dashboard>("Dashboard")?.closeModal();
+          uppy.removePlugin("Dashboard");
+        }
+      } catch (error) {
+        // Plugin might already be removed, ignore the error
+        console.debug("Dashboard plugin cleanup skipped:", error);
       }
     };
   }, [showModal, uppy]);
