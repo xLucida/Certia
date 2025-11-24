@@ -49,7 +49,7 @@ When a new check is created, both Venice AI and the rules engine evaluate the do
 
 ### Data Storage
 
-PostgreSQL, hosted via Neon serverless, is the primary database. Drizzle ORM is used for type-safe queries. The schema includes `users`, `employees`, and `rightToWorkChecks` tables, with `rightToWorkChecks` allowing nullable `employeeId` for standalone candidate checks. Relationships are designed to link users to employees and checks, with checks optionally linked to employees.
+PostgreSQL, hosted via Neon serverless, is the primary database. Drizzle ORM is used for type-safe queries. The schema includes `users`, `employees`, `rightToWorkChecks`, and `rightToWorkCheckNotes` tables, with `rightToWorkChecks` allowing nullable `employeeId` for standalone candidate checks. Relationships are designed to link users to employees, checks, and notes, with checks optionally linked to employees.
 
 ### Authentication & Authorization
 
@@ -87,6 +87,64 @@ The application includes a secure public upload link feature that allows HR user
 - Tokens expire automatically
 - File validation (type, size) on both client and server
 - Links can only be used for the specific employee they were generated for
+
+### Renewals Tracking System
+
+The application includes a comprehensive renewals tracking system to help HR teams monitor and manage expiring work authorization documents:
+
+**Expiring Documents Dashboard Card:**
+- Displays checks expiring within 90 days, categorized by urgency:
+  - **Overdue**: Expiry date passed (negative days, red badge)
+  - **Expiring Soon**: 0-60 days until expiry (amber badge)
+  - **Upcoming**: 61-90 days until expiry (gray badge)
+- Shows top 5 expiring checks in a table with status badges, day counts, and quick view links
+- Includes both employee checks and standalone pre-employment checks
+
+**Employee Detail Status Panel:**
+- Right-to-Work Status card shows:
+  - Latest check status badge (Eligible/Not Eligible/Needs Review)
+  - Next expiry date with formatted display
+  - Expiry countdown: "Expires in X days" or "Expired X days ago"
+  - Color-coded countdown (red for overdue, amber for expiring soon)
+
+**Backend Implementation:**
+- `getExpiringRightToWorkChecks(userId, withinDays)`: Fetches checks expiring within specified days
+- Proper tenant isolation: only returns checks belonging to the authenticated user
+- Efficient SQL queries with date filtering and ordering
+
+### Case File Notes System
+
+Internal notes system for maintaining audit trail and recording follow-up actions on right-to-work checks:
+
+**Features:**
+- Add unlimited text notes to any check (employee or standalone)
+- Notes sorted by newest first with automatic timestamping
+- Note count display in header ("Note History (X)")
+- Empty state guidance when no notes exist
+- Proper tenant isolation preventing cross-tenant note access
+
+**Database Schema:**
+- `right_to_work_check_notes` table with id, checkId, userId, content, createdAt
+- Cascade delete: notes removed when parent check is deleted
+- Full audit trail maintained via timestamps
+
+**Backend Endpoints:**
+- `GET /api/checks/:id/notes` - Fetch all notes for a check (authenticated, tenant-isolated)
+- `POST /api/checks/:id/notes` - Create new note with {content} (authenticated, tenant-isolated)
+- Both routes verify check ownership before access (404 if not found, 403 if unauthorized)
+
+**Frontend UI:**
+- Case File Notes section on check detail page
+- Textarea for adding new notes with character support for multiline content
+- Add button with loading state during submission
+- Notes list with badges showing note number and timestamp
+- Print-friendly: notes section hidden when printing check summaries
+
+**Security:**
+- Defense in depth: Both routes and storage layer verify check ownership
+- Returns 404 when check doesn't exist
+- Returns 403 when user doesn't own the check
+- All notes require authentication and are scoped to user tenancy
 
 ## External Dependencies
 
