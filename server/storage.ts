@@ -3,6 +3,7 @@ import {
   employees,
   rightToWorkChecks,
   rightToWorkCheckNotes,
+  rightToWorkCheckDocuments,
   type User,
   type UpsertUser,
   type Employee,
@@ -12,6 +13,8 @@ import {
   type EmployeeWithChecks,
   type RightToWorkCheckNote,
   type InsertRightToWorkCheckNote,
+  type RightToWorkCheckDocument,
+  type InsertRightToWorkCheckDocument,
   type CaseStatus,
 } from "@shared/schema";
 import { db } from "./db";
@@ -50,6 +53,11 @@ export interface IStorage {
   // Check notes operations
   createRightToWorkCheckNote(note: InsertRightToWorkCheckNote): Promise<RightToWorkCheckNote>;
   getRightToWorkCheckNotesByCheckId(checkId: string, userId: string): Promise<RightToWorkCheckNote[]>;
+  
+  // Check documents operations
+  createRightToWorkCheckDocument(document: InsertRightToWorkCheckDocument): Promise<RightToWorkCheckDocument>;
+  getRightToWorkCheckDocumentsByCheckId(checkId: string, userId: string): Promise<RightToWorkCheckDocument[]>;
+  deleteRightToWorkCheckDocument(id: string, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -336,6 +344,45 @@ export class DatabaseStorage implements IStorage {
       .from(rightToWorkCheckNotes)
       .where(eq(rightToWorkCheckNotes.checkId, checkId))
       .orderBy(rightToWorkCheckNotes.createdAt);
+  }
+
+  async createRightToWorkCheckDocument(documentData: InsertRightToWorkCheckDocument): Promise<RightToWorkCheckDocument> {
+    const [document] = await db.insert(rightToWorkCheckDocuments).values(documentData).returning();
+    return document;
+  }
+
+  async getRightToWorkCheckDocumentsByCheckId(checkId: string, userId: string): Promise<RightToWorkCheckDocument[]> {
+    // Verify the check belongs to this user before returning documents
+    const check = await this.getRightToWorkCheckById(checkId);
+    if (!check || check.userId !== userId) {
+      return [];
+    }
+
+    return await db
+      .select()
+      .from(rightToWorkCheckDocuments)
+      .where(eq(rightToWorkCheckDocuments.checkId, checkId))
+      .orderBy(desc(rightToWorkCheckDocuments.uploadedAt));
+  }
+
+  async deleteRightToWorkCheckDocument(id: string, userId: string): Promise<void> {
+    // First, get the document to find its checkId
+    const [document] = await db
+      .select()
+      .from(rightToWorkCheckDocuments)
+      .where(eq(rightToWorkCheckDocuments.id, id));
+
+    if (!document) {
+      throw new Error("Document not found");
+    }
+
+    // Verify the check belongs to this user
+    const check = await this.getRightToWorkCheckById(document.checkId);
+    if (!check || check.userId !== userId) {
+      throw new Error("Access denied");
+    }
+
+    await db.delete(rightToWorkCheckDocuments).where(eq(rightToWorkCheckDocuments.id, id));
   }
 }
 
