@@ -25,11 +25,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CheckDecisionPanel, CheckAuditTrail } from "@/components/check-components";
 import { StatusInterpretation } from "@/components/StatusInterpretation";
-import { ArrowLeft, User, Printer, Trash2, FileText, Plus, Paperclip, Upload, Download, X } from "lucide-react";
+import { ArrowLeft, User, Printer, Trash2, FileText, Plus, Paperclip, Upload, Download, X, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { RightToWorkCheck, RightToWorkCheckNote, RightToWorkCheckDocument } from "@shared/schema";
+import type { RightToWorkCheck, RightToWorkCheckNote, RightToWorkCheckDocument, AuditLog } from "@shared/schema";
 import { formatDate } from "@/lib/dateUtils";
+
+function formatAuditLogAction(action: string): string {
+  const actionMap: Record<string, string> = {
+    CHECK_CREATED: "Check created",
+    CASE_STATUS_UPDATED: "Case status updated",
+    NOTE_ADDED: "Note added",
+    ATTACHMENT_ADDED: "Attachment uploaded",
+    EMPLOYEE_DELETED: "Employee deleted",
+  };
+  return actionMap[action] || action;
+}
 
 export default function CheckDetail() {
   const [, params] = useRoute("/checks/:id");
@@ -55,12 +66,18 @@ export default function CheckDetail() {
     enabled: !!checkId,
   });
 
+  const { data: auditLogs = [], isLoading: auditLogsLoading } = useQuery<AuditLog[]>({
+    queryKey: ["/api/checks", checkId, "audit-logs"],
+    enabled: !!checkId,
+  });
+
   const addNoteMutation = useMutation({
     mutationFn: async (content: string) => {
       await apiRequest("POST", `/api/checks/${checkId}/notes`, { content });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/checks", checkId, "notes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/checks", checkId, "audit-logs"] });
       setNewNote("");
       toast({
         title: "Note added",
@@ -102,6 +119,7 @@ export default function CheckDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/checks", checkId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/checks", checkId, "audit-logs"] });
       toast({
         title: "Case status updated",
         description: "The case workflow status has been successfully updated.",
@@ -138,6 +156,7 @@ export default function CheckDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/checks", checkId, "attachments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/checks", checkId, "audit-logs"] });
       setSelectedFiles(null);
       toast({
         title: "Attachments uploaded",
@@ -634,6 +653,57 @@ export default function CheckDetail() {
                           </div>
                         ))}
                     </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-4 print:hidden">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Recent Activity
+            </h2>
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base">Audit Log</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {auditLogsLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12" />
+                    <Skeleton className="h-12" />
+                    <Skeleton className="h-12" />
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">No activity recorded yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {auditLogs.map((log, index) => (
+                      <div
+                        key={log.id}
+                        className="flex items-start gap-3 p-3 rounded-lg border bg-card/30"
+                        data-testid={`audit-log-${index}`}
+                      >
+                        <div className="flex-shrink-0 w-2 h-2 rounded-full bg-primary mt-2" />
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <p className="text-sm font-medium" data-testid={`audit-log-action-${index}`}>
+                            {formatAuditLogAction(log.action)}
+                          </p>
+                          {log.details && (
+                            <p className="text-xs text-muted-foreground" data-testid={`audit-log-details-${index}`}>
+                              {log.details}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground" data-testid={`audit-log-timestamp-${index}`}>
+                            {formatDate(log.createdAt as unknown as string)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
