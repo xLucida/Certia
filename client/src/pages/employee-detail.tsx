@@ -18,8 +18,9 @@ import { CheckDecisionPanel, CheckAuditTrail } from "@/components/check-componen
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusInterpretation } from "@/components/StatusInterpretation";
 import { PageHeader } from "@/components/PageHeader";
+import { TalentInviteDialog } from "@/components/TalentInviteDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check, Clock, Printer, ChevronDown, ChevronUp, Trash2, User } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check, Clock, Printer, ChevronDown, ChevronUp, Trash2, User, UserPlus } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import { apiRequest } from "@/lib/queryClient";
@@ -35,6 +36,7 @@ export default function EmployeeDetail() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [showStatusInterpretation, setShowStatusInterpretation] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showTalentInviteDialog, setShowTalentInviteDialog] = useState(false);
 
   const { data: employee, isLoading } = useQuery<EmployeeWithChecks>({
     queryKey: ["/api/employees", employeeId],
@@ -213,6 +215,16 @@ export default function EmployeeDetail() {
                     New Check
                   </Button>
                 </Link>
+                {sortedChecks.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowTalentInviteDialog(true)}
+                    data-testid="button-invite-talent"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Invite to Talent pool
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
@@ -226,6 +238,14 @@ export default function EmployeeDetail() {
             }
           />
         </div>
+
+        {showTalentInviteDialog && (
+          <TalentInviteDialog
+            employee={employee}
+            open={showTalentInviteDialog}
+            onOpenChange={setShowTalentInviteDialog}
+          />
+        )}
 
         {employee.notes && (
           <Card className="print:hidden">
