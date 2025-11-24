@@ -1,0 +1,98 @@
+Replit settings:
+- Mode: Autonomous – Medium
+- App testing: ON
+- Fast mode: OFF
+
+Goal:
+Make Certia feel more “pilot-ready” for first-time HR users:
+1) A “Getting started” card on the dashboard when there’s no data.
+2) A TL;DR line in the employees list summarizing the latest check for each employee.
+
+Scope:
+- Frontend only (dashboard + employees list pages).
+- Only use existing data that’s already being fetched.
+- No backend changes in this prompt.
+
+Context:
+- Dashboard page: `client/src/pages/dashboard.tsx` (or similar).
+- Employees list page: `client/src/pages/employees.tsx` (or wherever employees are listed).
+- You already have:
+  - Employee + latest check data on the dashboard and/or employees page.
+  - On each employee, `latestCheck` with fields like `workStatus`, `documentType`, `expiryDate`, and `decisionSummary`.
+
+==================================================
+TASK 1 — Dashboard “Getting started” card (first-time UX)
+==================================================
+
+1) On the dashboard page:
+
+- Detect a “first-time” or “empty” state:
+  - Condition: when there are no employees AND no checks.
+    - You can derive this from arrays already being rendered (e.g., `employees.length === 0` and `standaloneChecks.length === 0` or their equivalents).
+
+2) When the empty condition is true:
+
+- Render a prominent card at the top of the main dashboard content:
+
+  Suggested content:
+
+  - Title: “Getting started with Certia”
+  - Subtitle (small): “Follow these steps to create your first right-to-work check.”
+  - A simple 3-step list:
+
+    1. “Add an employee” — with a button linking to the existing “Add employee” flow.
+    2. “Send them an upload link” — with a button or text referring to generating an upload link from the employee detail page.
+    3. “Review the check” — explaining that new checks will appear on the dashboard and employee pages.
+
+- Use existing Card components and icons (e.g. lucide icons) to keep styling consistent.
+
+3) When there IS data (employees or checks exist):
+
+- Hide the “Getting started” card completely so it doesn’t clutter the dashboard long-term.
+
+==================================================
+TASK 2 — Employees list: TL;DR line for latest check
+==================================================
+
+1) On the employees list page:
+
+- For each employee row, you already have access to their latest check (or can easily add it, as the dashboard already uses `latestCheck`).
+
+2) Under or next to the employee name, add a small TL;DR line summarizing their latest check:
+
+- Format something like:
+
+  - If there is a latest check:
+
+    - “Last check: ELIGIBLE — EU Blue Card, expires 12.04.2026”
+    - OR
+    - “Last check: NEEDS REVIEW — missing employer information”
+
+  - Use:
+
+    - `workStatus` (ELIGIBLE / NOT_ELIGIBLE / NEEDS_REVIEW)
+    - `documentType` (converted to human-friendly text if needed).
+    - `expiryDate` (formatted date).
+    - A short version of `decisionSummary` (or nothing if that’s too long).
+
+- If no check exists for that employee:
+  - Show something like:
+    - “No right-to-work checks yet.”
+
+3) Styling:
+
+- Keep the TL;DR line subtle:
+  - `text-xs` or `text-sm`
+  - `text-muted-foreground`
+- Do not change row height drastically; keep it compact and scan-friendly.
+
+==================================================
+Constraints & checks
+==================================================
+
+- No backend or schema changes.
+- Do NOT modify decision logic or AI/rules.
+- Confirm:
+  - Dashboard “Getting started” card appears only when there are zero employees and zero checks, and disappears once there is any data.
+  - Employees list shows a clean TL;DR for each employee using existing data.
+- Keep explanations in your answer short and focused on what changed.

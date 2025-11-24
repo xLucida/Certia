@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, CheckCircle, AlertTriangle, Plus, Eye, Search, X, Database, Download, HelpCircle } from "lucide-react";
+import { Users, CheckCircle, AlertTriangle, Plus, Eye, Search, X, Database, Download, HelpCircle, Rocket, Link as LinkIcon, FileCheck } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import { formatDate } from "@/lib/dateUtils";
@@ -264,6 +264,69 @@ export default function Dashboard() {
               </Link>
             </div>
           </div>
+
+          {totalEmployees === 0 && (!standaloneChecks || standaloneChecks.length === 0) && (
+            <Card className="border-2 border-primary/20 shadow-lg bg-gradient-to-br from-primary/5 to-background" data-testid="card-getting-started">
+              <CardHeader className="border-b pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+                    <Rocket className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl font-bold">Getting started with Certia</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Follow these steps to create your first right-to-work check
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <div className="flex gap-4">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary font-bold flex-shrink-0">
+                      1
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold mb-1">Add an employee</h4>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Start by adding employee details to your system
+                      </p>
+                      <Link href="/employees/new">
+                        <Button size="sm" data-testid="button-getting-started-add-employee">
+                          <Plus className="h-3.5 w-3.5 mr-1.5" />
+                          Add Employee
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary font-bold flex-shrink-0">
+                      2
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold mb-1">Send them an upload link</h4>
+                      <p className="text-sm text-muted-foreground">
+                        After adding an employee, generate a secure upload link from their detail page. They can use this to submit their work authorization documents.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary font-bold flex-shrink-0">
+                      3
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold mb-1">Review the check</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Once documents are uploaded, Certia will automatically analyze them and display the results on your dashboard and employee pages.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="hover:-translate-y-0.5 transition-all hover:shadow-lg bg-gradient-to-br from-white to-muted/30 dark:from-card dark:to-background min-h-[140px]">
