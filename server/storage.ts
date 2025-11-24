@@ -5,6 +5,7 @@ import {
   rightToWorkCheckNotes,
   rightToWorkCheckDocuments,
   auditLogs,
+  talentProfiles,
   type User,
   type UpsertUser,
   type Employee,
@@ -19,6 +20,9 @@ import {
   type InsertRightToWorkCheckDocument,
   type CaseStatus,
   type AuditLog,
+  type TalentProfile,
+  type InsertTalentProfile,
+  type TalentProfileWithEmployee,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, like, sql, inArray } from "drizzle-orm";
@@ -29,6 +33,14 @@ export interface EmployeeFilters {
   documentType?: string;
   expiryFrom?: string;
   expiryTo?: string;
+}
+
+export interface TalentFilters {
+  search?: string;
+  workArea?: string;
+  locationCity?: string;
+  shift?: string;
+  weeklyHoursBand?: string;
 }
 
 export interface IStorage {
@@ -65,6 +77,13 @@ export interface IStorage {
   // Audit log operations
   createAuditLog(entry: { userId: string; action: string; entityType: string; entityId?: string; details?: string }): Promise<AuditLog>;
   getRecentAuditLogsForCheck(checkId: string, userId: string, limit?: number): Promise<AuditLog[]>;
+  
+  // Talent profile operations
+  createOrUpdateTalentProfile(userId: string, employeeId: string, data: Partial<InsertTalentProfile>): Promise<TalentProfile>;
+  getTalentProfiles(userId: string, filters?: TalentFilters): Promise<TalentProfileWithEmployee[]>;
+  getTalentProfileById(userId: string, id: string): Promise<TalentProfileWithEmployee | undefined>;
+  setTalentVisibility(userId: string, id: string, isVisible: boolean): Promise<TalentProfile | undefined>;
+  updateTalentProfileWithLastCheck(userId: string, employeeId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -413,6 +432,243 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(auditLogs.createdAt))
       .limit(limit);
+  }
+
+  async createOrUpdateTalentProfile(userId: string, employeeId: string, data: Partial<InsertTalentProfile>): Promise<TalentProfile> {
+    // Verify employee belongs to this user
+    const [employee] = await db.select().from(employees).where(
+      and(eq(employees.id, employeeId), eq(employees.userId, userId))
+    );
+    
+    if (!employee) {
+      throw new Error("Employee not found or access denied");
+    }
+
+    // Check if profile already exists
+    const [existingProfile] = await db
+      .select()
+      .from(talentProfiles)
+      .where(
+        and(
+          eq(talentProfiles.employeeId, employeeId),
+          eq(talentProfiles.userId, userId)
+        )
+      );
+
+    if (existingProfile) {
+      // Update existing profile
+      const [updated] = await db
+        .update(talentProfiles)
+        .set({
+          ...data,
+          updatedAt: new Date(),
+        })
+        .where(eq(talentProfiles.id, existingProfile.id))
+        .returning();
+      return updated;
+    } else {
+      // Create new profile
+      const [created] = await db
+        .insert(talentProfiles)
+        .values({
+          userId,
+          employeeId,
+          ...data,
+        })
+        .returning();
+      return created;
+    }
+  }
+
+  async getTalentProfiles(userId: string, filters?: TalentFilters): Promise<TalentProfileWithEmployee[]> {
+    // Build WHERE conditions
+    const conditions: any[] = [
+      eq(talentProfiles.userId, userId),
+      eq(talentProfiles.isVisibleInTalentPool, "true")
+    ];
+
+    if (filters?.workArea) {
+      conditions.push(eq(talentProfiles.workArea, filters.workArea));
+    }
+
+    if (filters?.locationCity) {
+      conditions.push(eq(talentProfiles.locationCity, filters.locationCity));
+    }
+
+    if (filters?.weeklyHoursBand) {
+      conditions.push(eq(talentProfiles.weeklyHoursBand, filters.weeklyHoursBand));
+    }
+
+    // Fetch profiles with employee data
+    const profiles = await db
+      .select()
+      .from(talentProfiles)
+      .leftJoin(employees, eq(talentProfiles.employeeId, employees.id))
+      .where(and(...conditions))
+      .orderBy(desc(talentProfiles.updatedAt));
+
+    // Filter in-memory for shift preferences and text search
+    let results = profiles.map(row => ({
+      ...row.talent_profiles,
+      employee: row.employees!,
+    }));
+
+    if (filters?.shift) {
+      results = results.filter(p => 
+        p.shiftPreferencesList?.includes(filters.shift)
+      );
+    }
+
+    if (filters?.search) {
+      const searchLower = filters.search.toLowerCase();
+      results = results.filter(p => {
+        const employeeName = `${p.employee.firstName} ${p.employee.lastName}`.toLowerCase();
+        const headline = (p.headline || "").toLowerCase();
+        const workArea = (p.workArea || "").toLowerCase();
+        return employeeName.includes(searchLower) || 
+               headline.includes(searchLower) || 
+               workArea.includes(searchLower);
+      });
+    }
+
+    return results;
+  }
+
+  async getTalentProfileById(userId: string, id: string): Promise<TalentProfileWithEmployee | undefined> {
+    const [row] = await db
+      .select()
+      .from(talentProfiles)
+      .leftJoin(employees, eq(talentProfiles.employeeId, employees.id))
+      .where(
+        and(
+          eq(talentProfiles.id, id),
+          eq(talentProfiles.userId, userId)
+        )
+      );
+
+    if (!row || !row.talent_profiles || !row.employees) {
+      return undefined;
+    }
+
+    return {
+      ...row.talent_profiles,
+      employee: row.employees,
+    };
+  }
+
+  async setTalentVisibility(userId: string, id: string, isVisible: boolean): Promise<TalentProfile | undefined> {
+    // Verify the profile belongs to this user
+    const [existing] = await db
+      .select()
+      .from(talentProfiles)
+      .where(
+        and(
+          eq(talentProfiles.id, id),
+          eq(talentProfiles.userId, userId)
+        )
+      );
+
+    if (!existing) {
+      return undefined;
+    }
+
+    const [updated] = await db
+      .update(talentProfiles)
+      .set({
+        isVisibleInTalentPool: isVisible ? "true" : "false",
+        consentTimestamp: isVisible ? new Date() : existing.consentTimestamp,
+        updatedAt: new Date(),
+      })
+      .where(eq(talentProfiles.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  async updateTalentProfileWithLastCheck(userId: string, employeeId: string): Promise<void> {
+    // Find the latest RTW check for this employee
+    const latestCheck = await db
+      .select()
+      .from(rightToWorkChecks)
+      .where(
+        and(
+          eq(rightToWorkChecks.employeeId, employeeId),
+          eq(rightToWorkChecks.userId, userId)
+        )
+      )
+      .orderBy(desc(rightToWorkChecks.createdAt))
+      .limit(1);
+
+    if (latestCheck.length === 0) {
+      return; // No checks exist
+    }
+
+    const check = latestCheck[0];
+    
+    // Calculate permit horizon band based on expiry date
+    let permitHorizonBand = "UNKNOWN";
+    let employerChangePossible = null;
+    let workAuthorizationSummary = "Work authorization details need to be checked on hire.";
+
+    if (check.expiryDate) {
+      const expiryDate = new Date(check.expiryDate);
+      const now = new Date();
+      const monthsDiff = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30);
+
+      if (monthsDiff > 24) {
+        permitHorizonBand = "OVER_24M";
+      } else if (monthsDiff >= 12) {
+        permitHorizonBand = "M12_24";
+      } else if (monthsDiff >= 6) {
+        permitHorizonBand = "M6_12";
+      } else if (monthsDiff >= 0) {
+        permitHorizonBand = "UNDER_6";
+      } else {
+        permitHorizonBand = "UNKNOWN"; // Expired
+      }
+    }
+
+    // Generate work authorization summary based on status
+    if (check.workStatus === "ELIGIBLE") {
+      // Try to detect employer restrictions from decision details
+      const hasEmployerRestriction = check.decisionDetails?.some(detail => 
+        detail.toLowerCase().includes("employer") || 
+        detail.toLowerCase().includes("restriction")
+      );
+
+      if (hasEmployerRestriction) {
+        workAuthorizationSummary = "Allowed to work, but employer or conditions may be restricted – manual review recommended on hire.";
+        employerChangePossible = "false";
+      } else {
+        workAuthorizationSummary = "Currently allowed to work in Germany; no employer restriction detected.";
+        employerChangePossible = "true";
+      }
+    } else if (check.workStatus === "NEEDS_REVIEW") {
+      workAuthorizationSummary = "Work authorization requires manual review before hire.";
+      employerChangePossible = null;
+    } else {
+      workAuthorizationSummary = "Work authorization status unclear – verification needed before hire.";
+      employerChangePossible = null;
+    }
+
+    // Update the talent profile
+    await db
+      .update(talentProfiles)
+      .set({
+        lastCheckId: check.id,
+        lastCheckDate: check.createdAt,
+        lastCheckStatus: check.workStatus,
+        permitHorizonBand,
+        employerChangePossible,
+        workAuthorizationSummary,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(talentProfiles.employeeId, employeeId),
+          eq(talentProfiles.userId, userId)
+        )
+      );
   }
 }
 
