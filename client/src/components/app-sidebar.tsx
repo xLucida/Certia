@@ -1,4 +1,4 @@
-import { Home, Users, FileCheck, Upload, HelpCircle, Building2 } from "lucide-react";
+import { Home, Users, Users2, FileCheck, Upload, HelpCircle, Building2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -35,6 +35,11 @@ const menuItems = [
     title: "Employees",
     url: "/employees",
     icon: Users,
+  },
+  {
+    title: "Talent",
+    url: "/talent",
+    icon: Users2,
   },
   {
     title: "New Check",

@@ -16,6 +16,7 @@ import EmployeeDetail from "@/pages/employee-detail";
 import CheckNew from "@/pages/check-new";
 import CheckDetail from "@/pages/check-detail";
 import BulkImport from "@/pages/bulk-import";
+import Talent from "@/pages/talent";
 import Help from "@/pages/help";
 import PublicUpload from "@/pages/public-upload";
 
@@ -63,6 +64,7 @@ function Router() {
               <Route path="/checks/new" component={CheckNew} />
               <Route path="/checks/:id" component={CheckDetail} />
               <Route path="/import" component={BulkImport} />
+              <Route path="/talent" component={Talent} />
               <Route path="/help" component={Help} />
               <Route component={NotFound} />
             </Switch>
