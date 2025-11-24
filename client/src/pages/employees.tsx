@@ -209,7 +209,7 @@ export default function Employees() {
                             </div>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {'email' in employee ? employee.email : '—'}
+                            {(employee as any).email || '—'}
                           </TableCell>
                           <TableCell>
                             {latestCheck ? (
