@@ -5,7 +5,9 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import {
   ObjectStorageService,
   ObjectNotFoundError,
+  objectStorageClient,
 } from "./objectStorage";
+import { randomUUID } from "crypto";
 import { evaluateRightToWork } from "../lib/rightToWork";
 import { mapToRulesEngineInput } from "./rightToWorkAdapter";
 import { extractFieldsFromDocument } from "../lib/ocr";
@@ -853,6 +855,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error creating check note:", error);
       res.status(500).json({ error: "Failed to create note" });
+    }
+  });
+
+  // Check attachments routes
+  app.get("/api/checks/:id/attachments", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const checkId = req.params.id;
+      
+      const attachments = await storage.getRightToWorkCheckDocumentsByCheckId(checkId, userId);
+      res.json(attachments);
+    } catch (error: any) {
+      console.error("Error fetching check attachments:", error);
+      res.status(500).json({ error: "Failed to fetch attachments" });
+    }
+  });
+
+  app.post("/api/checks/:id/attachments", isAuthenticated, upload.array("files", 5), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const checkId = req.params.id;
+      
+      // Verify check exists and belongs to user
+      const check = await storage.getRightToWorkCheckById(checkId);
+      if (!check) {
+        return res.status(404).json({ error: "Check not found" });
+      }
+      if (check.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      const files = req.files as Express.Multer.File[] | undefined;
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "No files uploaded" });
+      }
+      
+      // Validate files
+      const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      const maxSize = 10 * 1024 * 1024;
+      
+      for (const file of files) {
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+          return res.status(400).json({ 
+            error: "Invalid file type",
+            message: `File "${file.originalname}" has invalid type. Only PDF, JPG, and PNG files are supported`
+          });
+        }
+        if (file.size > maxSize) {
+          return res.status(400).json({ 
+            error: "File too large",
+            message: `File "${file.originalname}" exceeds 10MB limit`
+          });
+        }
+      }
+      
+      // Upload files to object storage and create database records
+      const objectStorageService = new ObjectStorageService();
+      const privateObjectDir = objectStorageService.getPrivateObjectDir();
+      const uploadedDocuments = [];
+      
+      for (const file of files) {
+        // Generate unique filename
+        const uniqueId = randomUUID();
+        const fileExtension = file.originalname.split('.').pop() || 'bin';
+        const storagePath = `${privateObjectDir}/check-attachments/${uniqueId}.${fileExtension}`;
+        
+        // Parse storage path to get bucket and object name
+        const pathParts = storagePath.split("/");
+        if (pathParts.length < 3) {
+          throw new Error("Invalid storage path");
+        }
+        const bucketName = pathParts[1];
+        const objectName = pathParts.slice(2).join("/");
+        
+        // Upload to object storage
+        const bucket = objectStorageClient.bucket(bucketName);
+        const objectFile = bucket.file(objectName);
+        
+        await objectFile.save(file.buffer, {
+          metadata: {
+            contentType: file.mimetype,
+          },
+        });
+        
+        // Create database record
+        const fileUrl = `/objects/check-attachments/${uniqueId}.${fileExtension}`;
+        const document = await storage.createRightToWorkCheckDocument({
+          checkId,
+          fileName: file.originalname,
+          fileUrl,
+          mimeType: file.mimetype,
+          sizeBytes: file.size.toString(),
+        });
+        
+        uploadedDocuments.push(document);
+      }
+      
+      res.status(201).json(uploadedDocuments);
+    } catch (error: any) {
+      console.error("Error uploading check attachments:", error);
+      res.status(500).json({ error: "Failed to upload attachments" });
+    }
+  });
+
+  app.delete("/api/checks/:checkId/attachments/:attachmentId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { attachmentId } = req.params;
+      
+      await storage.deleteRightToWorkCheckDocument(attachmentId, userId);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting check attachment:", error);
+      if (error.message === "Document not found" || error.message === "Access denied") {
+        return res.status(404).json({ error: error.message });
+      }
+      res.status(500).json({ error: "Failed to delete attachment" });
     }
   });
 
