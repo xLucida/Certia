@@ -44,6 +44,9 @@ The system supports secure deletion of employee records and all related complian
 ### Public Upload Page Polish
 The candidate-facing upload page has updated copy and design to be clearer, more trustworthy, and consistent with Certia branding, emphasizing privacy and ease of use for external candidates.
 
+### Audit Logging & Activity Tracking
+A comprehensive audit logging system automatically records all key actions for compliance and transparency. Backend audit logs capture CHECK_CREATED, CASE_STATUS_UPDATED, NOTE_ADDED, ATTACHMENT_ADDED, and EMPLOYEE_DELETED events with timestamps and user attribution. The check detail page displays a "Recent Activity" section showing the latest audit log entries. A "Next action" hint provides status-specific guidance (e.g., for ELIGIBLE checks: keep on file; for NEEDS_REVIEW: review missing information; for NOT_ELIGIBLE: do not proceed with employment).
+
 ## External Dependencies
 
 ### Third-Party Services
