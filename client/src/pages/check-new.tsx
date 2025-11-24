@@ -19,7 +19,7 @@ import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import type { z } from "zod";
 import type { Employee } from "@shared/schema";
 import type { UploadResult } from "@uppy/core";
-import { ArrowLeft, FileText, Upload, UserPlus, Users, Sparkles, AlertCircle, CheckCircle } from "lucide-react";
+import { ArrowLeft, FileText, Upload, UserPlus, Users, Sparkles, AlertCircle, CheckCircle, Lightbulb } from "lucide-react";
 import { Link } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -588,6 +588,35 @@ export default function CheckNew() {
 
                 <div className="space-y-3">
                   <Label>Upload Document</Label>
+                  
+                  {/* Scan Tips Card */}
+                  <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900" data-testid="scan-tips-card">
+                    <CardContent className="pt-4 pb-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
+                          <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="space-y-2 flex-1">
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Scan Tips for Best Results</p>
+                          <ul className="space-y-1 text-xs text-muted-foreground">
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
+                              <span>Use a clear, well-lit scan or photo of the document</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
+                              <span>Certia will attempt to auto-fill fields from the document</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
+                              <span>Always verify auto-filled information before submitting</span>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
                   <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-4">
                     <div className="flex justify-center">
                       <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
