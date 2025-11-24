@@ -25,10 +25,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CheckDecisionPanel, CheckAuditTrail } from "@/components/check-components";
 import { StatusInterpretation } from "@/components/StatusInterpretation";
-import { ArrowLeft, User, Printer, Trash2, FileText, Plus } from "lucide-react";
+import { ArrowLeft, User, Printer, Trash2, FileText, Plus, Paperclip, Upload, Download, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { RightToWorkCheck, RightToWorkCheckNote } from "@shared/schema";
+import type { RightToWorkCheck, RightToWorkCheckNote, RightToWorkCheckDocument } from "@shared/schema";
 import { formatDate } from "@/lib/dateUtils";
 
 export default function CheckDetail() {
@@ -37,6 +37,7 @@ export default function CheckDetail() {
   const checkId = params?.id;
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [newNote, setNewNote] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const { toast } = useToast();
 
   const { data: check, isLoading } = useQuery<RightToWorkCheck>({
@@ -46,6 +47,11 @@ export default function CheckDetail() {
 
   const { data: notes = [], isLoading: notesLoading } = useQuery<RightToWorkCheckNote[]>({
     queryKey: ["/api/checks", checkId, "notes"],
+    enabled: !!checkId,
+  });
+
+  const { data: attachments = [], isLoading: attachmentsLoading } = useQuery<RightToWorkCheckDocument[]>({
+    queryKey: ["/api/checks", checkId, "attachments"],
     enabled: !!checkId,
   });
 
@@ -110,9 +116,83 @@ export default function CheckDetail() {
     },
   });
 
+  const uploadAttachmentsMutation = useMutation({
+    mutationFn: async (files: FileList) => {
+      const formData = new FormData();
+      Array.from(files).forEach((file) => {
+        formData.append("files", file);
+      });
+      
+      const response = await fetch(`/api/checks/${checkId}/attachments`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to upload attachments");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/checks", checkId, "attachments"] });
+      setSelectedFiles(null);
+      toast({
+        title: "Attachments uploaded",
+        description: "Files have been successfully uploaded.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload attachments. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: async (attachmentId: string) => {
+      await apiRequest("DELETE", `/api/checks/${checkId}/attachments/${attachmentId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/checks", checkId, "attachments"] });
+      toast({
+        title: "Attachment deleted",
+        description: "The file has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete attachment. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddNote = () => {
     if (!newNote.trim()) return;
     addNoteMutation.mutate(newNote);
+  };
+
+  const handleUploadAttachments = () => {
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    uploadAttachmentsMutation.mutate(selectedFiles);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFiles(e.target.files);
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
   const getCaseStatusBadge = (caseStatus: string) => {
@@ -337,6 +417,151 @@ export default function CheckDetail() {
             <div className="print:hidden">
               <CheckAuditTrail check={check} />
             </div>
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Paperclip className="h-5 w-5 print:hidden" />
+              Attachments
+            </h2>
+            <Card className="print:hidden">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base">Supporting Documents</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Upload Form */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">Upload Documents</label>
+                  <p className="text-sm text-muted-foreground">
+                    Upload scanned documents you used to make this check for a complete audit trail (front/back, letters, permits, etc.).
+                  </p>
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="attachment-upload"
+                      data-testid="input-attachment-upload"
+                    />
+                    <label
+                      htmlFor="attachment-upload"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-muted-foreground/40 hover:bg-accent/50 transition-colors"
+                    >
+                      <Upload className="h-4 w-4" />
+                      <span className="text-sm">Choose files (up to 5)</span>
+                    </label>
+                    
+                    {selectedFiles && selectedFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">
+                          Selected files: {selectedFiles.length}
+                        </p>
+                        <div className="space-y-1">
+                          {Array.from(selectedFiles).map((file, index) => (
+                            <div key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <FileText className="h-3 w-3" />
+                              <span className="flex-1 truncate">{file.name}</span>
+                              <span className="text-xs">{formatFileSize(file.size)}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleUploadAttachments}
+                            disabled={uploadAttachmentsMutation.isPending}
+                            size="sm"
+                            data-testid="button-upload-attachments"
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            {uploadAttachmentsMutation.isPending ? "Uploading..." : "Upload Files"}
+                          </Button>
+                          <Button
+                            onClick={() => setSelectedFiles(null)}
+                            variant="outline"
+                            size="sm"
+                            data-testid="button-clear-attachments"
+                          >
+                            Clear
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Attachments List */}
+                {attachmentsLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-16" />
+                    <Skeleton className="h-16" />
+                  </div>
+                ) : attachments.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Paperclip className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm font-medium">No attachments yet</p>
+                    <p className="text-xs mt-1">Upload the scanned documents you used for a complete audit trail.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                      Stored Files ({attachments.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {attachments.map((attachment, index) => (
+                        <div
+                          key={attachment.id}
+                          className="flex items-center gap-3 p-3 rounded-lg border bg-card/50 hover-elevate"
+                          data-testid={`attachment-${index}`}
+                        >
+                          <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate" data-testid={`attachment-name-${index}`}>
+                              {attachment.fileName}
+                            </p>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              {attachment.sizeBytes && (
+                                <span>{formatFileSize(parseInt(attachment.sizeBytes))}</span>
+                              )}
+                              <span>{formatDate(attachment.uploadedAt as unknown as string)}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              asChild
+                              className="h-8 w-8"
+                              data-testid={`button-view-attachment-${index}`}
+                            >
+                              <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer">
+                                <Download className="h-4 w-4" />
+                              </a>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteAttachmentMutation.mutate(attachment.id)}
+                              disabled={deleteAttachmentMutation.isPending}
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              data-testid={`button-delete-attachment-${index}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Print hint */}
+                <div className="hidden print:block text-sm text-muted-foreground border-t pt-4">
+                  <p><strong>Attachments:</strong> {attachments.length} file(s) stored (see Certia for full list)</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="space-y-4">
