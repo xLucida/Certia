@@ -2,9 +2,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckDecisionPanel, CheckAuditTrail } from "@/components/check-components";
-import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check } from "lucide-react";
+import { StatusBadge } from "@/components/StatusBadge";
+import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check, Clock } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -166,6 +168,61 @@ export default function EmployeeDetail() {
               </CardContent>
             )}
           </Card>
+
+          {sortedChecks.length > 0 && (
+            <Card className="border-2 bg-gradient-to-br from-card to-background">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-bold">Right-to-Work Status</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Latest Status</p>
+                    <StatusBadge status={sortedChecks[0].workStatus} />
+                  </div>
+                  {sortedChecks[0].expiryDate && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Next Expiry</p>
+                      <div className="space-y-1">
+                        <p className="text-lg font-semibold" data-testid="text-next-expiry">
+                          {formatDate(sortedChecks[0].expiryDate)}
+                        </p>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground" data-testid="text-expiry-countdown">
+                            {(() => {
+                              const today = new Date();
+                              const expiry = new Date(sortedChecks[0].expiryDate);
+                              const diffTime = expiry.getTime() - today.getTime();
+                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                              
+                              if (diffDays < 0) {
+                                return (
+                                  <span className="text-red-600 dark:text-red-400 font-medium">
+                                    Expired {Math.abs(diffDays)} day{Math.abs(diffDays) !== 1 ? 's' : ''} ago
+                                  </span>
+                                );
+                              } else if (diffDays === 0) {
+                                return <span className="text-amber-600 dark:text-amber-400 font-medium">Expires today</span>;
+                              } else if (diffDays <= 60) {
+                                return (
+                                  <span className="text-amber-600 dark:text-amber-400 font-medium">
+                                    Expires in {diffDays} day{diffDays !== 1 ? 's' : ''}
+                                  </span>
+                                );
+                              } else {
+                                return <span className="text-muted-foreground">Expires in {diffDays} day{diffDays !== 1 ? 's' : ''}</span>;
+                              }
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Right-to-Work Check History</h2>
