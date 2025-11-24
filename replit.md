@@ -47,6 +47,16 @@ The candidate-facing upload page has updated copy and design to be clearer, more
 ### Audit Logging & Activity Tracking
 A comprehensive audit logging system automatically records all key actions for compliance and transparency. Backend audit logs capture CHECK_CREATED, CASE_STATUS_UPDATED, NOTE_ADDED, ATTACHMENT_ADDED, and EMPLOYEE_DELETED events with timestamps and user attribution. The check detail page displays a "Recent Activity" section showing the latest audit log entries. A "Next action" hint provides status-specific guidance (e.g., for ELIGIBLE checks: keep on file; for NEEDS_REVIEW: review missing information; for NOT_ELIGIBLE: do not proceed with employment).
 
+### Certia Talent Pool (Phase 1)
+An internal talent pool system for managing low-skilled, shift-based workers on work visas. HR teams can invite employees to the talent pool with shift-specific metadata. Features include:
+- **Talent Invite Dialog**: HR users invite employees via a comprehensive form capturing work area (cleaning, catering, warehouse, etc.), location with travel radius, shift preferences (day, evening, night, weekend), weekly hours bands, and language proficiency levels.
+- **Talent Pool Page**: Card-based layout displaying talent profiles with all relevant shift-work details. Each card shows employee name, headline, work area, location with travel radius, shift badges, weekly hours, languages, and permit horizon.
+- **Multi-Dimensional Filtering**: Filter by work area, location (checks both city and region), shift preference, weekly hours band, and permit horizon. Filters are combinable and individually clearable via "All X" reset options.
+- **Auto-Calculated Permit Horizon**: Automatically computed from the latest right-to-work check expiry date, showing time remaining in bands (Under 6 months, 6-12 months, 12-24 months, Over 24 months, Unknown).
+- **Visibility Control**: Only profiles marked as visible appear in the talent pool.
+- **Schema**: `talent_profiles` table with fields for headline, workArea, locationCity, locationRegion, travelRadiusKm, shiftPreferencesList (array), weeklyHoursBand, germanLevel, englishLevel, permitHorizonBand, and isVisibleInTalentPool flag.
+- **Phase 1 Scope**: Internal-only tool for HR teams. No candidate-facing UI. Future phases may include candidate self-service and external visibility.
+
 ## External Dependencies
 
 ### Third-Party Services

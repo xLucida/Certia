@@ -122,11 +122,12 @@ export default function Talent() {
         <CardHeader>
           <div className="flex flex-wrap gap-3">
             <div className="flex-1 min-w-[200px]">
-              <Select value={workAreaFilter || undefined} onValueChange={(val) => setWorkAreaFilter(val || "")}>
+              <Select value={workAreaFilter || "CLEAR_FILTER"} onValueChange={(val) => setWorkAreaFilter(val === "CLEAR_FILTER" ? "" : val)}>
                 <SelectTrigger data-testid="filter-work-area">
                   <SelectValue placeholder="All Work Areas" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="CLEAR_FILTER">All Work Areas</SelectItem>
                   {WORK_AREAS.map(area => (
                     <SelectItem key={area.value} value={area.value}>
                       {area.label}
@@ -146,11 +147,12 @@ export default function Talent() {
             </div>
 
             <div className="flex-1 min-w-[200px]">
-              <Select value={shiftFilter || undefined} onValueChange={(val) => setShiftFilter(val || "")}>
+              <Select value={shiftFilter || "CLEAR_FILTER"} onValueChange={(val) => setShiftFilter(val === "CLEAR_FILTER" ? "" : val)}>
                 <SelectTrigger data-testid="filter-shift">
                   <SelectValue placeholder="All Shifts" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="CLEAR_FILTER">All Shifts</SelectItem>
                   {SHIFT_PREFERENCES.map(shift => (
                     <SelectItem key={shift.value} value={shift.value}>
                       {shift.label}
@@ -161,11 +163,12 @@ export default function Talent() {
             </div>
 
             <div className="flex-1 min-w-[200px]">
-              <Select value={hoursFilter || undefined} onValueChange={(val) => setHoursFilter(val || "")}>
+              <Select value={hoursFilter || "CLEAR_FILTER"} onValueChange={(val) => setHoursFilter(val === "CLEAR_FILTER" ? "" : val)}>
                 <SelectTrigger data-testid="filter-hours">
                   <SelectValue placeholder="All Hours" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="CLEAR_FILTER">All Hours</SelectItem>
                   {WEEKLY_HOURS_BANDS.map(band => (
                     <SelectItem key={band.value} value={band.value}>
                       {band.label}
@@ -176,11 +179,12 @@ export default function Talent() {
             </div>
 
             <div className="flex-1 min-w-[200px]">
-              <Select value={permitFilter || undefined} onValueChange={(val) => setPermitFilter(val || "")}>
+              <Select value={permitFilter || "CLEAR_FILTER"} onValueChange={(val) => setPermitFilter(val === "CLEAR_FILTER" ? "" : val)}>
                 <SelectTrigger data-testid="filter-permit">
                   <SelectValue placeholder="All Permits" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="CLEAR_FILTER">All Permits</SelectItem>
                   {PERMIT_HORIZONS.map(horizon => (
                     <SelectItem key={horizon.value} value={horizon.value}>
                       {horizon.label}
