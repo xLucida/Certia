@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ObjectUploader } from "@/components/ObjectUploader";
+import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { checkFormSchema, documentTypes } from "@shared/schema";
@@ -19,7 +20,7 @@ import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import type { z } from "zod";
 import type { Employee } from "@shared/schema";
 import type { UploadResult } from "@uppy/core";
-import { ArrowLeft, FileText, Upload, UserPlus, Users, Sparkles, AlertCircle, CheckCircle, Lightbulb } from "lucide-react";
+import { ArrowLeft, FileText, Upload, UserPlus, Users, Sparkles, AlertCircle, CheckCircle, Lightbulb, ClipboardCheck } from "lucide-react";
 import { Link } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -299,19 +300,25 @@ export default function CheckNew() {
     : 1;
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
+    <div className="max-w-3xl mx-auto px-6 py-8">
       <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Link href="/employees">
-              <Button variant="ghost" size="sm" className="button-transition" data-testid="button-back">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-            </Link>
-            <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">New Right-to-Work Check</h1>
-          </div>
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <Button variant="ghost" size="sm" data-testid="button-back">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          </Link>
+        </div>
 
-          <div className="flex items-center justify-between max-w-2xl mx-auto py-4">
+        <PageHeader
+          kicker="New"
+          title="Right-to-work check"
+          description="Upload a document, review extracted information, and create a compliance check"
+          icon={<ClipboardCheck className="h-5 w-5" />}
+        />
+
+        <div className="flex items-center justify-between py-4">
             <div className="flex flex-col items-center gap-2.5 flex-1">
               <div className={`h-12 w-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${currentStep >= 1 ? 'bg-primary border-primary text-primary-foreground scale-110 shadow-lg shadow-primary/25' : 'bg-muted border-muted-foreground/20 text-muted-foreground'}`}>
                 <Upload className="h-6 w-6" />
@@ -334,14 +341,8 @@ export default function CheckNew() {
             </div>
           </div>
 
-          <Card className="border-2 shadow-sm">
-            <CardHeader className="border-b bg-muted/20">
-              <CardTitle className="text-xl">Check Details</CardTitle>
-              <CardDescription>
-                Perform a right-to-work check for a new candidate or existing employee
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
+        <Card>
+          <CardContent className="pt-6">
               <div className="mb-8 p-6 border-2 border-primary/20 rounded-xl bg-gradient-to-br from-primary/5 to-background shadow-sm">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0">
@@ -677,10 +678,10 @@ export default function CheckNew() {
                     {isSubmitting ? "Creating..." : "Create Check"}
                   </Button>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
