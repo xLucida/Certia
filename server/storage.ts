@@ -25,7 +25,7 @@ import {
   type TalentProfileWithEmployee,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, gte, lte, like, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, or, gte, lte, like, sql, inArray, isNull } from "drizzle-orm";
 
 export interface EmployeeFilters {
   search?: string;
@@ -42,6 +42,7 @@ export interface TalentFilters {
   shift?: string;
   weeklyHoursBand?: string;
   permitHorizonBand?: string;
+  isActivelyLooking?: boolean;
 }
 
 export interface IStorage {
@@ -508,7 +509,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(talentProfiles.updatedAt));
 
-    // Filter in-memory for location (city OR region), shift preferences, and text search
+    // Filter in-memory for location (city OR region), shift preferences, actively looking, and text search
     let results = profiles.map(row => ({
       ...row.talent_profiles,
       employee: row.employees!,
@@ -527,6 +528,10 @@ export class DatabaseStorage implements IStorage {
       results = results.filter(p => 
         p.shiftPreferencesList?.includes(filters.shift!)
       );
+    }
+
+    if (filters?.isActivelyLooking === true) {
+      results = results.filter(p => p.isActivelyLooking === "true");
     }
 
     if (filters?.search) {

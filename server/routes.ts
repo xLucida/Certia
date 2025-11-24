@@ -1563,6 +1563,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weeklyHoursBand,
         germanLevel,
         englishLevel,
+        isActivelyLooking,
+        availableFrom,
         setVisible = true,
       } = req.body;
 
@@ -1583,6 +1585,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weeklyHoursBand,
         germanLevel,
         englishLevel,
+        isActivelyLooking: isActivelyLooking ? "true" : "false",
+        availableFrom: availableFrom ? new Date(availableFrom) : null,
         isVisibleInTalentPool: setVisible ? "true" : "false",
         consentTimestamp: setVisible ? new Date() : null,
       });

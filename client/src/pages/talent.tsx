@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import type { TalentProfile } from "@shared/schema";
 
 type TalentProfileWithEmployee = TalentProfile & {
@@ -64,9 +66,21 @@ function getPermitBadgeVariant(horizon: string | null | undefined): "default" | 
 }
 
 function formatPermitHorizon(horizon: string | null | undefined): string {
-  if (!horizon) return "Unknown";
-  const item = PERMIT_HORIZONS.find(h => h.value === horizon);
-  return item?.label || horizon;
+  if (!horizon || horizon === "UNKNOWN") return "Permit horizon: Unknown";
+  const horizonMap: Record<string, string> = {
+    OVER_24M: "Permit horizon: ~24+ months",
+    M12_24: "Permit horizon: ~12–24 months",
+    M6_12: "Permit horizon: ~6–12 months",
+    UNDER_6: "Permit horizon: < 6 months",
+  };
+  return horizonMap[horizon] || "Permit horizon: Unknown";
+}
+
+function getPermitHorizonColor(horizon: string | null | undefined): string {
+  if (!horizon || horizon === "UNKNOWN") return "text-muted-foreground";
+  if (horizon === "UNDER_6") return "text-red-600";
+  if (horizon === "M6_12") return "text-amber-600";
+  return "text-muted-foreground";
 }
 
 function formatWeeklyHours(band: string | null | undefined): string {
@@ -86,12 +100,46 @@ function formatLanguageLevel(level: string | null | undefined): string {
   return levels[level] || level;
 }
 
+function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return "";
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString("de-DE");
+}
+
+function getDaysSince(date: Date | string | null | undefined): number | null {
+  if (!date) return null;
+  const d = typeof date === "string" ? new Date(date) : date;
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function getRTWBadgeText(status: string | null | undefined, checkDate: Date | string | null | undefined): string {
+  if (!status) return "ℹ️ Work authorization must be checked before hire";
+  
+  const daysSince = getDaysSince(checkDate);
+  
+  if (status === "ELIGIBLE") {
+    if (daysSince !== null && daysSince <= 90) {
+      return "✅ Work authorization verified via Certia (≤ 90 days)";
+    }
+    return "🟡 Work authorization verified via Certia (> 90 days – refresh on hire)";
+  }
+  
+  if (status === "NEEDS_REVIEW") {
+    return "⚠️ Right-to-work check exists – review required on hire";
+  }
+  
+  return "ℹ️ Work authorization must be checked before hire";
+}
+
 export default function Talent() {
   const [workAreaFilter, setWorkAreaFilter] = useState<string>("");
   const [locationFilter, setLocationFilter] = useState<string>("");
   const [shiftFilter, setShiftFilter] = useState<string>("");
   const [hoursFilter, setHoursFilter] = useState<string>("");
   const [permitFilter, setPermitFilter] = useState<string>("");
+  const [activelyLookingFilter, setActivelyLookingFilter] = useState<boolean>(false);
 
   // Build query parameters
   const queryParams = new URLSearchParams();
@@ -100,6 +148,7 @@ export default function Talent() {
   if (shiftFilter) queryParams.append("shift", shiftFilter);
   if (hoursFilter) queryParams.append("weeklyHoursBand", hoursFilter);
   if (permitFilter) queryParams.append("permitHorizonBand", permitFilter);
+  if (activelyLookingFilter) queryParams.append("isActivelyLooking", "true");
   const queryString = queryParams.toString();
   const queryUrl = queryString ? `/api/talent?${queryString}` : "/api/talent";
 
@@ -113,8 +162,8 @@ export default function Talent() {
     <div className="max-w-7xl mx-auto px-6 py-8">
       <PageHeader
         kicker="Certia Talent"
-        title="Talent Pool"
-        description="Internal pool of shift-based workers with verified work authorization"
+        title="Talent pool (work visas)"
+        description="Shift-based workers on German work visas for cleaning, stadiums, catering, warehouse and more. All profiles are linked to structured right-to-work checks in Certia."
         icon={<Users className="h-5 w-5" />}
       />
 
@@ -194,7 +243,19 @@ export default function Talent() {
               </Select>
             </div>
 
-            {(workAreaFilter || locationFilter || shiftFilter || hoursFilter || permitFilter) && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="actively-looking"
+                checked={activelyLookingFilter}
+                onCheckedChange={(checked) => setActivelyLookingFilter(checked as boolean)}
+                data-testid="checkbox-filter-actively-looking"
+              />
+              <Label htmlFor="actively-looking" className="font-normal cursor-pointer">
+                Only actively looking
+              </Label>
+            </div>
+
+            {(workAreaFilter || locationFilter || shiftFilter || hoursFilter || permitFilter || activelyLookingFilter) && (
               <Button
                 variant="ghost"
                 onClick={() => {
@@ -203,6 +264,7 @@ export default function Talent() {
                   setShiftFilter("");
                   setHoursFilter("");
                   setPermitFilter("");
+                  setActivelyLookingFilter(false);
                 }}
                 data-testid="button-clear-filters"
               >
@@ -231,11 +293,11 @@ export default function Talent() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredProfiles.map((profile) => (
             <Card key={profile.id} className="hover-elevate" data-testid={`talent-card-${profile.id}`}>
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-col gap-3">
                   <div className="flex-1">
                     <Link href={`/employees/${profile.employee.id}`}>
                       <h3 className="font-semibold text-lg hover:underline" data-testid={`talent-name-${profile.id}`}>
@@ -248,13 +310,25 @@ export default function Talent() {
                       </p>
                     )}
                   </div>
-                  <Badge variant={getPermitBadgeVariant(profile.permitHorizonBand)} data-testid={`talent-permit-${profile.id}`}>
-                    <FileCheck className="h-3 w-3 mr-1" />
-                    {formatPermitHorizon(profile.permitHorizonBand)}
-                  </Badge>
+                  
+                  {profile.isActivelyLooking === "true" && (
+                    <div className="flex items-center gap-2 text-sm font-medium text-green-600">
+                      <span>✓ Actively looking</span>
+                    </div>
+                  )}
+                  
+                  {profile.availableFrom ? (
+                    <div className="text-sm text-muted-foreground">
+                      Available from: {formatDate(profile.availableFrom)}
+                    </div>
+                  ) : profile.isActivelyLooking === "true" ? (
+                    <div className="text-sm text-muted-foreground">
+                      Available now
+                    </div>
+                  ) : null}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">
@@ -293,22 +367,38 @@ export default function Talent() {
                 {(profile.germanLevel || profile.englishLevel) && (
                   <div className="flex items-start gap-2 text-sm text-muted-foreground">
                     <Languages className="h-4 w-4 mt-0.5" />
-                    <div className="space-y-1">
+                    <div className="flex gap-4">
                       {profile.germanLevel && (
-                        <div className="flex gap-2">
-                          <span className="font-medium">DE:</span>
+                        <div className="flex gap-1">
+                          <span className="font-medium">German:</span>
                           <span>{formatLanguageLevel(profile.germanLevel)}</span>
                         </div>
                       )}
                       {profile.englishLevel && (
-                        <div className="flex gap-2">
-                          <span className="font-medium">EN:</span>
+                        <div className="flex gap-1">
+                          <span className="font-medium">English:</span>
                           <span>{formatLanguageLevel(profile.englishLevel)}</span>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
+
+                <div className="pt-2 border-t space-y-1.5">
+                  <div className="text-xs text-muted-foreground">
+                    {getRTWBadgeText(profile.lastCheckStatus, profile.lastCheckDate)}
+                  </div>
+                  
+                  {profile.lastCheckDate && (
+                    <div className="text-xs text-muted-foreground">
+                      Checked {getDaysSince(profile.lastCheckDate)} days ago
+                    </div>
+                  )}
+                  
+                  <div className={`text-xs font-medium ${getPermitHorizonColor(profile.permitHorizonBand)}`}>
+                    {formatPermitHorizon(profile.permitHorizonBand)}
+                  </div>
+                </div>
 
                 <Link href={`/employees/${profile.employee.id}`}>
                   <Button variant="outline" className="w-full mt-2" data-testid={`button-view-profile-${profile.id}`}>

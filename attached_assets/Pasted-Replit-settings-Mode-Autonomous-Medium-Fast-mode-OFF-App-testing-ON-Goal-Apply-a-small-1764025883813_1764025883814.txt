@@ -1,0 +1,268 @@
+Replit settings:
+- Mode: Autonomous – Medium
+- Fast mode: OFF
+- App testing: ON
+
+Goal:
+Apply a small set of high-leverage tweaks to **Certia Talent** to better fit low-skilled, shift-based work for people on German work visas, and to make the Talent pool clearer and more useful for staffing managers.
+
+Focus areas:
+1) “Actively looking” + availability.
+2) Hide clearly NOT_ELIGIBLE workers from Talent by default.
+3) Copy polish to match the niche (stadiums, cleaners, catering, warehouse).
+4) Mobile-first layout for Talent cards.
+5) Visual risk signal on permit horizon.
+6) “Freshness” tag for when the RTW check was last done.
+
+Global constraints:
+- You MAY extend the `talentProfiles` table with a couple of new columns.
+- Do NOT change right-to-work evaluation logic.
+- Do NOT change existing check semantics.
+- Do NOT expose explicit visa type / refugee labels.
+- Keep changes minimal and targeted.
+
+==================================================
+TASK 1 — Add “Actively looking” + “Available from” to TalentProfile
+==================================================
+
+In `@shared/schema.ts` where `talentProfiles` is defined:
+
+1) Add two new fields to the TalentProfile table:
+
+- `isActivelyLooking` (boolean, default false)
+- `availableFrom` (timestamp/date, nullable)
+
+Follow the same patterns used for existing boolean/date columns in the schema.
+
+2) In `server/storage.ts`:
+
+- Update `createOrUpdateTalentProfile` to accept and persist `isActivelyLooking` and `availableFrom` when provided.
+- Update any return types so these two fields are included when you fetch talent profiles.
+
+No other schema changes.
+
+==================================================
+TASK 2 — Wire “Actively looking” + “Available from” into Invite dialog
+==================================================
+
+In the Talent invite modal (e.g. `client/src/components/TalentInviteDialog.tsx`):
+
+1) Add two new inputs:
+
+- Checkbox:
+  - Label: “Actively looking for work”
+  - Binds to `isActivelyLooking`.
+
+- Date input:
+  - Label: “Available from”
+  - Optional; can be blank to mean “immediately”.
+  - Binds to `availableFrom`.
+
+2) On submit:
+
+- Include `isActivelyLooking` and `availableFrom` in the `POST /api/talent/invite` payload.
+
+In `server/routes.ts`, in the `POST /api/talent/invite` handler:
+
+- Accept `isActivelyLooking` and `availableFrom` from the body.
+- Pass them into `createOrUpdateTalentProfile`.
+
+==================================================
+TASK 3 — Add “Actively looking” filter on /talent
+==================================================
+
+In `client/src/pages/talent.tsx`:
+
+1) Extend the filters state with:
+
+- A boolean or tri-state for “Only actively looking” (simple boolean toggle is fine for v1).
+
+2) Add a UI control in the filters area:
+
+- Label: “Only actively looking”.
+- When checked, only show profiles where `isActivelyLooking === true`.
+- You can implement this as:
+  - A client-side filter on the already-fetched list, OR
+  - A query param sent to `/api/talent` (client-side filter is fine for v1).
+
+3) In each card, show:
+
+- If `isActivelyLooking`:
+  - A small line or badge: “Actively looking”.
+- If `availableFrom` is set:
+  - “Available from: DD.MM.YYYY”.
+- If no `availableFrom` and `isActivelyLooking === true`:
+  - “Available now”.
+
+Keep this text subtle but visible.
+
+==================================================
+TASK 4 — Hide NOT_ELIGIBLE profiles from /talent & treat NEEDS_REVIEW clearly
+==================================================
+
+In `server/storage.ts` and/or the `GET /api/talent` handler in `server/routes.ts`:
+
+1) By default, exclude talent profiles where `lastCheckStatus === 'NOT_ELIGIBLE'`.
+
+- It’s ok to keep an internal parameter (e.g. `includeNotEligible`) in the future, but for v1:
+  - The `/api/talent` route used by the UI should return only:
+    - ELIGIBLE, NEEDS_REVIEW, UNKNOWN.
+
+2) In `client/src/pages/talent.tsx` where RTW badges are rendered:
+
+- Use `lastCheckStatus` to drive text:
+
+  - If `ELIGIBLE` and last check ≤ 90 days:
+    - “✅ Work authorization verified via Certia (≤ 90 days)”
+  - If `ELIGIBLE` and > 90 days:
+    - “🟡 Work authorization verified via Certia (> 90 days – refresh on hire).”
+  - If `NEEDS_REVIEW`:
+    - “⚠️ Right-to-work check exists – review required on hire.”
+  - If `UNKNOWN`:
+    - “ℹ️ Work authorization must be checked before hire.”
+
+- Make sure NOT_ELIGIBLE never appears on `/talent` cards in this phase.
+
+==================================================
+TASK 5 — Add “freshness” tag for RTW check and color-coded horizon risk
+==================================================
+
+Still in `client/src/pages/talent.tsx` card rendering:
+
+1) Freshness tag:
+
+- Using `lastCheckDate`, compute how many days ago the check happened.
+- Display a small line under the RTW badge, e.g.:
+
+  - “Checked 7 days ago”
+  - “Checked 45 days ago”
+  - If no date: do not show this line.
+
+2) Permit horizon coloring:
+
+- Based on `permitHorizonBand`, apply a subtle text color:
+
+  - OVER_24M, M12_24:
+    - Normal / muted text color (e.g. `text-muted-foreground`).
+  - M6_12:
+    - Amber (`text-amber-600` or similar).
+  - UNDER_6:
+    - Red (`text-red-600` or similar).
+  - UNKNOWN:
+    - Muted / neutral.
+
+- Keep the text itself as:
+  - “Permit horizon: ~24+ months”
+  - “Permit horizon: ~12–24 months”
+  - “Permit horizon: ~6–12 months”
+  - “Permit horizon: < 6 months”
+  - “Permit horizon: Unknown”
+
+==================================================
+TASK 6 — Copy polish to match shift-based, visa-focused niche
+==================================================
+
+1) `/talent` page header (in `client/src/pages/talent.tsx`):
+
+- Update the `PageHeader` props to something like:
+
+  - Title: “Talent pool (work visas)”
+  - Description:
+    - “Shift-based workers on German work visas for cleaning, stadiums, catering, warehouse and more. All profiles are linked to structured right-to-work checks in Certia.”
+
+2) Talent invite button on Employee detail (`client/src/pages/employee-detail.tsx`):
+
+- If it currently says “Invite to Talent pool”, change it to:
+  - “Add to Talent pool”.
+
+3) In the Talent invite modal title and subtitle:
+
+- Make wording concrete and HR-friendly, e.g.:
+
+  - Title: “Add to Talent pool”
+  - Short helper text:
+    - “Create a simple profile so this worker can appear in your visa-friendly Talent pool. All right-to-work information stays inside Certia.”
+
+Keep the tone practical and simple.
+
+==================================================
+TASK 7 — Mobile-first layout tweaks for Talent cards
+==================================================
+
+In `client/src/pages/talent.tsx` (or wherever the Talent card component lives):
+
+1) Ensure the grid layout is responsive:
+
+- Example:
+  - `grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6`
+
+2) Within each card:
+
+- On small screens:
+  - Stack content vertically with clear sections:
+    - Name + headline
+    - `City · Work area`
+    - `Available: [shiftPreferences nicely formatted]`
+    - `Hours: [band]`
+    - `Languages: German [level] · English [level]`
+    - RTW badge
+    - Freshness tag + horizon line
+
+- Use utility classes like:
+  - `space-y-1` / `space-y-2` to give breathing room.
+  - Avoid cramming everything into a single long paragraph.
+
+3) Sanity check:
+
+- On mobile:
+  - Cards should be easy to scan in a list.
+  - The key things a staffing manager cares about should be obviously visible:
+    - Work area
+    - Location
+    - Availability (shifts + hours)
+    - RTW status + horizon.
+
+==================================================
+TASK 8 — Tests & DIAGNOSTICS touch-up
+==================================================
+
+1) Update or extend backend tests to cover:
+
+- That `GET /api/talent` does NOT return profiles where `lastCheckStatus === 'NOT_ELIGIBLE'`.
+
+2) Update or extend frontend tests for `/talent`:
+
+- Assert that “Actively looking” filter control renders.
+- Assert that, given mock data:
+  - “Actively looking” text appears for such profiles.
+  - Horizon classes are applied as expected (at least for one band).
+
+3) Run:
+
+- TypeScript check
+- Backend smoke tests
+- Frontend smoke tests
+- Production build
+
+4) Update `DIAGNOSTICS.md`:
+
+- Note:
+  - New `isActivelyLooking` and `availableFrom` fields on Talent profiles.
+  - Default exclusion of NOT_ELIGIBLE from `/talent`.
+  - Added RTW freshness tag and horizon coloring.
+  - Updated `/talent` copy + layout tuned for shift-based workers on visas.
+
+==================================================
+Constraints recap
+==================================================
+
+- Keep changes strictly scoped to:
+  - TalentProfile schema + storage,
+  - Talent invite flow,
+  - /talent page.
+- Do NOT touch rules engine or check creation logic.
+- Do NOT expose raw visa types or sensitive labels in the Talent UI.
+- Make the Talent pool feel optimized for:
+  - Low-skilled, short-term, shift-based work,
+  - Workers on German work visas,
+  - Staffing managers who need a quick, clear overview.

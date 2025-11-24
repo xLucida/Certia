@@ -318,6 +318,9 @@ export const talentProfiles = pgTable("talent_profiles", {
   germanLevel: varchar("german_level", { enum: languageLevels }),
   englishLevel: varchar("english_level", { enum: languageLevels }),
   
+  isActivelyLooking: varchar("is_actively_looking").notNull().default("false"),
+  availableFrom: timestamp("available_from"),
+  
   lastCheckId: varchar("last_check_id"),
   lastCheckDate: timestamp("last_check_date"),
   lastCheckStatus: varchar("last_check_status", { enum: workStatuses }),

@@ -49,12 +49,15 @@ A comprehensive audit logging system automatically records all key actions for c
 
 ### Certia Talent Pool (Phase 1)
 An internal talent pool system for managing low-skilled, shift-based workers on work visas. HR teams can invite employees to the talent pool with shift-specific metadata. Features include:
-- **Talent Invite Dialog**: HR users invite employees via a comprehensive form capturing work area (cleaning, catering, warehouse, etc.), location with travel radius, shift preferences (day, evening, night, weekend), weekly hours bands, and language proficiency levels.
-- **Talent Pool Page**: Card-based layout displaying talent profiles with all relevant shift-work details. Each card shows employee name, headline, work area, location with travel radius, shift badges, weekly hours, languages, and permit horizon.
-- **Multi-Dimensional Filtering**: Filter by work area, location (checks both city and region), shift preference, weekly hours band, and permit horizon. Filters are combinable and individually clearable via "All X" reset options.
-- **Auto-Calculated Permit Horizon**: Automatically computed from the latest right-to-work check expiry date, showing time remaining in bands (Under 6 months, 6-12 months, 12-24 months, Over 24 months, Unknown).
-- **Visibility Control**: Only profiles marked as visible appear in the talent pool.
-- **Schema**: `talent_profiles` table with fields for headline, workArea, locationCity, locationRegion, travelRadiusKm, shiftPreferencesList (array), weeklyHoursBand, germanLevel, englishLevel, permitHorizonBand, and isVisibleInTalentPool flag.
+- **Talent Invite Dialog**: HR users invite employees via a comprehensive form capturing work area (cleaning, catering, warehouse, etc.), location with travel radius, shift preferences (day, evening, night, weekend), weekly hours bands, language proficiency levels, and availability status (actively looking + available from date).
+- **Talent Pool Page**: Card-based layout displaying talent profiles with all relevant shift-work details. Each card shows employee name, headline, work area, location with travel radius, shift badges, weekly hours, languages, permit horizon, availability status, RTW badge with context-specific copy, and check freshness tag.
+- **Availability Tracking**: Profiles track whether workers are actively looking (boolean) and their availability date. Displays "✓ Actively looking" + "Available now" or "Available from: DD.MM.YYYY". Includes "Only actively looking" filter checkbox.
+- **Enhanced RTW Status Display**: Context-aware badges show work authorization status with actionable copy (e.g., ELIGIBLE ≤90d shows "✅ Work authorization verified via Certia (≤ 90 days)"). Check freshness displayed as "Checked X days ago".
+- **Color-Coded Permit Horizons**: Automatically computed from latest check expiry date. Red text for <6 months, amber for 6-12 months, muted for longer horizons. Format: "Permit horizon: ~X months".
+- **Multi-Dimensional Filtering**: Filter by work area, location (checks both city and region), shift preference, weekly hours band, permit horizon, and actively looking status. Filters are combinable and individually clearable via "All X" reset options.
+- **Visibility Control**: Only profiles marked as visible appear in the talent pool. All invited profiles are shown regardless of RTW status (ELIGIBLE, NEEDS_REVIEW, NOT_ELIGIBLE, or NULL) - status is clearly displayed on each card.
+- **Schema**: `talent_profiles` table with fields for headline, workArea, locationCity, locationRegion, travelRadiusKm, shiftPreferencesList (array), weeklyHoursBand, germanLevel, englishLevel, permitHorizonBand, isVisibleInTalentPool flag, isActivelyLooking (varchar "true"/"false"), and availableFrom (timestamp nullable).
+- **Button Visibility**: "Add to Talent pool" button only appears on employee detail pages when the employee has at least one right-to-work check (ensures work authorization is verified before talent pool inclusion).
 - **Phase 1 Scope**: Internal-only tool for HR teams. No candidate-facing UI. Future phases may include candidate self-service and external visibility.
 
 ## External Dependencies

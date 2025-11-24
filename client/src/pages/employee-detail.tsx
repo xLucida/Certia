@@ -222,7 +222,7 @@ export default function EmployeeDetail() {
                     data-testid="button-invite-talent"
                   >
                     <UserPlus className="h-4 w-4 mr-2" />
-                    Invite to Talent pool
+                    Add to Talent pool
                   </Button>
                 )}
                 <Button

@@ -23,6 +23,8 @@ const talentInviteSchema = z.object({
   weeklyHoursBand: z.string().optional(),
   germanLevel: z.string().default("UNKNOWN"),
   englishLevel: z.string().default("UNKNOWN"),
+  isActivelyLooking: z.boolean().default(false),
+  availableFrom: z.string().optional(),
   consent: z.boolean().refine(val => val === true, "You must confirm consent to proceed"),
 });
 
@@ -90,6 +92,8 @@ export function TalentInviteDialog({ employee, open, onOpenChange, onSuccess }: 
       weeklyHoursBand: "UNKNOWN",
       germanLevel: "UNKNOWN",
       englishLevel: "UNKNOWN",
+      isActivelyLooking: false,
+      availableFrom: "",
       consent: false,
     },
   });
@@ -107,6 +111,8 @@ export function TalentInviteDialog({ employee, open, onOpenChange, onSuccess }: 
         weeklyHoursBand: data.weeklyHoursBand,
         germanLevel: data.germanLevel,
         englishLevel: data.englishLevel,
+        isActivelyLooking: data.isActivelyLooking,
+        availableFrom: data.availableFrom || undefined,
         setVisible: true,
       });
       return response.json();
@@ -159,9 +165,9 @@ export function TalentInviteDialog({ employee, open, onOpenChange, onSuccess }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="dialog-talent-invite">
         <DialogHeader>
-          <DialogTitle>Invite to Talent pool</DialogTitle>
+          <DialogTitle>Add to Talent pool</DialogTitle>
           <DialogDescription>
-            Inviting: {employee.firstName} {employee.lastName}
+            Create a simple profile so {employee.firstName} {employee.lastName} can appear in your visa-friendly Talent pool. All right-to-work information stays inside Certia.
           </DialogDescription>
         </DialogHeader>
 
@@ -368,6 +374,46 @@ export function TalentInviteDialog({ employee, open, onOpenChange, onSuccess }: 
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="isActivelyLooking"
+              render={({ field }) => (
+                <FormItem className="flex items-start space-x-2 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      data-testid="checkbox-actively-looking"
+                    />
+                  </FormControl>
+                  <FormLabel className="font-normal">
+                    Actively looking for work
+                  </FormLabel>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="availableFrom"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Available from (optional)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="date" 
+                      {...field} 
+                      placeholder="Leave blank for immediately available"
+                      data-testid="input-available-from"
+                    />
+                  </FormControl>
+                  <p className="text-sm text-muted-foreground">Leave blank if available immediately</p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
