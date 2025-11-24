@@ -885,6 +885,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         exp,
       });
 
+      console.log("[PUBLIC UPLOAD LINK] Generated token (first 50 chars):", token.substring(0, 50));
+      console.log("[PUBLIC UPLOAD LINK] Token expiry:", new Date(exp).toISOString());
+
       const urlPath = `/upload?token=${encodeURIComponent(token)}`;
 
       return res.json({ token, urlPath, expiresAt: exp });
@@ -898,15 +901,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/public-upload/validate", async (req: any, res) => {
     try {
       const token = req.query.token as string | undefined;
+      console.log("[PUBLIC UPLOAD VALIDATE] Received token (first 50 chars):", token?.substring(0, 50));
+      
       if (!token) {
+        console.log("[PUBLIC UPLOAD VALIDATE] No token provided");
         return res.status(400).json({ valid: false, error: "Missing token" });
       }
 
       const payload = verifyPublicUploadToken(token);
+      console.log("[PUBLIC UPLOAD VALIDATE] Verification result:", payload ? "VALID" : "INVALID");
+      
       if (!payload) {
+        console.log("[PUBLIC UPLOAD VALIDATE] Token invalid or expired");
         return res.status(400).json({ valid: false, error: "Invalid or expired token" });
       }
 
+      console.log("[PUBLIC UPLOAD VALIDATE] Token valid, expiry:", new Date(payload.exp).toISOString());
       // For privacy, DO NOT return employee details; just say it's valid.
       return res.json({ valid: true });
     } catch (err) {

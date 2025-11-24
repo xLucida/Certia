@@ -18,7 +18,7 @@ export default function PublicUploadPage() {
   const token = urlParams.get("token");
 
   const { data: validationData, isLoading: validatingToken, error: validationError } = useQuery({
-    queryKey: ["/api/public-upload/validate", token],
+    queryKey: [`/api/public-upload/validate?token=${token}`],
     enabled: !!token,
   });
 
