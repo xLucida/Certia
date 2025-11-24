@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { HelpCircle, CheckCircle, AlertCircle, Check, X, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
@@ -209,15 +210,26 @@ export default function Help() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 shadow-sm border-primary/20">
-              <CardHeader className="border-b bg-gradient-to-br from-primary/5 to-background">
-                <CardTitle className="text-xl">AI Diagnostics (Venice.ai)</CardTitle>
+            <Card className="border-2 shadow-sm border-muted">
+              <CardHeader className="border-b bg-muted/20">
+                <CardTitle className="text-xl">Advanced: Technical Diagnostics</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 pt-6">
-                <p className="text-muted-foreground">
-                  Use this section to verify that Certia's AI decision engine (Venice.ai) is configured correctly and to run quick test decisions. 
-                  This is for internal testing only.
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground mb-4">
+                  This area is intended for admins or technical users to test OCR and AI configuration. 
+                  HR users can ignore this section in normal use.
                 </p>
+                
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="diagnostics">
+                    <AccordionTrigger className="text-sm font-medium" data-testid="accordion-diagnostics-trigger">
+                      AI Decision Engine Test (Venice.ai)
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-4 pt-2">
+                        <p className="text-sm text-muted-foreground">
+                          Use this tool to verify that Certia's AI decision engine (Venice.ai) is configured correctly and to run quick test decisions.
+                        </p>
 
                 {testResult && (
                   <div className="space-y-4 p-4 rounded-lg bg-muted/30 border">
@@ -356,6 +368,10 @@ export default function Help() {
                     )}
                   </Button>
                 </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </CardContent>
             </Card>
           </div>

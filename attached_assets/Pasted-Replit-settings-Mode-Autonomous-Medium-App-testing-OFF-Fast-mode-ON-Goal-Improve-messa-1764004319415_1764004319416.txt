@@ -1,0 +1,86 @@
+Replit settings:
+- Mode: Autonomous – Medium
+- App testing: OFF
+- Fast mode: ON
+
+Goal:
+Improve messaging and perceived polish by:
+1) Splitting the Help page into clear HR-facing help vs technical diagnostics.
+2) Sharpening the landing page hero copy with a clear promise for HR + compliance.
+
+Scope:
+- Frontend copy/layout only.
+- No backend or data changes.
+
+Context:
+- Help page: `client/src/pages/help.tsx`.
+  - Currently mixes HR FAQ and a technical diagnostics section for OCR/AI/rules.
+- Landing page: `client/src/pages/landing.tsx` (or equivalent).
+  - Already has a hero section with headline, subheading, and feature bullets.
+
+==================================================
+TASK 1 — Help page: separate “Help” from “Diagnostics”
+==================================================
+
+1) On the Help page:
+
+- Keep the existing HR-facing FAQ content visible by default.
+- Move the **technical diagnostics** (raw OCR text, Venice/rules test, JSON output, etc.) into a clearly labeled “Advanced” section.
+
+2) Implementation options (choose the simplest consistent with the codebase):
+
+- Option A: Collapsible section:
+
+  - Add a section heading like “Advanced: Technical diagnostics (for admins)”.
+  - Put the existing diagnostics UI (textarea, test button, JSON output) inside a collapsible component or a simple `Accordion` / `Collapsible` / `details`-like component.
+  - Default state: collapsed.
+
+- Option B: Tabs:
+
+  - If you already use tabs (e.g. shadcn Tabs component), split content into:
+    - Tab 1: “Help & FAQ”
+    - Tab 2: “Technical diagnostics”
+  - Place the diagnostics UI in the second tab.
+
+3) Add a short line at the top of the diagnostics section:
+
+- Example:
+  - “This area is intended for admins or technical users to test OCR and AI configuration. HR users can ignore this section in normal use.”
+
+==================================================
+TASK 2 — Landing hero: explicit promise for HR & compliance
+==================================================
+
+1) On the landing page hero section:
+
+- Update the main headline + subheading to clearly target German HR/compliance, for example:
+
+  - Headline (example wording; refine to match tone):
+    - “Right-to-work checks for German HR teams, documented and audit-ready.”
+  - Subheading:
+    - “Certia helps you standardize right-to-work checks, log every decision, and stay audit-ready in minutes — without turning your team into immigration experts.”
+
+2) Under the hero text, refine the feature bullets to emphasize:
+
+- “Documented decisions (printable reports and CSV exports).”
+- “AI + rules engine that defaults to ‘Needs review’ when unsure.”
+- “Complete audit trail: notes, attachments, and case workflow.”
+
+You don’t need to add lots of new bullets; just tune the existing ones so at least 2–3 explicitly speak to:
+
+- Standardization
+- Auditability / compliance
+- Safety (conservative defaults)
+
+3) Keep layout, buttons, and hero preview card as they are; only adjust copy.
+
+==================================================
+Constraints & checks
+==================================================
+
+- Do NOT change any logic or APIs.
+- Only update Help page layout and landing text.
+- Confirm:
+  - Help page still shows FAQ clearly and hides “scary” technical bits from casual HR users by default.
+  - Landing page feels clearly targeted at HR/compliance for German right-to-work use-cases.
+- Keep explanations in your summary to a few bullet points.
