@@ -1,0 +1,106 @@
+Replit settings:
+- Mode: Autonomous – Medium
+- Fast mode: ON
+- App testing: OFF
+
+Goal:
+Fix all broken Tailwind CSS class strings where a literal `...` has ended up inside the className, which is preventing gradient/background/spacing utilities from applying correctly.
+
+This is a PURELY VISUAL cleanup:
+- Do NOT change any component logic, data fetching, or backend code.
+- Do NOT rename components or change routes.
+- Only fix invalid className strings.
+
+Context:
+- Project: Certia (RightToWorkDE).
+- Tech: React + TypeScript + Tailwind + shadcn UI in `client/src`.
+- I recently did a visual polish pass and some Tailwind classes got truncated into things like:
+  - `bg-gradient-to-r from-primary...ckground to-background`
+  - `h-7 w-7 rounded-lg ... from-primary/20 to-primary/5`
+  - `bg-gradient-to-br...er justify-center`
+- These `...` fragments break the utilities and make gradients / icon pills / logo background look “off”.
+
+==================================================
+TASK 1 — Find and fix all `...` inside className strings
+==================================================
+
+1) Search the **client-side code** (especially under `client/src/pages` and `client/src/components`) for:
+   - Any `className` (or `class`) string literals that contain a literal `...`.
+
+   Examples of what to look for:
+   - `"bg-gradient-to-r from-primary...ckground to-background"`
+   - `"h-7 w-7 rounded-lg ... from-primary/20 to-primary/5"`
+   - `"bg-gradient-to-br...er justify-center"`
+   - Or any similar pattern where `...` appears inside a quoted Tailwind class string.
+
+2) For each occurrence:
+   - Replace the broken className with a valid Tailwind sequence that matches the intended design.
+   - Preserve the original intent (gradients, layout, alignment), for example:
+
+   - Example fixes (adapt exact values to the surrounding styles):
+
+     - Broken:
+       - `bg-gradient-to-r from-primary...ckground to-background`
+       - Fix to something like:
+       - `bg-gradient-to-r from-primary/10 via-background to-background`
+
+     - Broken:
+       - `h-7 w-7 rounded-lg ... from-primary/20 to-primary/5`
+       - Fix to:
+       - `h-7 w-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center`
+
+     - Broken:
+       - `bg-gradient-to-br...er justify-center`
+       - Fix to:
+       - `bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center`
+
+   - Use consistent Tailwind utilities the project already uses:
+     - `bg-gradient-to-r`, `bg-gradient-to-br`
+     - `from-primary/10`, `from-primary/20`, `to-primary/5`, `to-background`
+     - `flex items-center justify-center`
+     - No need to invent a new visual style; just “restore” what clearly was meant.
+
+3) IMPORTANT:
+   - Only treat `...` as broken when it appears **inside a string literal** used for className/class.
+   - Do NOT touch legitimate JavaScript/TypeScript spread syntax (e.g. `{...props}`).
+   - Do NOT remove or alter any conditional class logic (e.g. `clsx`, `cn` helpers). Just fix the literal strings being passed in.
+
+==================================================
+TASK 2 — Focus on key components where this likely appears
+==================================================
+
+Make sure you check (non-exhaustive list, but high priority):
+
+- Landing page hero + preview card:
+  - `client/src/pages/landing.tsx`
+  - Any stat/metric cards or icon pills on this page.
+
+- Global/logo components:
+  - `client/src/components/CertiaLogo.tsx` (or similar):
+    - Ensure the logo’s gradient background and alignment classes are valid (no `...`).
+
+- Dashboard metric cards and icon badges:
+  - `client/src/pages/dashboard.tsx`
+  - Any small icon containers with gradients or rounded backgrounds.
+
+- Any shared header or PageHeader component:
+  - `client/src/components/PageHeader.tsx` (or equivalent):
+    - Check for gradient backgrounds on the header container.
+
+If you find `...` in other className strings, fix them in the same way.
+
+==================================================
+TASK 3 — Sanity check & constraints
+==================================================
+
+- Do NOT modify:
+  - Any APIs, routes, or backend files.
+  - Any business logic, OCR logic, Venice AI logic, or rules engine code.
+- Only correct invalid Tailwind class strings.
+
+After fixes:
+- Run the dev server and visually confirm that:
+  - Landing hero gradients and stat cards look smooth and intentional.
+  - The Certia logo has a proper gradient background and is centered.
+  - Dashboard metric cards and icon badges show the expected gradient/tinted backgrounds.
+- Keep your summary of changes very short (≤3 bullets), describing only which components had their classNames fixed.
