@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { StatusBadge } from "@/components/StatusBadge";
-import { AlertCircle, ChevronDown, FileText, Download, CheckCircle, XCircle, AlertTriangle, Badge as BadgeIcon } from "lucide-react";
+import { AlertCircle, ChevronDown, FileText, Download, CheckCircle, XCircle, AlertTriangle, Badge as BadgeIcon, Lightbulb } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import type { RightToWorkCheck } from "@shared/schema";
@@ -10,6 +10,18 @@ import { Badge } from "@/components/ui/badge";
 interface CheckDecisionPanelProps {
   check: RightToWorkCheck;
   showLatestBadge?: boolean;
+}
+
+function getNextActionHint(workStatus: string): string {
+  switch (workStatus) {
+    case 'ELIGIBLE':
+      return 'Keep this check on file for audit purposes. Consider setting case status to "Cleared" when employment onboarding is complete.';
+    case 'NOT_ELIGIBLE':
+      return 'Do not proceed with employment. Contact the individual to request updated documentation or clarify their work authorization status.';
+    case 'NEEDS_REVIEW':
+    default:
+      return 'Review the missing information and decision details below. Request additional documents or clarification from the individual, or consult legal counsel if needed.';
+  }
 }
 
 export function CheckDecisionPanel({ check, showLatestBadge = false }: CheckDecisionPanelProps) {
@@ -146,6 +158,16 @@ export function CheckDecisionPanel({ check, showLatestBadge = false }: CheckDeci
             </p>
           </div>
         )}
+
+        <div className="p-3 rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800" data-testid="next-action-hint">
+          <p className="text-sm font-medium mb-1 flex items-center gap-2 text-blue-900 dark:text-blue-100">
+            <Lightbulb className="h-4 w-4" />
+            Next action
+          </p>
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            {getNextActionHint(check.workStatus)}
+          </p>
+        </div>
 
         {(regularDetails.length > 0 || missingInfo.length > 0) && (
           <div className="space-y-4">
