@@ -1528,6 +1528,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Talent pool routes
+  app.get("/api/talent", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const filters = {
+        search: req.query.q as string | undefined,
+        workArea: req.query.workArea as string | undefined,
+        locationCity: req.query.locationCity as string | undefined,
+        shift: req.query.shift as string | undefined,
+        weeklyHoursBand: req.query.weeklyHoursBand as string | undefined,
+      };
+
+      const profiles = await storage.getTalentProfiles(userId, filters);
+      res.json(profiles);
+    } catch (error) {
+      console.error("Error fetching talent profiles:", error);
+      res.status(500).json({ error: "Failed to fetch talent profiles" });
+    }
+  });
+
+  app.post("/api/talent/invite", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const {
+        employeeId,
+        headline,
+        workArea,
+        locationCity,
+        locationRegion,
+        travelRadiusKm,
+        shiftPreferences,
+        weeklyHoursBand,
+        germanLevel,
+        englishLevel,
+        setVisible = true,
+      } = req.body;
+
+      if (!employeeId) {
+        return res.status(400).json({ error: "employeeId is required" });
+      }
+
+      // Create or update talent profile
+      const profile = await storage.createOrUpdateTalentProfile(userId, employeeId, {
+        userId,
+        employeeId,
+        headline,
+        workArea,
+        locationCity,
+        locationRegion,
+        travelRadiusKm,
+        shiftPreferencesList: shiftPreferences || [],
+        weeklyHoursBand,
+        germanLevel,
+        englishLevel,
+        isVisibleInTalentPool: setVisible ? "true" : "false",
+        consentTimestamp: setVisible ? new Date() : null,
+      });
+
+      // Update with latest check data if available
+      await storage.updateTalentProfileWithLastCheck(userId, employeeId);
+
+      // Fetch the updated profile with employee data
+      const updatedProfile = await storage.getTalentProfileById(userId, profile.id);
+
+      res.status(201).json(updatedProfile);
+    } catch (error) {
+      console.error("Error creating talent profile:", error);
+      res.status(500).json({ error: "Failed to create talent profile" });
+    }
+  });
+
+  app.patch("/api/talent/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const {
+        headline,
+        workArea,
+        locationCity,
+        locationRegion,
+        travelRadiusKm,
+        shiftPreferences,
+        weeklyHoursBand,
+        germanLevel,
+        englishLevel,
+      } = req.body;
+
+      // Verify profile exists and belongs to user
+      const existing = await storage.getTalentProfileById(userId, id);
+      if (!existing) {
+        return res.status(404).json({ error: "Talent profile not found" });
+      }
+
+      // Update profile
+      const profile = await storage.createOrUpdateTalentProfile(userId, existing.employeeId, {
+        headline,
+        workArea,
+        locationCity,
+        locationRegion,
+        travelRadiusKm,
+        shiftPreferencesList: shiftPreferences,
+        weeklyHoursBand,
+        germanLevel,
+        englishLevel,
+      });
+
+      const updatedProfile = await storage.getTalentProfileById(userId, profile.id);
+      res.json(updatedProfile);
+    } catch (error) {
+      console.error("Error updating talent profile:", error);
+      res.status(500).json({ error: "Failed to update talent profile" });
+    }
+  });
+
+  app.post("/api/talent/:id/visibility", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const { isVisible } = req.body;
+
+      if (typeof isVisible !== 'boolean') {
+        return res.status(400).json({ error: "isVisible must be a boolean" });
+      }
+
+      const profile = await storage.setTalentVisibility(userId, id, isVisible);
+      if (!profile) {
+        return res.status(404).json({ error: "Talent profile not found" });
+      }
+
+      res.json(profile);
+    } catch (error) {
+      console.error("Error updating talent visibility:", error);
+      res.status(500).json({ error: "Failed to update talent visibility" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -488,7 +488,7 @@ export class DatabaseStorage implements IStorage {
     ];
 
     if (filters?.workArea) {
-      conditions.push(eq(talentProfiles.workArea, filters.workArea));
+      conditions.push(eq(talentProfiles.workArea, filters.workArea as any));
     }
 
     if (filters?.locationCity) {
@@ -496,7 +496,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     if (filters?.weeklyHoursBand) {
-      conditions.push(eq(talentProfiles.weeklyHoursBand, filters.weeklyHoursBand));
+      conditions.push(eq(talentProfiles.weeklyHoursBand, filters.weeklyHoursBand as any));
     }
 
     // Fetch profiles with employee data
@@ -515,7 +515,7 @@ export class DatabaseStorage implements IStorage {
 
     if (filters?.shift) {
       results = results.filter(p => 
-        p.shiftPreferencesList?.includes(filters.shift)
+        p.shiftPreferencesList?.includes(filters.shift!)
       );
     }
 
@@ -606,8 +606,8 @@ export class DatabaseStorage implements IStorage {
     const check = latestCheck[0];
     
     // Calculate permit horizon band based on expiry date
-    let permitHorizonBand = "UNKNOWN";
-    let employerChangePossible = null;
+    let permitHorizonBand: string = "UNKNOWN";
+    let employerChangePossible: string | null = null;
     let workAuthorizationSummary = "Work authorization details need to be checked on hire.";
 
     if (check.expiryDate) {
@@ -658,7 +658,7 @@ export class DatabaseStorage implements IStorage {
         lastCheckId: check.id,
         lastCheckDate: check.createdAt,
         lastCheckStatus: check.workStatus,
-        permitHorizonBand,
+        permitHorizonBand: permitHorizonBand as any,
         employerChangePossible,
         workAuthorizationSummary,
         updatedAt: new Date(),
