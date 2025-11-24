@@ -10,7 +10,7 @@ import { CertiaLogo } from "@/components/CertiaLogo";
 
 export default function PublicUploadPage() {
   const [, navigate] = useLocation();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
@@ -24,9 +24,11 @@ export default function PublicUploadPage() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (files: File[]) => {
       const formData = new FormData();
-      formData.append("document", file);
+      files.forEach(file => {
+        formData.append("documents", file);
+      });
       formData.append("token", token || "");
 
       const response = await fetch("/api/public-upload/submit", {
@@ -45,7 +47,7 @@ export default function PublicUploadPage() {
       console.log("Upload successful:", data);
       setUploadSuccess(true);
       setUploadResult(data);
-      setSelectedFile(null);
+      setSelectedFiles([]);
     },
   });
 
@@ -69,21 +71,19 @@ export default function PublicUploadPage() {
     e.preventDefault();
     setIsDragging(false);
 
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      const file = files[0];
-      if (isValidFile(file)) {
-        setSelectedFile(file);
-      }
+    const files = Array.from(e.dataTransfer.files);
+    const validFiles = files.filter(file => isValidFile(file)).slice(0, 5);
+    if (validFiles.length > 0) {
+      setSelectedFiles(validFiles);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const file = files[0];
-      if (isValidFile(file)) {
-        setSelectedFile(file);
+      const validFiles = Array.from(files).filter(file => isValidFile(file)).slice(0, 5);
+      if (validFiles.length > 0) {
+        setSelectedFiles(validFiles);
       }
     }
   };
@@ -106,12 +106,12 @@ export default function PublicUploadPage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedFile) return;
-    uploadMutation.mutate(selectedFile);
+    if (selectedFiles.length === 0) return;
+    uploadMutation.mutate(selectedFiles);
   };
 
-  const handleClearFile = () => {
-    setSelectedFile(null);
+  const handleClearFiles = () => {
+    setSelectedFiles([]);
   };
 
   if (validatingToken) {
@@ -222,11 +222,11 @@ export default function PublicUploadPage() {
             className={`
               border-2 border-dashed rounded-xl p-10 text-center transition-all
               ${isDragging ? "border-primary bg-primary/10 shadow-md" : "border-muted-foreground/30 bg-muted/40"}
-              ${selectedFile ? "bg-muted/60 shadow-sm" : "hover-elevate"}
+              ${selectedFiles.length > 0 ? "bg-muted/60 shadow-sm" : "hover-elevate"}
             `}
             data-testid="dropzone-upload"
           >
-            {!selectedFile ? (
+            {selectedFiles.length === 0 ? (
               <>
                 <div className="flex justify-center mb-4">
                   <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -234,10 +234,10 @@ export default function PublicUploadPage() {
                   </div>
                 </div>
                 <h3 className="text-lg font-medium mb-2">
-                  Drag and drop your document here
+                  Drag and drop your document(s) here
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  or click to browse your files
+                  or click to browse your files (up to 5 documents)
                 </p>
                 <input
                   type="file"
@@ -245,6 +245,7 @@ export default function PublicUploadPage() {
                   accept=".pdf,.jpg,.jpeg,.png"
                   onChange={handleFileSelect}
                   className="hidden"
+                  multiple
                   data-testid="input-file"
                 />
                 <Button
@@ -266,17 +267,29 @@ export default function PublicUploadPage() {
                     <FileText className="h-8 w-8 text-success" />
                   </div>
                 </div>
-                <h3 className="text-lg font-medium mb-2" data-testid="text-filename">
-                  {selectedFile.name}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                </p>
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium mb-2">
+                    {selectedFiles.length === 1
+                      ? "Selected document:"
+                      : `Selected documents (${selectedFiles.length}):`}
+                  </h3>
+                  <ul className="text-sm text-muted-foreground space-y-1.5 max-w-md mx-auto text-left">
+                    {selectedFiles.map((file, index) => (
+                      <li key={`${file.name}-${index}`} className="flex items-center gap-2" data-testid={`text-filename-${index}`}>
+                        <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{file.name}</span>
+                        <span className="text-xs text-muted-foreground/70 flex-shrink-0">
+                          ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
                 <div className="flex gap-2 justify-center">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={handleClearFile}
+                    onClick={handleClearFiles}
                     disabled={uploadMutation.isPending}
                     data-testid="button-clear"
                   >
@@ -294,7 +307,7 @@ export default function PublicUploadPage() {
                         Uploading...
                       </>
                     ) : (
-                      "Upload Document"
+                      selectedFiles.length === 1 ? "Upload Document" : "Upload Documents"
                     )}
                   </Button>
                 </div>
@@ -305,8 +318,9 @@ export default function PublicUploadPage() {
           <div className="bg-muted/50 rounded-lg p-4">
             <h4 className="text-sm font-medium mb-2">What to upload</h4>
             <ul className="text-xs text-muted-foreground space-y-1.5">
-              <li>• A clear photo or PDF of your residence permit (front, and back if applicable)</li>
-              <li>• If you have multiple valid documents, you can upload each one</li>
+              <li>• A clear photo or PDF of your residence permit (front and back if applicable)</li>
+              <li>• If you have multiple valid documents, you can upload them all in a single submission</li>
+              <li>• Maximum 5 documents per upload</li>
             </ul>
             <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-muted">
               <strong>Your privacy matters:</strong> Certia only uses this information to help your employer perform a right-to-work check.

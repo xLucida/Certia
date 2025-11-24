@@ -1,0 +1,331 @@
+
+Project context:
+- App: Certia (RightToWorkDE).
+- Frontend public upload page: `client/src/pages/public-upload.tsx`.
+- Public upload backend:
+  - `/api/public-upload/validate`
+  - `/api/public-upload/submit` (currently `upload.single("document")` with `multer`).
+- Public upload flow today:
+  - Candidate uploads ONE file.
+  - Backend runs `extractFieldsFromDocument(file.buffer)` from `lib/ocr.ts`.
+  - Rules engine + Venice AI evaluate.
+  - A single right-to-work check is created for the employee.
+  - Files are NOT stored long-term; only OCR text + extracted fields are stored.
+
+Goal:
+Allow candidates to upload **multiple attachments in one go** (e.g. front+back, extra permits), run OCR on **all** of them, and use the combined result to create the same single check. No DB schema changes.
+
+IMPORTANT:
+- Do NOT change `/api/checks` or internal HR New Check logic in this step.
+- Do NOT change any DB schema.
+- Keep everything backward compatible and conservative.
+
+==================================================
+TASK 1 — Frontend: public upload supports multiple files
+==================================================
+
+File: `client/src/pages/public-upload.tsx`
+
+1) Change state to hold multiple files:
+
+- Replace:
+  - `const [selectedFile, setSelectedFile] = useState<File | null>(null);`
+- With:
+  - `const [selectedFiles, setSelectedFiles] = useState<File[]>([]);`
+
+2) Update file selection & drag/drop:
+
+- `handleFileSelect`:
+  - Instead of only taking `files[0]`, accept multiple:
+    - Filter the `FileList` through `isValidFile`.
+    - Limit to a reasonable maximum, e.g. 5 files.
+    - Set `selectedFiles` to the valid list.
+- `handleDrop`:
+  - Same: iterate `e.dataTransfer.files`, filter by `isValidFile`, limit to 5, set `selectedFiles`.
+
+- Keep `isValidFile` logic the same (PDF / JPG / PNG, <=10MB).
+
+- Update the `<input type="file">` to allow multiple:
+  - Add `multiple` attribute.
+  - e.g. `<input type="file" ... multiple />`
+
+3) Update the mutation to accept multiple files:
+
+- `useMutation` currently has:
+
+  ```ts
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("document", file);
+      formData.append("token", token || "");
+      ...
+    },
+  });
+Change it to:
+
+ts
+Copy code
+const uploadMutation = useMutation({
+  mutationFn: async (files: File[]) => {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append("documents", file);
+    });
+    formData.append("token", token || "");
+
+    const response = await fetch("/api/public-upload/submit", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || "Upload failed");
+    }
+
+    return response.json();
+  },
+  ...
+});
+Update handleSubmit to:
+
+Return early if selectedFiles.length === 0.
+
+Call uploadMutation.mutate(selectedFiles).
+
+Anywhere the UI checks selectedFile, swap to selectedFiles.length:
+
+Disable submit button when selectedFiles.length === 0.
+
+Drag state / background classes should depend on whether any files are selected.
+
+Update the selected file display:
+
+Currently it shows something like “Selected document: {selectedFile.name}”.
+
+Change to handle multiple, e.g.:
+
+tsx
+Copy code
+{selectedFiles.length > 0 && (
+  <div className="mt-4 space-y-1 text-sm text-muted-foreground">
+    <p className="font-medium">
+      {selectedFiles.length === 1
+        ? "Selected document:"
+        : `Selected documents (${selectedFiles.length}):`}
+    </p>
+    <ul className="text-xs space-y-0.5">
+      {selectedFiles.map((file) => (
+        <li key={file.name} className="flex items-center gap-2">
+          <FileText className="h-3 w-3 text-muted-foreground" />
+          <span className="truncate">{file.name}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+Copy tweaks:
+
+Anywhere in this page that says “document” in singular (for the upload zone), adjust lightly to reflect that multiple are allowed, e.g.:
+
+“Drag and drop your document(s) here”
+
+“If you have multiple valid documents, you can upload each one in a single submission.”
+
+==================================================
+TASK 2 — Backend: /api/public-upload/submit handles multiple files
+File: server/routes.ts
+
+Current implementation (simplified):
+
+ts
+Copy code
+app.post("/api/public-upload/submit", upload.single("document"), async (req, res) => {
+  const file = req.file;
+  // validate file
+  const ocrResult = await extractFieldsFromDocument(file.buffer);
+  // map to rules, evaluate, create check
+});
+Change this endpoint to:
+
+Use upload.array instead of single:
+
+Update route signature to something like:
+
+ts
+Copy code
+app.post("/api/public-upload/submit", upload.array("documents", 5), async (req: any, res) => {
+This allows up to 5 attachments per submission; adjust the number if needed, but keep a reasonable cap.
+
+Read & validate multiple files:
+
+Inside the handler:
+
+ts
+Copy code
+const files = req.files as Express.Multer.File[] | undefined;
+
+if (!files || files.length === 0) {
+  return res.status(400).json({ error: "No documents uploaded" });
+}
+
+const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+const maxSize = 10 * 1024 * 1024;
+
+for (const file of files) {
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    return res.status(400).json({
+      error: "Invalid file type",
+      message: "Only PDF, JPG, and PNG files are supported",
+    });
+  }
+  if (file.size > maxSize) {
+    return res.status(400).json({
+      error: "File too large",
+      message: "File size must be less than 10MB",
+    });
+  }
+}
+Run OCR on each file and aggregate:
+
+For each valid file, call extractFieldsFromDocument(file.buffer) and gather:
+
+rawText
+
+documentTypeGuess
+
+documentNumberGuess
+
+expiryDateGuessIso
+
+employerNameGuess
+
+employmentPermissionGuess
+
+Aggregation strategy (conservative, simple):
+
+combinedRawText:
+
+Concatenate all raw texts with clear separators, e.g.:
+
+ts
+Copy code
+combinedRawText += `\n\n--- Document: ${file.originalname} ---\n\n` + ocr.rawText;
+primaryDocumentTypeGuess:
+
+First non-UNKNOWN documentTypeGuess wins.
+
+primaryDocumentNumberGuess:
+
+First non-empty documentNumberGuess wins.
+
+earliestExpiryGuessIso:
+
+Parse all expiryDateGuessIso values.
+
+Use the earliest expiry date across documents (safe for compliance).
+
+employerNameGuess / employmentPermissionGuess:
+
+First non-empty value for each, if any.
+
+Also build a documents array for audit:
+
+ts
+Copy code
+const documents = files.map((file, index) => ({
+  fileName: file.originalname,
+  mimeType: file.mimetype,
+  documentTypeGuess: results[index].documentTypeGuess,
+  documentNumberGuess: results[index].documentNumberGuess,
+  expiryDateGuessIso: results[index].expiryDateGuessIso,
+  employerNameGuess: results[index].employerNameGuess,
+  employmentPermissionGuess: results[index].employmentPermissionGuess,
+}));
+Feed the aggregated data into the existing logic:
+
+Compute:
+
+ts
+Copy code
+const documentType = primaryDocumentTypeGuess || "UNKNOWN";
+const expiryDateStr = earliestExpiryGuessIso || null;
+const expiryDateObj = expiryDateStr ? new Date(expiryDateStr) : null;
+Use these in mapToRulesEngineInput as today:
+
+ts
+Copy code
+const rulesEngineInput = mapToRulesEngineInput({
+  documentType,
+  expiryDate: expiryDateObj,
+});
+
+const evaluation = evaluateRightToWork(rulesEngineInput);
+When creating the check, keep behavior the same, but:
+
+ocrRawText → combinedRawText.
+
+ocrExtractedFields should be stringified JSON with BOTH:
+
+Top-level fields (to keep existing UI working):
+
+documentTypeGuess, documentNumberGuess, expiryDateGuessIso, employerNameGuess, employmentPermissionGuess
+
+And a documents array for deeper audit:
+
+ts
+Copy code
+ocrExtractedFields: JSON.stringify({
+  documentTypeGuess: primaryDocumentTypeGuess,
+  documentNumberGuess: primaryDocumentNumberGuess,
+  expiryDateGuessIso: earliestExpiryGuessIso,
+  employerNameGuess,
+  employmentPermissionGuess,
+  documents,
+})
+This keeps CheckAuditTrail and “Scan Insights” working, since they read top-level employerNameGuess and employmentPermissionGuess.
+
+Response:
+
+Keep the same response shape as before (success, checkId, workStatus, decisionSummary), so the frontend behavior is unchanged.
+
+==================================================
+TASK 3 — Sanity checks
+Please verify manually (or via tests) that:
+
+Public upload page:
+
+You can select or drag-and-drop multiple files (PDF/JPG/PNG).
+
+Filenames list correctly.
+
+The submit button is disabled until at least one file is selected.
+
+Error messages still appear for invalid types / too-large files.
+
+Backend:
+
+/api/public-upload/submit rejects empty or invalid uploads with clear errors.
+
+When multiple valid documents are uploaded:
+
+Only ONE check is created.
+
+ocrRawText contains text from all documents with separators.
+
+ocrExtractedFields parses and still exposes employerNameGuess and employmentPermissionGuess at top level.
+
+Existing behavior:
+
+Single-file uploads still work exactly as before.
+
+Internal HR flows (New Check, dashboard, audit reports) are unaffected.
+
+Summarize changes in ≤5 bullets, focused purely on:
+
+Multi-file support on public upload
+
+Aggregated OCR + evaluation
+
+Backward compatibility.
