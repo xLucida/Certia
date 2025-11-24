@@ -926,7 +926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Submit upload (public - no auth)
-  app.post("/api/public-upload/submit", upload.single("document"), async (req: any, res) => {
+  app.post("/api/public-upload/submit", upload.array("documents", 5), async (req: any, res) => {
     try {
       const token = req.body.token as string | undefined;
       if (!token) {
@@ -949,49 +949,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      const file = req.file;
-      if (!file) {
-        return res.status(400).json({ error: "No document uploaded" });
+      const files = req.files as Express.Multer.File[] | undefined;
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "No documents uploaded" });
       }
 
-      // Validate MIME type
+      // Validate each file
       const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-      if (!allowedMimeTypes.includes(file.mimetype)) {
-        return res.status(400).json({ 
-          error: "Invalid file type",
-          message: "Only PDF, JPG, and PNG files are supported"
-        });
-      }
-
-      // Validate file size (10MB limit)
       const maxSize = 10 * 1024 * 1024;
-      if (file.size > maxSize) {
-        return res.status(400).json({ 
-          error: "File too large",
-          message: "File size must be less than 10MB"
-        });
+
+      for (const file of files) {
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+          return res.status(400).json({ 
+            error: "Invalid file type",
+            message: `File "${file.originalname}" has invalid type. Only PDF, JPG, and PNG files are supported`
+          });
+        }
+        if (file.size > maxSize) {
+          return res.status(400).json({ 
+            error: "File too large",
+            message: `File "${file.originalname}" exceeds 10MB limit`
+          });
+        }
       }
 
-      console.log("[PUBLIC UPLOAD] Processing file:", file.originalname, "for employee:", employeeId);
+      console.log(`[PUBLIC UPLOAD] Processing ${files.length} file(s) for employee:`, employeeId);
 
-      // Run OCR on the uploaded file
-      const ocrResult = await extractFieldsFromDocument(file.buffer);
+      // Run OCR on each file
+      const ocrResults = await Promise.all(
+        files.map(file => extractFieldsFromDocument(file.buffer))
+      );
 
-      console.log("[PUBLIC UPLOAD] OCR complete:", {
-        hasRawText: ocrResult.rawText.length > 0,
-        documentTypeGuess: ocrResult.documentTypeGuess,
-        hasExpiryDate: !!ocrResult.expiryDateGuessIso,
+      // Aggregate OCR results
+      let combinedRawText = "";
+      let primaryDocumentTypeGuess: string | null = null;
+      let primaryDocumentNumberGuess = "";
+      let earliestExpiryGuessIso: string | null = null;
+      let employerNameGuess = "";
+      let employmentPermissionGuess = "";
+
+      const documents = files.map((file, index) => {
+        const ocr = ocrResults[index];
+        
+        // Append to combined raw text with separator
+        combinedRawText += `\n\n--- Document: ${file.originalname} ---\n\n${ocr.rawText}`;
+        
+        // First non-UNKNOWN document type wins
+        if (!primaryDocumentTypeGuess && ocr.documentTypeGuess && (ocr.documentTypeGuess as string) !== "UNKNOWN") {
+          primaryDocumentTypeGuess = ocr.documentTypeGuess;
+        }
+        
+        // First non-empty document number wins
+        if (!primaryDocumentNumberGuess && ocr.documentNumberGuess) {
+          primaryDocumentNumberGuess = ocr.documentNumberGuess;
+        }
+        
+        // Earliest expiry date (most conservative for compliance)
+        if (ocr.expiryDateGuessIso) {
+          const currentExpiry = new Date(ocr.expiryDateGuessIso);
+          if (!earliestExpiryGuessIso || currentExpiry < new Date(earliestExpiryGuessIso)) {
+            earliestExpiryGuessIso = ocr.expiryDateGuessIso;
+          }
+        }
+        
+        // First non-empty employer name wins
+        if (!employerNameGuess && ocr.employerNameGuess) {
+          employerNameGuess = ocr.employerNameGuess;
+        }
+        
+        // First non-empty employment permission wins
+        if (!employmentPermissionGuess && ocr.employmentPermissionGuess) {
+          employmentPermissionGuess = ocr.employmentPermissionGuess;
+        }
+        
+        return {
+          fileName: file.originalname,
+          mimeType: file.mimetype,
+          documentTypeGuess: ocr.documentTypeGuess,
+          documentNumberGuess: ocr.documentNumberGuess,
+          expiryDateGuessIso: ocr.expiryDateGuessIso,
+          employerNameGuess: ocr.employerNameGuess,
+          employmentPermissionGuess: ocr.employmentPermissionGuess,
+        };
       });
 
-      // Prepare data for rules engine
-      const documentType = ocrResult.documentTypeGuess || "UNKNOWN";
-      const expiryDateStr = ocrResult.expiryDateGuessIso || null;
+      console.log("[PUBLIC UPLOAD] OCR complete for all files:", {
+        fileCount: files.length,
+        primaryDocumentType: primaryDocumentTypeGuess,
+        hasEarliestExpiry: !!earliestExpiryGuessIso,
+      });
+
+      // Prepare data for rules engine using aggregated results
+      const documentType = primaryDocumentTypeGuess || "UNKNOWN";
+      const expiryDateStr = earliestExpiryGuessIso;
       const expiryDateObj = expiryDateStr ? new Date(expiryDateStr) : null;
 
       // Map to rules engine input and evaluate
       const rulesEngineInput = mapToRulesEngineInput({
-        documentType,
-        expiryDate: expiryDateObj,
+        documentType: documentType as any,
+        expiryDate: expiryDateObj as any,
       });
 
       const evaluation = evaluateRightToWork(rulesEngineInput);
@@ -1001,27 +1057,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         decisionSummary: evaluation.decisionSummary,
       });
 
-      // Create right-to-work check linked to employee
+      // Create right-to-work check with aggregated OCR data
       const createdCheck = await storage.createRightToWorkCheck({
         userId,
         employeeId,
         firstName: null,
         lastName: null,
-        documentType: documentType !== "UNKNOWN" ? documentType : null,
-        documentNumber: ocrResult.documentNumberGuess || null,
-        expiryDate: expiryDateStr,
+        documentType: (documentType !== "UNKNOWN" ? documentType : null) as any,
+        documentNumber: (primaryDocumentNumberGuess || null) as any,
+        expiryDate: (expiryDateStr || null) as any,
         workStatus: evaluation.workStatus,
         decisionSummary: evaluation.decisionSummary,
         decisionDetails: evaluation.decisionDetails,
-        ocrRawText: ocrResult.rawText,
+        ocrRawText: combinedRawText,
         ocrExtractedFields: JSON.stringify({
-          documentTypeGuess: ocrResult.documentTypeGuess,
-          documentNumberGuess: ocrResult.documentNumberGuess,
-          expiryDateGuessIso: ocrResult.expiryDateGuessIso,
-          employerNameGuess: ocrResult.employerNameGuess,
-          employmentPermissionGuess: ocrResult.employmentPermissionGuess,
+          documentTypeGuess: primaryDocumentTypeGuess,
+          documentNumberGuess: primaryDocumentNumberGuess,
+          expiryDateGuessIso: earliestExpiryGuessIso,
+          employerNameGuess,
+          employmentPermissionGuess,
+          documents,
         }),
-      });
+      } as any);
 
       console.log("[PUBLIC UPLOAD] Check created:", createdCheck.id);
 
