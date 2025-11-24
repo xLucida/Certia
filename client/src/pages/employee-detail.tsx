@@ -17,8 +17,9 @@ import {
 import { CheckDecisionPanel, CheckAuditTrail } from "@/components/check-components";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusInterpretation } from "@/components/StatusInterpretation";
+import { PageHeader } from "@/components/PageHeader";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check, Clock, Printer, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check, Clock, Printer, ChevronDown, ChevronUp, Trash2, User } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import { apiRequest } from "@/lib/queryClient";
@@ -146,7 +147,7 @@ export default function EmployeeDetail() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-6 py-8 print:px-0 print:py-0">
       {/* Print Header - Only visible when printing */}
       <div className="hidden print:block mb-8">
         <div className="text-center border-b-2 border-gray-300 pb-4 mb-6">
@@ -156,83 +157,86 @@ export default function EmployeeDetail() {
         </div>
       </div>
 
-      <div className="space-y-8">
-          <div className="flex items-center gap-4 print:hidden">
-            <Link href="/employees">
-              <Button variant="ghost" size="sm" data-testid="button-back">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-            </Link>
-          </div>
+      <div className="space-y-6">
+        <div className="flex items-center gap-4 print:hidden">
+          <Link href="/employees">
+            <Button variant="ghost" size="sm" data-testid="button-back">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Employees
+            </Button>
+          </Link>
+        </div>
 
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <CardTitle className="text-2xl mb-2" data-testid="text-employee-name">
-                    {employee.firstName} {employee.lastName}
-                  </CardTitle>
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    {employee.dateOfBirth && (
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>Born: {formatDate(employee.dateOfBirth)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => window.print()}
-                    data-testid="button-print-employee-audit"
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Print Employee Audit Report
+        <div className="print:hidden">
+          <PageHeader
+            kicker="Employee"
+            title={`${employee.firstName} ${employee.lastName}`}
+            description={employee.dateOfBirth ? `Born ${formatDate(employee.dateOfBirth)} · ${sortedChecks.length} check${sortedChecks.length !== 1 ? 's' : ''} on file` : `${sortedChecks.length} check${sortedChecks.length !== 1 ? 's' : ''} on file`}
+            icon={<User className="h-5 w-5" />}
+            actions={
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => window.print()}
+                  data-testid="button-print-employee-audit"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Audit Report
+                </Button>
+                <Link href={`/employees/${employee.id}/edit`}>
+                  <Button variant="outline" data-testid="button-edit-employee">
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
                   </Button>
-                  <Link href={`/employees/${employee.id}/edit`}>
-                    <Button variant="outline" data-testid="button-edit-employee">
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="outline"
-                    onClick={handleRequestDocuments}
-                    disabled={generateLinkMutation.isPending}
-                    data-testid="button-request-documents"
-                  >
-                    {linkCopied ? (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        Link Copied
-                      </>
-                    ) : (
-                      <>
-                        <Link2 className="h-4 w-4 mr-2" />
-                        Request Documents
-                      </>
-                    )}
+                </Link>
+                <Button
+                  variant="outline"
+                  onClick={handleRequestDocuments}
+                  disabled={generateLinkMutation.isPending}
+                  data-testid="button-request-documents"
+                >
+                  {linkCopied ? (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Link Copied
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="h-4 w-4 mr-2" />
+                      Request Documents
+                    </>
+                  )}
+                </Button>
+                <Link href={`/checks/new?employeeId=${employee.id}`}>
+                  <Button data-testid="button-add-check">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Check
                   </Button>
-                  <Link href={`/checks/new?employeeId=${employee.id}`}>
-                    <Button data-testid="button-add-check">
-                      <Plus className="h-4 w-4 mr-2" />
-                      New Check
-                    </Button>
-                  </Link>
-                </div>
+                </Link>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  onClick={() => setShowDeleteDialog(true)}
+                  data-testid="button-delete-employee"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </>
+            }
+          />
+        </div>
+
+        {employee.notes && (
+          <Card className="print:hidden">
+            <CardContent className="pt-6">
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Notes</h3>
+                <p className="text-sm">{employee.notes}</p>
               </div>
-            </CardHeader>
-            {employee.notes && (
-              <CardContent>
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium">Notes</h3>
-                  <p className="text-sm text-muted-foreground">{employee.notes}</p>
-                </div>
-              </CardContent>
-            )}
+            </CardContent>
           </Card>
+        )}
 
           {sortedChecks.length > 0 && (
             <Card className="border-2 bg-gradient-to-br from-card to-background print:bg-white print:border-gray-300">
@@ -385,10 +389,13 @@ export default function EmployeeDetail() {
             </Card>
           )}
 
-          <div className="space-y-4 print:hidden">
-            <h2 className="text-xl font-semibold">Right-to-Work Check History</h2>
-            
-            {sortedChecks.length === 0 ? (
+        <div className="print:hidden">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Check History
+          </h2>
+          
+          {sortedChecks.length === 0 ? (
               <Card>
                 <CardContent className="py-16 text-center">
                   <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -424,34 +431,10 @@ export default function EmployeeDetail() {
                     )}
                   </div>
                 ))}
-              </div>
-            )}
-          </div>
-
-          {/* Danger Zone - Employee Deletion */}
-          <div className="space-y-4 print:hidden pt-8 border-t border-destructive/20">
-            <h2 className="text-xl font-semibold text-destructive">Danger Zone</h2>
-            <Card className="border-destructive/50">
-              <CardHeader>
-                <CardTitle className="text-base text-destructive">Delete Employee & All Checks</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Permanently delete this employee record and all associated right-to-work checks, case notes, and uploaded documents. This action cannot be undone.
-                </p>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowDeleteDialog(true)}
-                  data-testid="button-delete-employee"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Employee and All Checks
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+            </div>
+          )}
         </div>
+      </div>
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
