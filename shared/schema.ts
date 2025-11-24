@@ -180,6 +180,13 @@ export const insertRightToWorkCheckSchema = createInsertSchema(rightToWorkChecks
   decisionDetails: true,
 });
 
+// Schema for creating checks with evaluation results (used by backend)
+export const createRightToWorkCheckSchema = createInsertSchema(rightToWorkChecks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Extended schema for form validation
 export const employeeFormSchema = insertEmployeeSchema.omit({ userId: true }).extend({
   dateOfBirth: z.string().optional(),
@@ -209,6 +216,7 @@ export type User = typeof users.$inferSelect;
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 export type Employee = typeof employees.$inferSelect;
 export type InsertRightToWorkCheck = z.infer<typeof insertRightToWorkCheckSchema>;
+export type CreateRightToWorkCheck = z.infer<typeof createRightToWorkCheckSchema>;
 export type RightToWorkCheck = typeof rightToWorkChecks.$inferSelect;
 export type DocumentType = typeof documentTypes[number];
 export type WorkStatus = typeof workStatuses[number];

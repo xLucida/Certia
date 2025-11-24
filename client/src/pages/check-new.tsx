@@ -151,10 +151,11 @@ export default function CheckNew() {
   });
 
   const handleGetUploadParameters = async () => {
-    const response = await apiRequest<{ uploadURL: string }>("POST", "/api/objects/upload", {});
+    const response = await apiRequest("POST", "/api/objects/upload", {});
+    const data = await response.json() as { uploadURL: string };
     return {
       method: "PUT" as const,
-      url: response.uploadURL,
+      url: data.uploadURL,
     };
   };
 
@@ -163,10 +164,11 @@ export default function CheckNew() {
       const uploadURL = result.successful[0].uploadURL;
       if (uploadURL) {
         try {
-          const response = await apiRequest<{ objectPath: string }>("PUT", "/api/documents", {
+          const response = await apiRequest("PUT", "/api/documents", {
             documentURL: uploadURL,
           });
-          setUploadedFileUrl(response.objectPath);
+          const data = await response.json() as { objectPath: string };
+          setUploadedFileUrl(data.objectPath);
           toast({
             title: "Upload successful",
             description: "Document uploaded successfully",

@@ -11,6 +11,7 @@ import {
   type InsertEmployee,
   type RightToWorkCheck,
   type InsertRightToWorkCheck,
+  type CreateRightToWorkCheck,
   type EmployeeWithChecks,
   type RightToWorkCheckNote,
   type InsertRightToWorkCheckNote,
@@ -43,7 +44,7 @@ export interface IStorage {
   deleteEmployeeAndRelatedData(employeeId: string, userId: string): Promise<void>;
   
   // Right-to-work check operations
-  createRightToWorkCheck(check: InsertRightToWorkCheck): Promise<RightToWorkCheck>;
+  createRightToWorkCheck(check: CreateRightToWorkCheck): Promise<RightToWorkCheck>;
   getChecksByEmployeeId(employeeId: string): Promise<RightToWorkCheck[]>;
   getStandaloneChecksByUserId(userId: string): Promise<RightToWorkCheck[]>;
   getRightToWorkCheckById(id: string): Promise<RightToWorkCheck | undefined>;
@@ -244,10 +245,8 @@ export class DatabaseStorage implements IStorage {
       .where(eq(employees.id, employeeId));
   }
 
-  async createRightToWorkCheck(checkData: InsertRightToWorkCheck): Promise<RightToWorkCheck> {
-    // Explicitly type the payload to avoid Drizzle ambiguity with optional fields
-    const payload: InsertRightToWorkCheck = { ...checkData };
-    const [check] = await db.insert(rightToWorkChecks).values(payload).returning();
+  async createRightToWorkCheck(checkData: CreateRightToWorkCheck): Promise<RightToWorkCheck> {
+    const [check] = await db.insert(rightToWorkChecks).values(checkData).returning();
     return check;
   }
 

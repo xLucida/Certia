@@ -1,0 +1,167 @@
+Context:
+- Project: Certia (RightToWorkDE).
+- You already ran a diagnostics pass (DIAGNOSTICS.md created).
+- Result: Overall status 🟡 YELLOW – app is functional & deployment-ready, but with some type-level and endpoint issues.
+
+Goal:
+Fix ONLY the high/medium-priority issues identified in DIAGNOSTICS.md, without changing any business behavior or adding new features.
+
+Specifically, address:
+
+HIGH PRIORITY:
+1) Missing workStatus in storage.ts
+2) /api/login returns 400 unexpectedly
+3) /api/public-upload/validate returns wrong status code
+
+MEDIUM PRIORITY:
+4) TypeScript errors in ObjectUploader.tsx (Uppy generics, Button variant)
+5) TypeScript errors in check-new.tsx (apiRequest generics)
+6) The single type error in rightToWork.ts
+
+Do NOT refactor unrelated code. Do NOT touch OCR / Venice / rules engine logic beyond what’s needed to satisfy types.
+
+==================================================
+TASK 1 — Fix missing workStatus in storage.ts
+==================================================
+
+1) Open DIAGNOSTICS.md and see exactly what it reported for:
+   - “Fix missing workStatus in storage.ts (line 250) - could cause runtime issues”.
+
+2) Open `server/storage.ts` (or equivalent file where right-to-work checks are created/updated).
+
+3) Identify the code path where a right-to-work check is created or updated WITHOUT a `workStatus` property being included.
+
+4) Fix it so that:
+   - All persisted right-to-work checks always have a valid `workStatus` value (e.g. 'ELIGIBLE' | 'NOT_ELIGIBLE' | 'NEEDS_REVIEW').
+   - The value should come from the evaluation result that’s already computed by the rules engine, not from a magic string.
+   - If the type system claims `workStatus` might be missing, fix the actual data shape or typing, not by casting to `any`.
+
+5) Re-run TypeScript checks (`npm run check` or equivalent) and confirm this specific error is gone.
+
+==================================================
+TASK 2 — Fix /api/login and /api/public-upload/validate behaviors
+==================================================
+
+Based on the backend smoke test results in DIAGNOSTICS.md:
+
+2.1) `/api/login` returning 400:
+
+- Open `server/routes.ts` (or wherever `/api/login` is defined).
+- Review the logic for `/api/login`:
+  - Confirm what inputs it expects (body fields, etc.).
+  - Make the behavior explicit and user-friendly:
+
+    - If the endpoint is meant to be a “not implemented” placeholder:
+      - Return 501 with a JSON error like `{ error: "Not implemented" }`.
+
+    - If it is supposed to actually log in:
+      - Ensure that with a minimal, valid payload (e.g. mock user), it returns 200 or a redirect as intended.
+      - Handle missing/invalid credentials with a clear 400 or 401 and JSON error message.
+
+- Update the backend smoke test (tests/backend-smoke.ts) accordingly so it matches the intended behavior:
+  - If we consider it a stub, assert 501 with a helpful error.
+  - If we consider it a login, assert 200 for valid mock input.
+
+2.2) `/api/public-upload/validate` returning wrong status:
+
+- Open `server/routes.ts` and locate `/api/public-upload/validate`.
+
+- Make sure:
+  - For a valid token / payload: returns 200 and a JSON body that the frontend expects.
+  - For an invalid or expired token: returns 400 or 401 with a clear JSON error, and the frontend handles that gracefully.
+
+- Check the frontend code calling this endpoint (likely in `client/src/pages/public-upload.tsx` or a related hook):
+  - Confirm the UI expects the right status codes and error shapes.
+  - Adjust either the route or the frontend error handling so they are consistent and predictable.
+  
+- Update the backend smoke test to assert the intended status codes and JSON shape for both success and failure cases.
+
+==================================================
+TASK 3 — Fix TypeScript errors in ObjectUploader.tsx
+==================================================
+
+1) Open DIAGNOSTICS.md and note the 4 errors for `ObjectUploader.tsx`:
+   - Generic types / Uppy Dashboard
+   - Button variant mismatch
+
+2) Open `client/src/components/ObjectUploader.tsx` (or similar).
+
+3) Fix the TypeScript issues by:
+   - Correctly typing the Uppy instance and Dashboard if generics are missing or wrong, using the recommended types from the Uppy typings already installed.
+   - Adjusting Button props so they match the existing Button component (variant, size, etc.), not by forcing `as any`.
+
+4) Ensure that:
+   - You do NOT change the upload behavior or endpoint.
+   - The visual appearance and UX of ObjectUploader remain the same.
+
+==================================================
+TASK 4 — Fix TypeScript errors in check-new.tsx
+==================================================
+
+1) Open DIAGNOSTICS.md and note the 4 errors for `check-new.tsx`:
+   - `apiRequest` generic type issues.
+
+2) Open `client/src/pages/check-new.tsx`.
+
+3) Fix the type errors by:
+   - Correcting the typing for `apiRequest` usage so that:
+     - The request payload and response types match what the backend actually returns.
+     - You use proper generics or a typed helper instead of `any`.
+
+4) Do NOT change runtime logic. Only adjust TypeScript types and minor signatures as needed to satisfy the checker.
+
+==================================================
+TASK 5 — Fix the single type error in rightToWork.ts
+==================================================
+
+1) Open DIAGNOSTICS.md and see what it said for `rightToWork.ts`:
+   - “Comparison type mismatch” or similar.
+
+2) Open `lib/rightToWork.ts`.
+
+3) Fix the type mismatch properly:
+   - If a value is typed too broadly (e.g. string vs enum), narrow the type or coerce appropriately in a safe way.
+   - Do NOT change the core decision logic (ELIGIBLE / NOT_ELIGIBLE / NEEDS_REVIEW logic, or conservative defaults).
+   - Keep `evaluateRightToWork` semantics exactly the same, only satisfy the type checker.
+
+==================================================
+TASK 6 — Re-run checks and update DIAGNOSTICS.md
+==================================================
+
+1) Re-run:
+   - TypeScript check (e.g. `npm run check`).
+   - Backend smoke tests (tests/backend-smoke.ts).
+   - Frontend smoke tests (tests/frontend-smoke.ts).
+
+2) Update `DIAGNOSTICS.md`:
+
+- Update the TypeScript section:
+  - Note that the previous errors in:
+    - ObjectUploader.tsx
+    - check-new.tsx
+    - rightToWork.ts
+    - storage.ts
+  - have been resolved.
+
+- Update the backend section:
+  - Note the final behavior and status codes for:
+    - `/api/login`
+    - `/api/public-upload/validate`
+  - Confirm backend-smoke tests reflect the intended behavior.
+
+- Leave any lower-priority items (bundle size, more E2E tests) as TODOs.
+
+==================================================
+Constraints
+==================================================
+
+- Do NOT refactor unrelated code or change any user-facing flows.
+- Do NOT change rules engine logic or AI/OCR behavior.
+- Only fix:
+  - The specific diagnostics issues listed above.
+  - Any tiny additional type issues directly related to these fixes.
+
+At the end, summarize in ≤5 bullets:
+- Which TypeScript errors were fixed.
+- What changed for `/api/login` and `/api/public-upload/validate`.
+- Confirmation that `npm run check` and the smoke tests now pass.

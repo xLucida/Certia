@@ -17,7 +17,7 @@ interface ObjectUploaderProps {
     result: UploadResult<Record<string, unknown>, Record<string, unknown>>
   ) => void;
   buttonClassName?: string;
-  buttonVariant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive";
+  buttonVariant?: "default" | "outline" | "secondary" | "ghost" | "destructive";
   children: ReactNode;
 }
 
@@ -63,15 +63,20 @@ export function ObjectUploader({
         trigger: null,
         proudlyDisplayPoweredByUppy: false,
       });
-      uppy.getPlugin<Dashboard>("Dashboard")?.openModal();
+      const dashboardPlugin = uppy.getPlugin("Dashboard");
+      if (dashboardPlugin && 'openModal' in dashboardPlugin) {
+        (dashboardPlugin as any).openModal();
+      }
     }
 
     return () => {
       try {
         const dashboardPlugin = uppy.getPlugin("Dashboard");
         if (dashboardPlugin) {
-          uppy.getPlugin<Dashboard>("Dashboard")?.closeModal();
-          uppy.removePlugin("Dashboard");
+          if ('closeModal' in dashboardPlugin) {
+            (dashboardPlugin as any).closeModal();
+          }
+          uppy.removePlugin(dashboardPlugin);
         }
       } catch (error) {
         // Plugin might already be removed, ignore the error

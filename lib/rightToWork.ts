@@ -262,9 +262,8 @@ export function evaluateRightToWork(
   let summary: string;
   if (status === 'ELIGIBLE') {
     summary = 'Likely eligible to work in Germany based on the provided residence title and conditions.';
-  } else if (status === 'NOT_ELIGIBLE') {
-    summary = 'Not eligible to work in Germany based on the current residence title and information provided (manual review recommended before any employment decision).';
   } else {
+    // status is 'NEEDS_REVIEW' at this point (all NOT_ELIGIBLE cases return early)
     summary = 'Needs manual review – potential restrictions, missing information, or uncertainties were detected.';
   }
 
