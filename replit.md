@@ -1,173 +1,56 @@
 # RTW-DE - Right to Work Germany
 
 ## Overview
-
-RTW-DE is an HR compliance SaaS application designed to manage employee right-to-work eligibility in Germany. It provides HR teams with tools to track visa documentation, assess work authorization status, and monitor expiry dates for various German work permits like EU Blue Cards, Employment Authorization Titles (EAT), and Fiktionsbescheinigung documents. The system supports full CRUD operations for employee management, bulk employee imports, and dual-mode right-to-work checks for both pre-employment candidates and existing employees. It features automated eligibility evaluation based on German visa rules, document upload and storage, public upload links for secure document collection from employees, and a unified dashboard with advanced filtering capabilities. The application delivers a premium SaaS user experience with deep navy/ink primary colors (#0F172A), subtle gradients, refined typography, and polished micro-interactions throughout.
+RTW-DE is an HR compliance SaaS application designed to manage employee right-to-work eligibility in Germany. It provides HR teams with tools to track visa documentation, assess work authorization status, and monitor expiry dates for various German work permits. Key capabilities include full CRUD operations for employee management, bulk employee imports, dual-mode right-to-work checks for pre-employment candidates and existing employees, automated eligibility evaluation based on German visa rules, document upload and storage, public upload links for secure document collection, and a unified dashboard with advanced filtering. The application offers a premium SaaS user experience with a professional design aesthetic.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
+### Frontend
+The frontend uses React 18+ with TypeScript, Vite, and Wouter for routing. UI components are built with shadcn/ui on Radix UI primitives, styled using Tailwind CSS. It features a premium design system with deep navy/ink primary colors, refined typography, subtle gradients, and polished micro-interactions. State management uses TanStack Query for server state and React Hook Form with Zod for form handling.
 
-The frontend uses React 18+ with TypeScript, Vite for tooling, and Wouter for routing. UI components are built with shadcn/ui on Radix UI primitives, styled using Tailwind CSS with a premium design system featuring:
-- Deep navy/ink primary colors (#0F172A) for professional enterprise feel
-- Refined success (#10B981), warning (#F59E0B), and error (#EF4444) color palette
-- Enhanced typography scale with improved letter-spacing and line-height
-- Subtle gradients across cards, buttons, and interactive elements
-- Premium micro-interactions with button-transition and card-hover utility classes
-- Consistent spacing, shadows, and visual hierarchy across all pages
+### Backend
+The backend is built with Express.js and TypeScript, using ESM, providing RESTful APIs under `/api`. It uses session-based authentication with Replit Auth.
 
-State management relies on TanStack Query for server state and React Hook Form with Zod for form handling.
-
-### Backend Architecture
-
-The backend is built with Express.js and TypeScript, using ESM. It features RESTful APIs under `/api` and employs session-based authentication with Replit Auth.
-
-**AI-Powered Decision Engine:**
-The application uses Venice AI as the primary right-to-work decision engine, with the traditional rules engine (`lib/rightToWork.ts`) running as a guardrail. The Venice integration (`server/veniceClient.ts`) provides:
-- OpenAI-compatible API integration for right-to-work assessment
-- Conservative decision-making with German visa compliance prompts
-- Type-safe request/response handling with structured outputs
-- Graceful fallback when Venice is not configured (returns UNKNOWN)
-- Token usage control: OCR text and extracted fields JSON are clipped to 4000 characters max before sending to Venice
-- Robust error handling: JSON serialization wrapped in try-catch, null/undefined inputs safely handled
-
-**Guardrail System:**
-When a new check is created, both Venice AI and the rules engine evaluate the document:
-- **Agreement**: If AI and rules agree on status, use AI's decision and explanation
-- **Disagreement**: If AI and rules disagree, downgrade to NEEDS_REVIEW for safety
-- **AI Unavailable**: If Venice returns UNKNOWN, use rules engine result
-- All evaluations and conflicts are recorded in decisionDetails for full audit trail
-
-**Environment Variables (Production):**
-- `VENICE_API_KEY`: Required for Venice AI integration
-- `VENICE_MODEL_ID`: Model identifier for Venice API
-- `VENICE_API_BASE_URL`: Defaults to https://api.venice.ai
+**AI-Powered Decision Engine & Guardrail System:**
+The application integrates with Venice AI for right-to-work assessment, with a traditional rules engine (`lib/rightToWork.ts`) acting as a guardrail. Decisions are made conservatively, prioritizing German visa compliance. In cases of disagreement between AI and rules, the status defaults to `NEEDS_REVIEW`. If Venice AI is unavailable, the rules engine's result is used. All evaluations and conflicts are recorded for audit. Token usage for AI requests is controlled, and robust error handling is implemented.
 
 ### Data Storage
-
-PostgreSQL, hosted via Neon serverless, is the primary database. Drizzle ORM is used for type-safe queries. The schema includes `users`, `employees`, `rightToWorkChecks`, and `rightToWorkCheckNotes` tables, with `rightToWorkChecks` allowing nullable `employeeId` for standalone candidate checks. Relationships are designed to link users to employees, checks, and notes, with checks optionally linked to employees.
+PostgreSQL, hosted via Neon serverless, is the primary database, utilizing Drizzle ORM for type-safe queries. The schema includes `users`, `employees`, `rightToWorkChecks`, and `rightToWorkCheckNotes` tables, supporting both employee-linked and standalone right-to-work checks.
 
 ### Authentication & Authorization
-
-Authentication is handled by Replit Auth (OpenID Connect) via Passport.js, using session-based management with PostgreSQL for session storage. Sessions have a 7-day TTL and HTTP-only cookies, with CSRF protection. Authorization ensures user-based resource isolation, validating ownership for all resource access.
+Replit Auth (OpenID Connect) via Passport.js handles authentication, using session-based management with PostgreSQL for storage. Sessions have a 7-day TTL, HTTP-only cookies, and CSRF protection. Authorization ensures user-based resource isolation.
 
 ### File Upload & Storage
-
-File uploads are managed via Google Cloud Storage, accessed through the Replit Object Storage sidecar. Uppy.js facilitates client-side file management and direct-to-storage uploads (S3-compatible API), supporting PDF, JPG, JPEG, and PNG formats.
+File uploads are managed via Google Cloud Storage, accessed through the Replit Object Storage sidecar. Uppy.js facilitates client-side direct-to-storage uploads for PDF, JPG, JPEG, and PNG formats.
 
 ### Public Upload Link System
-
-The application includes a secure public upload link feature that allows HR users to request documents from employees without requiring them to log in. Key components:
-
-**Token System (server/publicUploadToken.ts):**
-- Uses HMAC-SHA256 signing for secure token generation
-- Tokens contain encrypted payload: userId, employeeId, and expiry timestamp
-- 14-day default expiry with configurable duration
-- Timing-safe comparison for validation
-- Requires `PUBLIC_UPLOAD_SECRET` environment variable in production
-- Fixed development secret for testing (stable across restarts)
-
-**Backend Endpoints:**
-- `POST /api/public-upload/link` (authenticated) - Generates secure upload link for an employee
-- `GET /api/public-upload/validate` (public) - Validates token without revealing employee data
-- `POST /api/public-upload/submit` (public) - Accepts document upload, runs OCR, creates check
-
-**Frontend:**
-- "Request Documents" button on employee detail page generates link and copies to clipboard
-- Public upload page (`/upload?token=...`) provides drag-and-drop file upload interface
-- No authentication required for candidates to submit documents
-- Automatic OCR processing and right-to-work evaluation on submission
-
-**Security:**
-- No employee personal data leaked to unauthenticated users
-- Tokens expire automatically
-- File validation (type, size) on both client and server
-- Links can only be used for the specific employee they were generated for
+A secure public upload link system allows HR users to request documents from employees without requiring login. It uses HMAC-SHA256 signed tokens with encrypted payloads and a 14-day expiry. Backend endpoints handle link generation, token validation, and document submission with automatic OCR processing and right-to-work evaluation. Frontend provides a public upload interface.
 
 ### Renewals Tracking System
-
-The application includes a comprehensive renewals tracking system to help HR teams monitor and manage expiring work authorization documents:
-
-**Expiring Documents Dashboard Card:**
-- Displays checks expiring within 90 days, categorized by urgency:
-  - **Overdue**: Expiry date passed (negative days, red badge)
-  - **Expiring Soon**: 0-60 days until expiry (amber badge)
-  - **Upcoming**: 61-90 days until expiry (gray badge)
-- Shows top 5 expiring checks in a table with status badges, day counts, and quick view links
-- Includes both employee checks and standalone pre-employment checks
-
-**Employee Detail Status Panel:**
-- Right-to-Work Status card shows:
-  - Latest check status badge (Eligible/Not Eligible/Needs Review)
-  - Next expiry date with formatted display
-  - Expiry countdown: "Expires in X days" or "Expired X days ago"
-  - Color-coded countdown (red for overdue, amber for expiring soon)
-
-**Backend Implementation:**
-- `getExpiringRightToWorkChecks(userId, withinDays)`: Fetches checks expiring within specified days
-- Proper tenant isolation: only returns checks belonging to the authenticated user
-- Efficient SQL queries with date filtering and ordering
+A comprehensive renewals tracking system monitors expiring work authorization documents. A dashboard card displays checks expiring within 90 days, categorized by urgency (Overdue, Expiring Soon, Upcoming). Employee detail pages show the latest check status, next expiry date, and a color-coded countdown.
 
 ### Case File Notes System
+An internal notes system allows HR teams to add unlimited text notes to any right-to-work check for audit trails and follow-up actions. Notes are timestamped, sorted by newest first, and tenant-isolated.
 
-Internal notes system for maintaining audit trail and recording follow-up actions on right-to-work checks:
+### Case Workflow Status System
+A manual case workflow tracking system helps HR teams manage the administrative status of right-to-work checks independently from the AI/rules-based work authorization status. Checks can be marked `OPEN`, `UNDER_REVIEW`, or `CLEARED`, providing a distinct workflow state.
 
-**Features:**
-- Add unlimited text notes to any check (employee or standalone)
-- Notes sorted by newest first with automatic timestamping
-- Note count display in header ("Note History (X)")
-- Empty state guidance when no notes exist
-- Proper tenant isolation preventing cross-tenant note access
+### Employee Cascade Delete
+The system supports secure deletion of employee records and all related compliance data (checks, notes, documents) via a confirmation workflow. Deletion is tenant-scoped and irreversible.
 
-**Database Schema:**
-- `right_to_work_check_notes` table with id, checkId, userId, content, createdAt
-- Cascade delete: notes removed when parent check is deleted
-- Full audit trail maintained via timestamps
-
-**Backend Endpoints:**
-- `GET /api/checks/:id/notes` - Fetch all notes for a check (authenticated, tenant-isolated)
-- `POST /api/checks/:id/notes` - Create new note with {content} (authenticated, tenant-isolated)
-- Both routes verify check ownership before access (404 if not found, 403 if unauthorized)
-
-**Frontend UI:**
-- Case File Notes section on check detail page
-- Textarea for adding new notes with character support for multiline content
-- Add button with loading state during submission
-- Notes list with badges showing note number and timestamp
-- Print-friendly: notes section hidden when printing check summaries
-
-**Security:**
-- Defense in depth: Both routes and storage layer verify check ownership
-- Returns 404 when check doesn't exist
-- Returns 403 when user doesn't own the check
-- All notes require authentication and are scoped to user tenancy
+### Public Upload Page Polish
+The candidate-facing upload page has updated copy and design to be clearer, more trustworthy, and consistent with Certia branding, emphasizing privacy and ease of use for external candidates.
 
 ## External Dependencies
 
 ### Third-Party Services
-
 - **Replit Platform Services:** Replit Auth, Replit Object Storage, Neon PostgreSQL.
 - **Cloud Services:** Google Cloud Storage (proxied via Replit).
-- **OCR Service (Planned):** Future integration with services like Google Cloud Vision or AWS Textract for document field extraction.
+- **AI Service:** Venice AI (OpenAI-compatible API).
 
 ### Key NPM Packages
-
-**Frontend:**
-- `@tanstack/react-query`: Server state management.
-- `react-hook-form`: Form state and validation.
-- `zod`: Schema validation.
-- `@radix-ui/*`: Headless UI components.
-- `@uppy/core`, `@uppy/dashboard`, `@uppy/aws-s3`: File upload.
-- `wouter`: Client-side routing.
-
-**Backend:**
-- `express`: HTTP server.
-- `drizzle-orm`: Database ORM.
-- `@neondatabase/serverless`: PostgreSQL client.
-- `passport`, `openid-client`: Authentication middleware and OIDC client.
-- `@google-cloud/storage`: GCS client.
-- `multer`, `csv-parse`: File upload and CSV processing for bulk import.
+- **Frontend:** `@tanstack/react-query`, `react-hook-form`, `zod`, `@radix-ui/*`, `@uppy/*`, `wouter`.
+- **Backend:** `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `@google-cloud/storage`, `multer`, `csv-parse`.
