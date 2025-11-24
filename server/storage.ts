@@ -41,6 +41,7 @@ export interface TalentFilters {
   locationCity?: string;
   shift?: string;
   weeklyHoursBand?: string;
+  permitHorizonBand?: string;
 }
 
 export interface IStorage {
@@ -491,12 +492,12 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(talentProfiles.workArea, filters.workArea as any));
     }
 
-    if (filters?.locationCity) {
-      conditions.push(eq(talentProfiles.locationCity, filters.locationCity));
-    }
-
     if (filters?.weeklyHoursBand) {
       conditions.push(eq(talentProfiles.weeklyHoursBand, filters.weeklyHoursBand as any));
+    }
+
+    if (filters?.permitHorizonBand) {
+      conditions.push(eq(talentProfiles.permitHorizonBand, filters.permitHorizonBand as any));
     }
 
     // Fetch profiles with employee data
@@ -507,11 +508,20 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(talentProfiles.updatedAt));
 
-    // Filter in-memory for shift preferences and text search
+    // Filter in-memory for location (city OR region), shift preferences, and text search
     let results = profiles.map(row => ({
       ...row.talent_profiles,
       employee: row.employees!,
     }));
+
+    if (filters?.locationCity) {
+      const locationLower = filters.locationCity.toLowerCase();
+      results = results.filter(p => {
+        const city = (p.locationCity || "").toLowerCase();
+        const region = (p.locationRegion || "").toLowerCase();
+        return city.includes(locationLower) || region.includes(locationLower);
+      });
+    }
 
     if (filters?.shift) {
       results = results.filter(p => 

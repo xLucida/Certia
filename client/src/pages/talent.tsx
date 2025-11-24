@@ -29,16 +29,14 @@ const WORK_AREAS = [
   { value: "CLEANING", label: "Cleaning" },
   { value: "STADIUM_EVENTS", label: "Stadium Events" },
   { value: "CATERING", label: "Catering" },
-  { value: "WAREHOUSING", label: "Warehousing" },
+  { value: "WAREHOUSE", label: "Warehouse" },
   { value: "RETAIL", label: "Retail" },
-  { value: "LOGISTICS", label: "Logistics" },
-  { value: "HOSPITALITY", label: "Hospitality" },
+  { value: "CARE", label: "Care" },
   { value: "OTHER", label: "Other" },
 ];
 
 const SHIFT_PREFERENCES = [
-  { value: "MORNING", label: "Morning" },
-  { value: "AFTERNOON", label: "Afternoon" },
+  { value: "DAY", label: "Day" },
   { value: "EVENING", label: "Evening" },
   { value: "NIGHT", label: "Night" },
   { value: "WEEKEND", label: "Weekend" },
@@ -47,8 +45,7 @@ const SHIFT_PREFERENCES = [
 const WEEKLY_HOURS_BANDS = [
   { value: "UNDER_20", label: "Under 20h" },
   { value: "H20_30", label: "20-30h" },
-  { value: "H30_40", label: "30-40h" },
-  { value: "OVER_40", label: "Over 40h" },
+  { value: "OVER_30", label: "Over 30h" },
 ];
 
 const PERMIT_HORIZONS = [
@@ -96,14 +93,18 @@ export default function Talent() {
   const [hoursFilter, setHoursFilter] = useState<string>("");
   const [permitFilter, setPermitFilter] = useState<string>("");
 
+  // Build query parameters
+  const queryParams = new URLSearchParams();
+  if (workAreaFilter) queryParams.append("workArea", workAreaFilter);
+  if (locationFilter) queryParams.append("locationCity", locationFilter);
+  if (shiftFilter) queryParams.append("shift", shiftFilter);
+  if (hoursFilter) queryParams.append("weeklyHoursBand", hoursFilter);
+  if (permitFilter) queryParams.append("permitHorizonBand", permitFilter);
+  const queryString = queryParams.toString();
+  const queryUrl = queryString ? `/api/talent?${queryString}` : "/api/talent";
+
   const { data: profiles, isLoading } = useQuery<TalentProfileWithEmployee[]>({
-    queryKey: ["/api/talent", { 
-      workArea: workAreaFilter || undefined, 
-      location: locationFilter || undefined,
-      shift: shiftFilter || undefined,
-      hours: hoursFilter || undefined,
-      permit: permitFilter || undefined,
-    }],
+    queryKey: [queryUrl],
   });
 
   const filteredProfiles = profiles || [];
@@ -121,12 +122,11 @@ export default function Talent() {
         <CardHeader>
           <div className="flex flex-wrap gap-3">
             <div className="flex-1 min-w-[200px]">
-              <Select value={workAreaFilter} onValueChange={setWorkAreaFilter}>
+              <Select value={workAreaFilter || undefined} onValueChange={(val) => setWorkAreaFilter(val || "")}>
                 <SelectTrigger data-testid="filter-work-area">
-                  <SelectValue placeholder="Work Area" />
+                  <SelectValue placeholder="All Work Areas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Work Areas</SelectItem>
                   {WORK_AREAS.map(area => (
                     <SelectItem key={area.value} value={area.value}>
                       {area.label}
@@ -146,12 +146,11 @@ export default function Talent() {
             </div>
 
             <div className="flex-1 min-w-[200px]">
-              <Select value={shiftFilter} onValueChange={setShiftFilter}>
+              <Select value={shiftFilter || undefined} onValueChange={(val) => setShiftFilter(val || "")}>
                 <SelectTrigger data-testid="filter-shift">
-                  <SelectValue placeholder="Shift Preference" />
+                  <SelectValue placeholder="All Shifts" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Shifts</SelectItem>
                   {SHIFT_PREFERENCES.map(shift => (
                     <SelectItem key={shift.value} value={shift.value}>
                       {shift.label}
@@ -162,12 +161,11 @@ export default function Talent() {
             </div>
 
             <div className="flex-1 min-w-[200px]">
-              <Select value={hoursFilter} onValueChange={setHoursFilter}>
+              <Select value={hoursFilter || undefined} onValueChange={(val) => setHoursFilter(val || "")}>
                 <SelectTrigger data-testid="filter-hours">
-                  <SelectValue placeholder="Weekly Hours" />
+                  <SelectValue placeholder="All Hours" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Hours</SelectItem>
                   {WEEKLY_HOURS_BANDS.map(band => (
                     <SelectItem key={band.value} value={band.value}>
                       {band.label}
@@ -178,12 +176,11 @@ export default function Talent() {
             </div>
 
             <div className="flex-1 min-w-[200px]">
-              <Select value={permitFilter} onValueChange={setPermitFilter}>
+              <Select value={permitFilter || undefined} onValueChange={(val) => setPermitFilter(val || "")}>
                 <SelectTrigger data-testid="filter-permit">
-                  <SelectValue placeholder="Permit Horizon" />
+                  <SelectValue placeholder="All Permits" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Permits</SelectItem>
                   {PERMIT_HORIZONS.map(horizon => (
                     <SelectItem key={horizon.value} value={horizon.value}>
                       {horizon.label}

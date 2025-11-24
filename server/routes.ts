@@ -1538,6 +1538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         locationCity: req.query.locationCity as string | undefined,
         shift: req.query.shift as string | undefined,
         weeklyHoursBand: req.query.weeklyHoursBand as string | undefined,
+        permitHorizonBand: req.query.permitHorizonBand as string | undefined,
       };
 
       const profiles = await storage.getTalentProfiles(userId, filters);
