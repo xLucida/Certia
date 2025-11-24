@@ -9,7 +9,7 @@ import {
 import { evaluateRightToWork } from "../lib/rightToWork";
 import { mapToRulesEngineInput } from "./rightToWorkAdapter";
 import { extractFieldsFromDocument } from "../lib/ocr";
-import { insertEmployeeSchema, insertRightToWorkCheckSchema } from "@shared/schema";
+import { insertEmployeeSchema, insertRightToWorkCheckSchema, caseStatuses } from "@shared/schema";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 import { createPublicUploadToken, verifyPublicUploadToken } from "./publicUploadToken";
@@ -614,6 +614,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting check:", error);
       res.status(500).json({ error: "Failed to delete check" });
+    }
+  });
+
+  app.patch("/api/checks/:id/case-status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { caseStatus } = req.body;
+      
+      // Validate caseStatus
+      if (!caseStatus || !caseStatuses.includes(caseStatus as any)) {
+        return res.status(400).json({ error: "Invalid case status. Must be one of: OPEN, UNDER_REVIEW, CLEARED" });
+      }
+      
+      // Get check and verify ownership
+      const check = await storage.getRightToWorkCheckById(req.params.id);
+      if (!check) {
+        return res.status(404).json({ error: "Check not found" });
+      }
+      if (check.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      // Update case status
+      const updatedCheck = await storage.updateCaseStatus(req.params.id, caseStatus);
+      res.json(updatedCheck);
+    } catch (error: any) {
+      console.error("Error updating case status:", error);
+      res.status(500).json({ error: "Failed to update case status" });
     }
   });
 

@@ -12,6 +12,7 @@ import {
   type EmployeeWithChecks,
   type RightToWorkCheckNote,
   type InsertRightToWorkCheckNote,
+  type CaseStatus,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, like, sql, inArray } from "drizzle-orm";
@@ -40,6 +41,7 @@ export interface IStorage {
   getChecksByEmployeeId(employeeId: string): Promise<RightToWorkCheck[]>;
   getStandaloneChecksByUserId(userId: string): Promise<RightToWorkCheck[]>;
   getRightToWorkCheckById(id: string): Promise<RightToWorkCheck | undefined>;
+  updateCaseStatus(id: string, caseStatus: CaseStatus): Promise<RightToWorkCheck | undefined>;
   deleteRightToWorkCheck(id: string): Promise<void>;
   getExpiringRightToWorkChecks(userId: string, withinDays: number): Promise<RightToWorkCheck[]>;
   getAllRightToWorkChecksForUser(userId: string): Promise<RightToWorkCheck[]>;
@@ -225,6 +227,18 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(rightToWorkChecks)
       .where(eq(rightToWorkChecks.id, id));
+    return check;
+  }
+
+  async updateCaseStatus(id: string, caseStatus: CaseStatus): Promise<RightToWorkCheck | undefined> {
+    const [check] = await db
+      .update(rightToWorkChecks)
+      .set({
+        caseStatus,
+        updatedAt: new Date(),
+      })
+      .where(eq(rightToWorkChecks.id, id))
+      .returning();
     return check;
   }
 
