@@ -257,6 +257,90 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   }),
 }));
 
+// Talent Profile enums
+export const workAreas = [
+  "CLEANING",
+  "STADIUM_EVENTS",
+  "CATERING",
+  "WAREHOUSE",
+  "RETAIL",
+  "CARE",
+  "OTHER",
+] as const;
+
+export const shiftPreferences = [
+  "DAY",
+  "EVENING",
+  "NIGHT",
+  "WEEKEND",
+] as const;
+
+export const weeklyHoursBands = [
+  "UNDER_20",
+  "H20_30",
+  "OVER_30",
+  "UNKNOWN",
+] as const;
+
+export const languageLevels = [
+  "NONE",
+  "BASIC",
+  "GOOD",
+  "FLUENT",
+  "UNKNOWN",
+] as const;
+
+export const permitHorizonBands = [
+  "OVER_24M",
+  "M12_24",
+  "M6_12",
+  "UNDER_6",
+  "UNKNOWN",
+] as const;
+
+// Talent Profile table
+export const talentProfiles = pgTable("talent_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  employeeId: varchar("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
+  isVisibleInTalentPool: varchar("is_visible_in_talent_pool").notNull().default("false"),
+  consentTimestamp: timestamp("consent_timestamp"),
+  
+  headline: varchar("headline"),
+  workArea: varchar("work_area", { enum: workAreas }),
+  locationCity: varchar("location_city"),
+  locationRegion: varchar("location_region"),
+  travelRadiusKm: varchar("travel_radius_km"),
+  
+  shiftPreferencesList: varchar("shift_preferences_list").array().default(sql`ARRAY[]::varchar[]`),
+  weeklyHoursBand: varchar("weekly_hours_band", { enum: weeklyHoursBands }),
+  
+  germanLevel: varchar("german_level", { enum: languageLevels }),
+  englishLevel: varchar("english_level", { enum: languageLevels }),
+  
+  lastCheckId: varchar("last_check_id"),
+  lastCheckDate: timestamp("last_check_date"),
+  lastCheckStatus: varchar("last_check_status", { enum: workStatuses }),
+  permitHorizonBand: varchar("permit_horizon_band", { enum: permitHorizonBands }),
+  employerChangePossible: varchar("employer_change_possible"),
+  workAuthorizationSummary: text("work_authorization_summary"),
+  internalVisaNotes: text("internal_visa_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const talentProfilesRelations = relations(talentProfiles, ({ one }) => ({
+  user: one(users, {
+    fields: [talentProfiles.userId],
+    references: [users.id],
+  }),
+  employee: one(employees, {
+    fields: [talentProfiles.employeeId],
+    references: [employees.id],
+  }),
+}));
+
 // Extended types with relations
 export type EmployeeWithChecks = Employee & {
   checks: RightToWorkCheck[];
@@ -273,3 +357,27 @@ export type InsertRightToWorkCheckNote = z.infer<typeof insertRightToWorkCheckNo
 export type RightToWorkCheckNote = typeof rightToWorkCheckNotes.$inferSelect;
 export type InsertRightToWorkCheckDocument = z.infer<typeof insertRightToWorkCheckDocumentSchema>;
 export type RightToWorkCheckDocument = typeof rightToWorkCheckDocuments.$inferSelect;
+
+export const insertTalentProfileSchema = createInsertSchema(talentProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastCheckId: true,
+  lastCheckDate: true,
+  lastCheckStatus: true,
+  permitHorizonBand: true,
+  employerChangePossible: true,
+  workAuthorizationSummary: true,
+});
+
+export type InsertTalentProfile = z.infer<typeof insertTalentProfileSchema>;
+export type TalentProfile = typeof talentProfiles.$inferSelect;
+export type WorkArea = typeof workAreas[number];
+export type ShiftPreference = typeof shiftPreferences[number];
+export type WeeklyHoursBand = typeof weeklyHoursBands[number];
+export type LanguageLevel = typeof languageLevels[number];
+export type PermitHorizonBand = typeof permitHorizonBands[number];
+
+export type TalentProfileWithEmployee = TalentProfile & {
+  employee: Employee;
+};

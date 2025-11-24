@@ -1,0 +1,345 @@
+Replit settings:
+- Mode: Autonomous – Medium
+- Fast mode: OFF
+- App testing: ON
+
+Project:
+- Certia (RightToWorkDE) – app is GREEN per DIAGNOSTICS.md.
+- Core value prop: right-to-work checks in Germany, with OCR + AI + rules engine.
+- New feature: **Certia Talent** – internal talent pool focused on low-skilled, short-term work (stadium staff, cleaners, catering, warehouse, etc.) for people on work visas.
+
+Goal:
+Implement **Phase 1** of Certia Talent as an internal feature:
+
+- HR can “invite” an existing employee/candidate into the Talent pool.
+- A new `/talent` page lists these workers in a **shift-work focused** card layout.
+- Cards emphasize: work area, location, shift availability, hours, language basics, and a **soft right-to-work badge**.
+- No candidate-facing UI yet. No public job board yet.
+
+Global constraints:
+- You MAY extend the database schema with a new table (e.g. `talentProfiles`).
+- Do NOT change the right-to-work evaluation logic.
+- Do NOT change existing checks/employees semantics.
+- Respect tenant isolation everywhere.
+- Keep all new routes behind existing auth.
+
+Context:
+- Shared schema definitions in `@shared/schema.ts`.
+- Storage helpers in `server/storage.ts`.
+- API routes in `server/routes.ts`.
+- Employee detail page: `client/src/pages/employee-detail.tsx`.
+- Frontend pages under `client/src/pages`.
+- PageHeader + design system already exist.
+
+We’re tailoring this to **low-skilled, shift-based roles** (stadiums, cleaners, warehouse, etc.), not white-collar CVs.
+
+==================================================
+TASK 1 — Add TalentProfile table to shared schema
+==================================================
+
+In `@shared/schema.ts`:
+
+1) Define a new `talentProfiles` table with fields optimized for shift-based workers:
+
+Required core fields:
+- `id` (primary key)
+- `tenantId` (scopes everything to a tenant)
+- `employeeId` (references existing employee/person table)
+- `isVisibleInTalentPool` (boolean, default false)
+- `consentTimestamp` (timestamp, nullable)
+
+Shift-work profile fields:
+- `headline` (string, short; e.g. "Stadium staff / cleaner")
+- `workArea` (enum, e.g. 'CLEANING', 'STADIUM_EVENTS', 'CATERING', 'WAREHOUSE', 'RETAIL', 'CARE', 'OTHER')
+- `locationCity` (string, nullable; e.g. "Berlin")
+- `locationRegion` (string, nullable; e.g. "Berlin" or "NRW")
+- `travelRadiusKm` (integer, nullable; choose from 5, 10, 25, 50 or similar bands)
+
+Availability:
+- `shiftPreferences` (string[] or enum[]; e.g. ['DAY', 'EVENING', 'NIGHT', 'WEEKEND'])
+- `weeklyHoursBand` (enum: 'UNDER_20', 'H20_30', 'OVER_30', 'UNKNOWN')
+
+Languages:
+- `germanLevel` (enum: 'NONE', 'BASIC', 'GOOD', 'FLUENT', 'UNKNOWN')
+- `englishLevel` (enum: 'NONE', 'BASIC', 'GOOD', 'FLUENT', 'UNKNOWN')
+
+Work authorization summary (derived from latest check):
+- `lastCheckId` (string, nullable)
+- `lastCheckDate` (timestamp, nullable)
+- `lastCheckStatus` (enum: 'ELIGIBLE', 'NEEDS_REVIEW', 'NOT_ELIGIBLE', 'UNKNOWN')
+- `permitHorizonBand` (enum: 'OVER_24M', 'M12_24', 'M6_12', 'UNDER_6', 'UNKNOWN')
+- `employerChangePossible` (boolean, nullable)
+- `workAuthorizationSummary` (string, nullable; short plain-language sentence)
+- `internalVisaNotes` (string, nullable; internal only, never shown on Talent cards)
+
+Follow existing patterns for enums and JSON/array types used elsewhere in the schema.
+
+==================================================
+TASK 2 — Storage helpers for TalentProfile
+==================================================
+
+In `server/storage.ts`:
+
+Add functions such as:
+
+1) `createOrUpdateTalentProfile(tenantId, employeeId, data)`
+- Upserts a talent profile for the given `(tenantId, employeeId)`.
+- Sets `isVisibleInTalentPool` and `consentTimestamp` when asked.
+- Stores the shift-work profile fields:
+  - headline, workArea, locationCity, locationRegion, travelRadiusKm,
+  - shiftPreferences, weeklyHoursBand,
+  - germanLevel, englishLevel.
+
+2) `getTalentProfiles(tenantId, filters?)`
+- Returns all **visible** talent profiles (`isVisibleInTalentPool = true`) for the tenant.
+- Support basic filtering in-memory or via query:
+  - workArea
+  - locationCity
+  - weeklyHoursBand
+  - shiftPreferences
+  - optional text search in headline.
+
+3) `getTalentProfileById(tenantId, id)`
+
+4) `setTalentVisibility(tenantId, id, isVisible)`
+
+5) `updateTalentProfileWithLastCheck(tenantId, employeeId)`
+- Looks up the latest right-to-work check for that employee.
+- Derives:
+  - `lastCheckId`
+  - `lastCheckDate`
+  - `lastCheckStatus`
+  - `permitHorizonBand`:
+    - Based on document expiry date:
+      - OVER_24M (expiry > 24 months out)
+      - M12_24 (12–24 months)
+      - M6_12 (6–12 months)
+      - UNDER_6 (< 6 months)
+      - UNKNOWN (no expiry date)
+  - `employerChangePossible` (best-effort boolean or null based on existing rules engine / decision details; if not clearly derivable, use null).
+  - `workAuthorizationSummary`:
+    - Short, HR-friendly: e.g.
+      - "Currently allowed to work in Germany; no employer restriction detected."
+      - "Allowed to work, but employer or conditions may be restricted – manual review recommended on hire."
+      - If unknown: "Work authorization details need to be checked on hire."
+
+Always enforce tenant scoping in queries.
+
+==================================================
+TASK 3 — API routes for Talent
+==================================================
+
+In `server/routes.ts`:
+
+Add authenticated routes under `/api/talent`:
+
+1) `GET /api/talent`
+- Returns all visible talent profiles for the current tenant.
+- Query params (optional v1 support):
+  - `q` (text search on name/headline/workArea)
+  - `workArea`
+  - `locationCity`
+  - `shift` (filter by shiftPreferences containing this)
+  - `weeklyHoursBand`
+- For now, a simple filter on backend is enough; we don’t need complex search.
+
+2) `POST /api/talent/invite`
+- Body:
+  - `employeeId` (required)
+  - `headline`
+  - `workArea`
+  - `locationCity`
+  - `locationRegion`
+  - `travelRadiusKm`
+  - `shiftPreferences` (array)
+  - `weeklyHoursBand`
+  - `germanLevel`
+  - `englishLevel`
+  - `setVisible` (boolean, default true)
+
+Behavior:
+- Validate that the employee belongs to the current tenant.
+- Upsert the talent profile via `createOrUpdateTalentProfile`.
+- Call `updateTalentProfileWithLastCheck` to fill RTW summary fields if there is a recent check.
+- Set:
+  - `isVisibleInTalentPool = setVisible`
+  - `consentTimestamp = now` when `setVisible === true`.
+- Return the created/updated profile.
+
+3) `PATCH /api/talent/:id`
+- Allows updating editable profile fields:
+  - headline, workArea, location*, travelRadiusKm, shiftPreferences, weeklyHoursBand, germanLevel, englishLevel.
+- Tenant-scoped; 404 or 403 if not found / wrong tenant.
+
+4) `POST /api/talent/:id/visibility`
+- Body: `{ isVisible: boolean }`
+- Toggles `isVisibleInTalentPool`.
+- Does NOT delete the row; just hides/unhides.
+
+All routes must use existing auth/tenant middleware so only the tenant’s own profiles are visible.
+
+==================================================
+TASK 4 — “Invite to Talent pool” from Employee detail
+==================================================
+
+In `client/src/pages/employee-detail.tsx`:
+
+1) In the `PageHeader` actions area, add a button:
+
+- Label: “Invite to Talent pool”
+- Show this button when:
+  - Employee exists.
+  - There is at least one right-to-work check for them (if easy to detect).
+  - For v1, it’s acceptable to show unconditionally and let the backend handle missing checks gracefully.
+
+2) Clicking the button opens a modal dialog component (create in `client/src/components/TalentInviteDialog.tsx` or similar).
+
+`TalentInviteDialog` fields:
+
+- Read-only line: “Inviting: {EmployeeName}”
+- Select: **Work area**
+  - Options: Cleaning / Stadium & Events / Catering / Warehouse & Logistics / Retail / Care / Other
+- Text input: Headline
+  - Default suggestion: from work area, e.g. “Stadium staff / cleaner”.
+- Location:
+  - Text input for `locationCity` (e.g. “Berlin”).
+  - Optional text/narrow dropdown for `locationRegion`.
+- Travel radius:
+  - Dropdown: 5 km / 10 km / 25 km / 50 km / Not specified.
+- Shift preferences:
+  - Checkbox group: Day, Evening, Night, Weekends.
+- Weekly hours band:
+  - Radio or dropdown: `< 20`, `20–30`, `30+`, `Not specified`.
+- Languages:
+  - German: None / Basic / Good / Fluent.
+  - English: None / Basic / Good / Fluent.
+
+- Consent checkbox:
+  - Text: “I confirm this person has agreed to be included in the Certia Talent pool.”
+
+Buttons:
+- Cancel
+- Invite (primary)
+
+On submit:
+- Call `POST /api/talent/invite` with these values + `employeeId`.
+- On success:
+  - Show toast: “Talent profile created.”
+  - Optionally link to “View in Talent pool”.
+
+Use existing form / dialog components from the design system (shadcn UI) and follow current visual style.
+
+==================================================
+TASK 5 — Basic /talent page with shift-worker cards
+==================================================
+
+Create `client/src/pages/talent.tsx` (and wire into routing + sidebar/top nav).
+
+1) Page header:
+
+Use `PageHeader` with:
+
+- Kicker: “Talent”
+- Title: “Talent pool”
+- Description: “Find workers on German work visas for cleaning, stadiums, catering, and other shift-based roles. All profiles have a right-to-work check via Certia.”
+
+2) Fetch data:
+
+- Use React Query to call `GET /api/talent`.
+- Handle loading, empty state, and error.
+
+3) Filters (top or left):
+
+- Search input (`q`): searches name/headline/workArea.
+- Work area dropdown.
+- City input or dropdown (`locationCity`).
+- Shift preferences multi-select (Day/Evening/Night/Weekends).
+- Weekly hours band dropdown.
+- Client-side toggle: “Has recent Certia RTW check (≤ 90 days)”
+
+4) Card layout:
+
+- Use a responsive grid:
+  - `grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6` or similar.
+
+Each card should show:
+
+Top:
+- Name (employee name).
+- Headline (e.g. “Stadium staff / cleaner”).
+
+Middle:
+- Line with location and work area:
+  - “Berlin – Neukölln · Stadium & Events”
+- Line with availability:
+  - “Available: Evenings · Weekends”
+- Line with weekly hours:
+  - “Hours: 20–30 per week”
+- Line with languages:
+  - “Languages: Basic German · English”
+
+Bottom (RTW info):
+- Badge/line based on `lastCheckStatus` and `lastCheckDate`:
+  - If `lastCheckStatus === 'ELIGIBLE'` and last check ≤ 90 days:
+    - “✅ Work authorization verified via Certia (≤ 90 days)”
+  - If `lastCheckStatus === 'ELIGIBLE'` and > 90 days:
+    - “🟡 Work authorization verified via Certia (> 90 days – refresh on hire).”
+  - If `NEEDS_REVIEW`:
+    - “⚠️ Right-to-work check exists – review required on hire.”
+  - Else (NOT_ELIGIBLE or UNKNOWN):
+    - “ℹ️ Work authorization must be checked before hire.”
+
+- Permit horizon text from `permitHorizonBand`:
+  - OVER_24M → “Permit horizon: ~24+ months”
+  - M12_24 → “Permit horizon: ~12–24 months”
+  - M6_12 → “Permit horizon: ~6–12 months”
+  - UNDER_6 → “Permit horizon: < 6 months”
+  - UNKNOWN → “Permit horizon: Unknown”
+
+Actions:
+- Button: “View details” (for v1 can open a simple detail drawer/modal with the same info + internal contact email).
+- Button or link: “Open employee” (navigate to existing Employee detail page).
+
+Keep the design clean, mobile-friendly, and consistent with the rest of the app.
+
+==================================================
+TASK 6 — Tests & DIAGNOSTICS update
+==================================================
+
+1) Backend tests:
+- Add a small smoke test that:
+  - Creates a dummy employee and RTW check (or uses existing fixtures).
+  - Calls `POST /api/talent/invite`.
+  - Asserts a 200/201 response with a talent profile.
+  - Calls `GET /api/talent` and asserts the new profile is present.
+
+2) Frontend tests:
+- Add a minimal test that:
+  - Renders the `/talent` page.
+  - Asserts that:
+    - Page header renders.
+    - Cards render when mock data is present.
+
+3) Re-run:
+- TypeScript check
+- Backend smoke tests
+- Frontend smoke tests
+- Production build
+
+4) Update `DIAGNOSTICS.md`:
+- Note that:
+  - `talentProfiles` table was added.
+  - `/api/talent` routes exist.
+  - Employee detail now has “Invite to Talent pool”.
+  - `/talent` page shows shift-worker style profiles with a soft RTW signal.
+
+==================================================
+Constraints recap
+==================================================
+
+- DO extend the schema with a new `talentProfiles` table.
+- DO enforce tenant isolation in all Talent operations.
+- DO NOT change the right-to-work decision engine or existing check flows.
+- DO NOT expose visa type or refugee labels in Talent UI.
+- Keep Talent as an internal, employer-facing feature for this phase.
+- Optimize copy and layout for **low-skilled, short-term, shift-based work** (stadiums, cleaners, catering, warehouse, etc.).
