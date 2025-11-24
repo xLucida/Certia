@@ -29,10 +29,10 @@ export default function Landing() {
               <div className="space-y-8 max-w-xl">
                 <div className="space-y-5">
                   <h2 className="text-5xl lg:text-6xl font-bold text-foreground leading-[1.1] tracking-tight">
-                    Right-to-Work Clarity for Germany
+                    Right-to-Work Checks for German HR Teams, Documented and Audit-Ready
                   </h2>
                   <p className="text-xl text-foreground/80 leading-relaxed">
-                    Manage work eligibility, visa documents, and expiries in one place. Upload German residence permits and get a clear, structured right-to-work decision for every employee.
+                    Certia helps you standardize right-to-work checks, log every decision, and stay audit-ready in minutes — without turning your team into immigration experts.
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4">
@@ -116,9 +116,9 @@ export default function Landing() {
                   <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
                     <FileCheck className="h-7 w-7 text-primary" />
                   </div>
-                  <h3 className="font-bold text-lg">Document Management</h3>
+                  <h3 className="font-bold text-lg">Standardized Process</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Store and organize all visa and work-permit documents in one secure workspace.
+                    Every check follows the same documented workflow — reduce variability and compliance risk.
                   </p>
                 </div>
               </CardContent>
@@ -130,9 +130,9 @@ export default function Landing() {
                   <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center">
                     <CheckCircle className="h-7 w-7 text-accent" />
                   </div>
-                  <h3 className="font-bold text-lg">Automated Checks</h3>
+                  <h3 className="font-bold text-lg">Conservative Defaults</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Turn German residence documents into structured right-to-work decisions with clear reasons.
+                    AI + rules engine defaults to "Needs Review" when uncertain — prioritizing safety and compliance.
                   </p>
                 </div>
               </CardContent>
@@ -144,9 +144,9 @@ export default function Landing() {
                   <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center">
                     <Bell className="h-7 w-7 text-amber-600" />
                   </div>
-                  <h3 className="font-bold text-lg">Expiry Alerts</h3>
+                  <h3 className="font-bold text-lg">Renewal Tracking</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    See which documents are expiring soon and act before work authorization lapses.
+                    90-day advance alerts ensure you never miss an expiring work permit.
                   </p>
                 </div>
               </CardContent>
@@ -158,9 +158,9 @@ export default function Landing() {
                   <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
                     <Shield className="h-7 w-7 text-primary" />
                   </div>
-                  <h3 className="font-bold text-lg">Stay Compliant</h3>
+                  <h3 className="font-bold text-lg">Audit-Ready Reports</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Give HR a simple system to monitor work eligibility and document history over time.
+                    Complete logs, attachments, and notes — everything you need for compliance audits.
                   </p>
                 </div>
               </CardContent>
@@ -182,22 +182,22 @@ export default function Landing() {
                   <div className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-accent mt-0.5 shrink-0" />
                     <div>
-                      <p className="font-semibold mb-1">Track Multiple Visa Types</p>
-                      <p className="text-sm text-muted-foreground">EU Blue Cards, EAT permits, Fiktionsbescheinigung</p>
+                      <p className="font-semibold mb-1">Documented Decisions</p>
+                      <p className="text-sm text-muted-foreground">Printable reports and CSV exports for every check</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-accent mt-0.5 shrink-0" />
                     <div>
-                      <p className="font-semibold mb-1">Automated Eligibility</p>
-                      <p className="text-sm text-muted-foreground">Conservative compliance checks based on German law</p>
+                      <p className="font-semibold mb-1">AI + Rules Engine</p>
+                      <p className="text-sm text-muted-foreground">Defaults to "Needs Review" when unsure — conservative and safe</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-accent mt-0.5 shrink-0" />
                     <div>
-                      <p className="font-semibold mb-1">Expiry Monitoring</p>
-                      <p className="text-sm text-muted-foreground">60-day advance alerts keep you ahead of deadlines</p>
+                      <p className="font-semibold mb-1">Complete Audit Trail</p>
+                      <p className="text-sm text-muted-foreground">Notes, attachments, and case workflow for every check</p>
                     </div>
                   </div>
                 </div>
