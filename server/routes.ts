@@ -343,6 +343,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Delete employee and all related checks and notes
       await storage.deleteEmployeeAndRelatedData(employeeId, userId);
       
+      // Log employee deletion
+      await storage.createAuditLog({
+        userId,
+        action: "EMPLOYEE_DELETED",
+        entityType: "employee",
+        entityId: employeeId,
+        details: "Employee and all related checks deleted",
+      });
+      
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error deleting employee:", error);
@@ -658,6 +667,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update case status
       const updatedCheck = await storage.updateCaseStatus(req.params.id, caseStatus);
+      
+      // Log case status update
+      await storage.createAuditLog({
+        userId,
+        action: "CASE_STATUS_UPDATED",
+        entityType: "check",
+        entityId: req.params.id,
+        details: `Case status set to ${caseStatus}`,
+      });
+      
       res.json(updatedCheck);
     } catch (error: any) {
       console.error("Error updating case status:", error);
@@ -793,6 +812,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } as any;
       
       const check = await storage.createRightToWorkCheck(validatedData);
+      
+      // Log check creation
+      await storage.createAuditLog({
+        userId,
+        action: "CHECK_CREATED",
+        entityType: "check",
+        entityId: check.id,
+        details: employeeId ? "Check created for employee" : "Standalone check created",
+      });
+      
       res.status(201).json(check);
     } catch (error: any) {
       console.error("Error creating check:", error);
@@ -851,10 +880,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: content.trim(),
       });
       
+      // Log note creation
+      await storage.createAuditLog({
+        userId,
+        action: "NOTE_ADDED",
+        entityType: "check",
+        entityId: checkId,
+        details: "Note added",
+      });
+      
       res.status(201).json(note);
     } catch (error: any) {
       console.error("Error creating check note:", error);
       res.status(500).json({ error: "Failed to create note" });
+    }
+  });
+
+  // Check audit logs route
+  app.get("/api/checks/:id/audit-logs", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const checkId = req.params.id;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      const auditLogs = await storage.getRecentAuditLogsForCheck(checkId, userId, limit);
+      res.json(auditLogs);
+    } catch (error: any) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ error: "Failed to fetch audit logs" });
     }
   });
 
@@ -950,6 +1003,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         uploadedDocuments.push(document);
+        
+        // Log attachment upload
+        await storage.createAuditLog({
+          userId,
+          action: "ATTACHMENT_ADDED",
+          entityType: "check",
+          entityId: checkId,
+          details: `Attachment '${file.originalname}' uploaded`,
+        });
       }
       
       res.status(201).json(uploadedDocuments);
@@ -1201,6 +1263,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           documents,
         }),
       } as any);
+      
+      // Log check creation via public upload
+      await storage.createAuditLog({
+        userId,
+        action: "CHECK_CREATED",
+        entityType: "check",
+        entityId: createdCheck.id,
+        details: "Check created via public upload",
+      });
 
       console.log("[PUBLIC UPLOAD] Check created:", createdCheck.id);
 
