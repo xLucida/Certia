@@ -333,67 +333,8 @@ export default function CheckDetail() {
             />
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,_1.7fr)_minmax(0,_1.2fr)] gap-6 print:block">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,_2fr)_minmax(0,_1fr)] gap-6 print:block">
             <div className="space-y-4">{/* Left column: Decision-focused */}
-            
-            {/* Case Workflow Status - Interactive on screen, static in print */}
-            <Card data-testid="card-case-status">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Case Workflow Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {/* Print view - static text */}
-                <div className="hidden print:block">
-                  <p className="text-sm">
-                    <span className="font-medium">Case status: </span>
-                    <span>{getCaseStatusLabel(check.caseStatus)}</span>
-                  </p>
-                </div>
-                
-                {/* Screen view - interactive select */}
-                <div className="flex items-center gap-3 print:hidden">
-                  <div className="flex-1">
-                    <Select 
-                      value={check.caseStatus} 
-                      onValueChange={(value) => updateCaseStatusMutation.mutate(value)}
-                      disabled={updateCaseStatusMutation.isPending}
-                      data-testid="select-case-status"
-                    >
-                      <SelectTrigger aria-labelledby="case-status-label">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="OPEN" data-testid="option-case-status-open">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-blue-500" />
-                            <span>Open</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="UNDER_REVIEW" data-testid="option-case-status-under-review">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-amber-500" />
-                            <span>Under Review</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="CLEARED" data-testid="option-case-status-cleared">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-green-500" />
-                            <span>Cleared</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Badge 
-                    variant={getCaseStatusBadge(check.caseStatus).variant}
-                    className={getCaseStatusBadge(check.caseStatus).className}
-                    data-testid="badge-case-status"
-                  >
-                    {getCaseStatusBadge(check.caseStatus).label}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
             
             <CheckDecisionPanel check={check} />
             
@@ -438,7 +379,58 @@ export default function CheckDetail() {
             </div>
             </div>{/* End left column */}
 
-            <div className="space-y-4">{/* Right column: Record-focused */}
+            <div className="space-y-4">{/* Right column: Case tools */}
+              
+              {/* Case Workflow Status - Interactive on screen, static in print */}
+              <Card data-testid="card-case-status" className="print:hidden">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Case Workflow Status</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <Select 
+                        value={check.caseStatus} 
+                        onValueChange={(value) => updateCaseStatusMutation.mutate(value)}
+                        disabled={updateCaseStatusMutation.isPending}
+                        data-testid="select-case-status"
+                      >
+                        <SelectTrigger aria-labelledby="case-status-label">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="OPEN" data-testid="option-case-status-open">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-blue-500" />
+                              <span>Open</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="UNDER_REVIEW" data-testid="option-case-status-under-review">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-amber-500" />
+                              <span>Under Review</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="CLEARED" data-testid="option-case-status-cleared">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-500" />
+                              <span>Cleared</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Badge 
+                      variant={getCaseStatusBadge(check.caseStatus).variant}
+                      className={getCaseStatusBadge(check.caseStatus).className}
+                      data-testid="badge-case-status"
+                    >
+                      {getCaseStatusBadge(check.caseStatus).label}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+              
               <Card className="print:hidden">
                 <CardHeader className="pb-4">
                   <div className="flex items-center gap-2">
