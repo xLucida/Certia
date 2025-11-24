@@ -1,0 +1,172 @@
+Replit settings:
+- Mode: Autonomous – Medium
+- Fast mode: OFF
+- App testing: ON
+
+Project:
+- Certia (RightToWorkDE)
+- Full-stack app: Node/Express backend + React/TypeScript/Tailwind frontend.
+
+Goal:
+Run a full diagnostics/QA pass to ensure the app is healthy and nothing is obviously broken. I want:
+- All relevant scripts (build, typecheck, tests) run.
+- Key user flows smoke-tested.
+- A short, clear diagnostics report summarizing the status of the app (pass/fail, where issues are).
+
+VERY IMPORTANT:
+- Do NOT change any business logic, rules engine logic, OCR/AI logic, or database schema.
+- Only add or adjust tests, scripts, and *tiny* non-functional fixes (like obvious null checks or missing error handling) if needed to get diagnostics working.
+- Do NOT add new features or UI.
+
+==================================================
+STEP 1 — Inspect package.json and run existing checks
+==================================================
+
+1) Open package.json and identify all relevant scripts, for example:
+   - "dev"
+   - "build"
+   - "lint"
+   - "typecheck"
+   - "test" or similar
+
+2) Run, in a sensible order:
+   - Build (e.g. `npm run build` or `pnpm build`)
+   - Typecheck (e.g. `npm run typecheck` or `tsc --noEmit`)
+   - Lint (if available)
+   - Tests (e.g. `npm test` or `pnpm test`)
+
+3) Collect and note:
+   - Any errors or warnings.
+   - Where they come from (file, line, script).
+
+If some scripts don’t exist (e.g. no "test"), just say so in the final report. Don’t invent a huge test suite—keep this pass light.
+
+==================================================
+STEP 2 — Backend/API smoke tests
+==================================================
+
+Goal: ensure the main backend routes respond without crashing.
+
+1) Identify the main backend entry (e.g. `server/index.ts`, `server/routes.ts`) and how to start the backend in dev (from package.json).
+
+2) Start the dev server (e.g. `npm run dev` or equivalent) if needed for API testing.
+
+3) Using either:
+   - a small Node script, OR
+   - a minimal test (e.g., with supertest or your existing test framework), OR
+   - curl-like fetch calls from a script,
+
+Smoke-test these endpoints:
+
+- Health/basic:
+  - Root or health route if one exists (e.g. `/`, `/api/health`).
+
+- Core Certia endpoints (names may vary; adapt to what exists in routes.ts):
+  - GET `/api/dashboard` or equivalent (if present).
+  - GET `/api/employees` (list employees).
+  - POST `/api/employees` with a minimal valid payload.
+  - GET `/api/checks/:id` (use a real or seeded ID).
+  - POST `/api/checks` or the internal New Check route.
+  - POST `/api/public-upload/submit` with a mock file (if feasible using the same approach used in tests or a fixture).
+  - GET `/api/checks/:id/attachments`.
+  - POST `/api/checks/:id/attachments` with a small dummy file (if feasible).
+  - Any “seed demo data” endpoint you added (e.g. `/api/demo/seed`).
+
+4) For each endpoint:
+   - Confirm it returns a 2xx or appropriate error with a sane JSON body.
+   - Note any 500s or unexpected crashes.
+
+If adding a small test file or minimal supertest test suite is the easiest way to hit these routes, you can add that, but keep it small and focused only on these core endpoints.
+
+==================================================
+STEP 3 — Frontend smoke tests (major flows)
+==================================================
+
+Goal: verify the main flows load and don’t throw runtime errors.
+
+Use whatever is simplest in this repo (React Testing Library, Playwright, Cypress, or even a simple “render without crashing” test). If no test framework is set up, you can:
+
+- Add a minimal React Testing Library + Vitest/Jest setup **only if necessary** and scoped.
+
+Minimal flows to check:
+
+1) Landing page:
+   - Renders without crashing.
+   - Shows Certia logo and main hero text.
+
+2) Dashboard:
+   - Renders without crashing when:
+     - There is no data (empty state).
+     - After calling the demo seed endpoint (if present), with data.
+   - Metric cards render.
+   - “Expiring documents” and “Cases requiring review” sections render.
+
+3) Employee detail:
+   - Renders for an employee with:
+     - At least one check.
+     - No checks (empty state).
+   - Shows latest status and next expiry.
+
+4) Check detail:
+   - Renders for a check with:
+     - Status + summary + details.
+     - Notes.
+     - Attachments.
+   - Can open the print view (window.print doesn’t need to be asserted, just that the component renders the print layout without errors).
+
+5) Public upload:
+   - Renders without crashing.
+   - Validates file selection (disallows wrong types).
+   - Calls the upload mutation and shows a success state when the mocked API returns success.
+
+Notes:
+- You do NOT need pixel-perfect visual checks; just assert components mount and render key text/nodes without throwing errors.
+- If adding tests, keep them in a minimal folder (`client/src/__tests__` or similar) and add only a few smoke tests, not full coverage.
+
+==================================================
+STEP 4 — Diagnostics report
+==================================================
+
+Create a simple diagnostics report in the repo, for example:
+
+- File: `DIAGNOSTICS.md` at the project root.
+
+Include:
+
+1) Summary:
+   - A short status: e.g. “Overall: GREEN / YELLOW / RED.”
+
+2) Scripts:
+   - Which scripts were run (build, typecheck, lint, test).
+   - Whether they passed or failed, and any notable warnings or TODOs.
+
+3) Backend:
+   - List of endpoints tested.
+   - Which ones passed, which (if any) returned unexpected errors.
+
+4) Frontend:
+   - Which pages/flows have smoke tests.
+   - Any runtime errors encountered.
+
+5) Recommendations:
+   - 3–5 bullet points of **highest priority** follow-ups if something looks fragile (e.g., “add a specific test for multi-file public upload when OCR service is down”).
+
+Keep DIAGNOSTICS.md short and readable; it should be something I can open and quickly understand the health of the app.
+
+==================================================
+Constraints
+==================================================
+
+- Do NOT modify:
+  - Business logic (rules engine, OCR, Venice integration).
+  - Database schema.
+  - User-facing behavior or flows.
+- You MAY:
+  - Add minimal test files and a tiny amount of config to run them.
+  - Add DIAGNOSTICS.md.
+  - Make tiny non-behavioral fixes if something is obviously broken and preventing diagnostics (e.g. missing null check causing tests to crash).
+
+At the end, print a short summary in the Replit response with:
+- Which scripts were run and their status.
+- Any critical failures.
+- A note that DIAGNOSTICS.md was created/updated with details.
