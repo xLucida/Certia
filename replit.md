@@ -32,6 +32,8 @@ The application uses Venice AI as the primary right-to-work decision engine, wit
 - Conservative decision-making with German visa compliance prompts
 - Type-safe request/response handling with structured outputs
 - Graceful fallback when Venice is not configured (returns UNKNOWN)
+- Token usage control: OCR text and extracted fields JSON are clipped to 4000 characters max before sending to Venice
+- Robust error handling: JSON serialization wrapped in try-catch, null/undefined inputs safely handled
 
 **Guardrail System:**
 When a new check is created, both Venice AI and the rules engine evaluate the document:
