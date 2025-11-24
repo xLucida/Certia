@@ -761,7 +761,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const checkId = req.params.id;
       
-      // Verify check exists and belongs to user (handled in storage layer)
+      // Verify check exists and belongs to user
+      const check = await storage.getRightToWorkCheckById(checkId);
+      if (!check) {
+        return res.status(404).json({ error: "Check not found" });
+      }
+      if (check.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
       const notes = await storage.getRightToWorkCheckNotesByCheckId(checkId, userId);
       res.json(notes);
     } catch (error: any) {

@@ -253,6 +253,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createRightToWorkCheckNote(noteData: InsertRightToWorkCheckNote): Promise<RightToWorkCheckNote> {
+    // Verify the check belongs to this user before creating note
+    const check = await this.getRightToWorkCheckById(noteData.checkId);
+    if (!check || check.userId !== noteData.userId) {
+      throw new Error("Check not found or access denied");
+    }
+
     const [note] = await db.insert(rightToWorkCheckNotes).values(noteData).returning();
     return note;
   }
