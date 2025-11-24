@@ -832,6 +832,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Preview check evaluation (no DB write, read-only)
+  app.post("/api/checks/preview", isAuthenticated, async (req: any, res) => {
+    try {
+      const { 
+        documentType, 
+        expiryDate, 
+        ocrRawText, 
+        ocrExtractedFields,
+        dateOfIssue,
+      } = req.body;
+      
+      // Validate required fields
+      if (!documentType || !expiryDate) {
+        return res.status(400).json({ error: "Document type and expiry date are required" });
+      }
+      
+      // Convert expiry date to Date object
+      const expiryDateObj = new Date(expiryDate);
+      const dateOfIssueObj = dateOfIssue ? new Date(dateOfIssue) : undefined;
+      
+      // Map form data to rules engine input
+      const rulesEngineInput = mapToRulesEngineInput({
+        documentType,
+        expiryDate: expiryDateObj,
+        dateOfIssue: dateOfIssueObj,
+      });
+      
+      // Evaluate work eligibility using comprehensive rules engine (as guardrail)
+      const rulesResult = evaluateRightToWork(rulesEngineInput);
+      
+      // Parse OCR extracted fields safely
+      let parsedOcrFields = null;
+      if (ocrExtractedFields) {
+        try {
+          parsedOcrFields = typeof ocrExtractedFields === 'string' 
+            ? JSON.parse(ocrExtractedFields) 
+            : ocrExtractedFields;
+        } catch (e) {
+          console.warn("Failed to parse ocrExtractedFields:", e);
+        }
+      }
+      
+      // Call Venice AI as primary decision engine
+      const veniceResult = await getVeniceRightToWorkDecision({
+        currentRulesStatus: rulesResult.workStatus,
+        ocrRawText,
+        ocrExtractedFields: parsedOcrFields,
+      });
+      
+      // Merge AI and rules results with conservative guardrails
+      const aiStatus = veniceResult.status;
+      const rulesStatus = rulesResult.workStatus;
+      let finalStatus: string = rulesStatus;
+      let conflictDetail: string | null = null;
+      
+      if (aiStatus !== "UNKNOWN") {
+        // If AI and rules agree, use AI status
+        if (aiStatus === rulesStatus) {
+          finalStatus = aiStatus as any;
+        } else {
+          // If AI and rules disagree, downgrade to NEEDS_REVIEW for safety
+          finalStatus = "NEEDS_REVIEW" as any;
+          conflictDetail = `AI status (${aiStatus}) did not match rules-engine status (${rulesStatus}); final status set to NEEDS_REVIEW for safety per guardrail policy.`;
+        }
+      } else {
+        // AI returned UNKNOWN, use rules result
+        finalStatus = rulesStatus;
+      }
+      
+      // Build decision summary - prefer AI explanation if available and non-empty, else use rules summary
+      let decisionSummary: string;
+      if (aiStatus !== "UNKNOWN" && veniceResult.explanation && veniceResult.explanation.trim().length > 0) {
+        decisionSummary = veniceResult.explanation;
+      } else {
+        decisionSummary = rulesResult.decisionSummary;
+      }
+      
+      const decisionDetails: string[] = [];
+      
+      // Only add AI decision details if AI provided a meaningful result (not UNKNOWN)
+      if (aiStatus !== "UNKNOWN" && veniceResult.explanation) {
+        decisionDetails.push("AI decision: " + veniceResult.explanation);
+        if (veniceResult.missingInformation.length > 0) {
+          veniceResult.missingInformation.forEach(item => {
+            decisionDetails.push("AI missing information: " + item);
+          });
+        }
+      }
+      
+      // Append all rules engine details (for transparency)
+      decisionDetails.push(...rulesResult.decisionDetails);
+      
+      // Add conflict detail if present
+      if (conflictDetail) {
+        decisionDetails.push(conflictDetail);
+      }
+      
+      // Return preview without saving to database
+      res.json({
+        workStatus: finalStatus,
+        decisionSummary,
+        decisionDetails,
+        isPreview: true,
+      });
+    } catch (error: any) {
+      console.error("Error previewing check:", error);
+      res.status(500).json({ error: "Failed to preview check evaluation" });
+    }
+  });
+
   // Check notes routes
   app.get("/api/checks/:id/notes", isAuthenticated, async (req: any, res) => {
     try {
