@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -179,6 +180,36 @@ export default function Dashboard() {
     const checkId = row.latestCheck?.id;
     return checkId && resolvedCaseIds.includes(checkId);
   });
+
+  // Helper function to get expiry status badge details
+  const getExpiryStatus = (expiryDate: string) => {
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+    const diffTime = expiry.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return { label: "Overdue", variant: "destructive" as const, days: Math.abs(diffDays) };
+    } else if (diffDays <= 60) {
+      return { label: "Expiring soon", variant: "warning" as const, days: diffDays };
+    } else if (diffDays <= 90) {
+      return { label: "Upcoming", variant: "secondary" as const, days: diffDays };
+    }
+    return null;
+  };
+
+  // Get all expiring documents (within 90 days) sorted by expiry date
+  const allExpiringDocs = allRows
+    .filter(row => {
+      if (!row.latestCheck?.expiryDate) return false;
+      const status = getExpiryStatus(row.latestCheck.expiryDate);
+      return status !== null;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.latestCheck!.expiryDate!);
+      const dateB = new Date(b.latestCheck!.expiryDate!);
+      return dateA.getTime() - dateB.getTime();
+    });
 
   const handleViewExpiringDocs = () => {
     const today = new Date();
@@ -380,6 +411,104 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+
+          {allExpiringDocs.length > 0 && (
+            <Card className="border-2 shadow-sm bg-gradient-to-br from-card to-background">
+              <CardHeader className="border-b bg-amber-50/30 dark:bg-amber-950/5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-bold">
+                        Expiring Documents
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Documents expiring within the next 90 days
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground font-medium">
+                    {allExpiringDocs.length} document{allExpiringDocs.length !== 1 ? 's' : ''} requiring attention
+                  </p>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="overflow-x-auto -mx-6 px-6">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Person</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Document Type</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Expiry Date</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Status</TableHead>
+                        <TableHead className="font-bold text-xs uppercase tracking-wider">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allExpiringDocs.slice(0, 5).map((row) => {
+                        const check = row.latestCheck;
+                        if (!check) return null;
+                        const name = `${row.firstName} ${row.lastName}`.trim() || "Unnamed";
+                        const expiryStatus = getExpiryStatus(check.expiryDate!);
+                        if (!expiryStatus) return null;
+
+                        const documentTypeLabels: Record<string, string> = {
+                          EU_BLUE_CARD: "EU Blue Card",
+                          EAT: "Employment Authorization",
+                          FIKTIONSBESCHEINIGUNG: "Fiktionsbescheinigung",
+                          OTHER: "Other",
+                        };
+
+                        return (
+                          <TableRow key={check.id} className="hover:bg-muted/50 transition-colors" data-testid={`row-expiring-${check.id}`}>
+                            <TableCell className="font-medium">{name}</TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {documentTypeLabels[check.documentType] || check.documentType}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatDate(check.expiryDate!)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={expiryStatus.variant}
+                                className={
+                                  expiryStatus.variant === "destructive" 
+                                    ? "bg-red-100 text-red-900 border-red-300 dark:bg-red-950 dark:text-red-100 dark:border-red-800" 
+                                    : expiryStatus.variant === "warning"
+                                    ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-800"
+                                    : "bg-gray-100 text-gray-900 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
+                                }
+                                data-testid={`badge-expiry-status-${check.id}`}
+                              >
+                                {expiryStatus.label} ({expiryStatus.days}d)
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Link href={row.isStandalone ? `/checks/${check.id}` : `/employees/${row.id}`}>
+                                <Button variant="outline" size="sm" className="button-transition" data-testid={`button-view-expiring-${check.id}`}>
+                                  <Eye className="h-3.5 w-3.5 mr-1.5" />
+                                  View
+                                </Button>
+                              </Link>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                {allExpiringDocs.length > 5 && (
+                  <div className="mt-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Showing 5 of {allExpiringDocs.length} expiring documents. Use filters to view more.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border-2 shadow-sm">
             <CardHeader className="border-b bg-muted/20">
