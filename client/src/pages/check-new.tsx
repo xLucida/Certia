@@ -120,7 +120,7 @@ export default function CheckNew() {
       }
       toast({
         title: "Success",
-        description: "Right-to-work check created successfully",
+        description: "Right-to-work check created successfully. You can upload additional supporting documents later from the check detail page.",
       });
       // Redirect to dashboard for standalone checks, employee page for linked checks
       if (variables.employeeId) {
