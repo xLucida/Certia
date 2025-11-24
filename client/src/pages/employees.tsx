@@ -7,7 +7,7 @@ import { Link } from "wouter";
 import { formatDate } from "@/lib/dateUtils";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
-import type { Employee } from "@shared/schema";
+import type { EmployeeWithChecks } from "@shared/schema";
 import { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -18,7 +18,7 @@ export default function Employees() {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   
-  const { data: employees, isLoading } = useQuery<Employee[]>({
+  const { data: employees, isLoading } = useQuery<EmployeeWithChecks[]>({
     queryKey: ["/api/employees"],
   });
 
@@ -31,9 +31,9 @@ export default function Employees() {
     }
   };
 
-  const getLatestCheck = (employee: Employee) => {
+  const getLatestCheck = (employee: EmployeeWithChecks) => {
     if (!employee.checks || employee.checks.length === 0) return null;
-    return employee.checks.sort((a, b) => 
+    return employee.checks.sort((a: any, b: any) => 
       new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
     )[0];
   };
@@ -184,14 +184,32 @@ export default function Employees() {
                           data-testid={`row-employee-${employee.id}`}
                         >
                           <TableCell className="font-medium">
-                            <Link href={`/employees/${employee.id}`}>
-                              <span className="hover:underline cursor-pointer" data-testid={`text-employee-name-${employee.id}`}>
-                                {employee.firstName} {employee.lastName}
-                              </span>
-                            </Link>
+                            <div>
+                              <Link href={`/employees/${employee.id}`}>
+                                <span className="hover:underline cursor-pointer" data-testid={`text-employee-name-${employee.id}`}>
+                                  {employee.firstName} {employee.lastName}
+                                </span>
+                              </Link>
+                              {latestCheck ? (
+                                <div className="text-xs text-muted-foreground mt-1" data-testid={`text-employee-summary-${employee.id}`}>
+                                  Last check: {latestCheck.workStatus.replace(/_/g, " ")}
+                                  {latestCheck.documentType && ` — ${
+                                    latestCheck.documentType === "EU_BLUE_CARD" ? "EU Blue Card" :
+                                    latestCheck.documentType === "EAT" ? "Employment Authorization" :
+                                    latestCheck.documentType === "FIKTIONSBESCHEINIGUNG" ? "Fiktionsbescheinigung" :
+                                    latestCheck.documentType
+                                  }`}
+                                  {latestCheck.expiryDate && `, expires ${formatDate(latestCheck.expiryDate)}`}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-muted-foreground mt-1" data-testid={`text-employee-summary-${employee.id}`}>
+                                  No right-to-work checks yet
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {employee.email || '—'}
+                            {'email' in employee ? employee.email : '—'}
                           </TableCell>
                           <TableCell>
                             {latestCheck ? (
