@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { RightToWorkCheck, RightToWorkCheckNote, RightToWorkCheckDocument, AuditLog } from "@shared/schema";
 import { formatDate } from "@/lib/dateUtils";
+import { PageHeader } from "@/components/PageHeader";
 
 function formatAuditLogAction(action: string): string {
   const actionMap: Record<string, string> = {
@@ -283,7 +284,7 @@ export default function CheckDetail() {
   ) || [];
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-6 py-8 print:px-0 print:py-0">
       {/* Print Header - Only visible when printing */}
       <div className="hidden print:block mb-8">
         <div className="text-center border-b-2 border-gray-300 pb-4 mb-6">
@@ -293,7 +294,7 @@ export default function CheckDetail() {
         </div>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-6">
           <div className="flex items-center gap-4 print:hidden">
             <Link href="/">
               <Button variant="ghost" size="sm" data-testid="button-back">
@@ -303,38 +304,37 @@ export default function CheckDetail() {
             </Link>
           </div>
 
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <User className="h-5 w-5 text-muted-foreground print:hidden" />
-                    <CardTitle className="text-2xl" data-testid="text-candidate-name">
-                      {check.firstName} {check.lastName}
-                    </CardTitle>
-                    <Badge variant="secondary" className="print:hidden">Candidate</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Right-to-Work Check (Pre-Employment)
-                  </p>
-                </div>
-                <div className="print:hidden">
+          <div className="print:hidden">
+            <PageHeader
+              kicker="Check"
+              title="Right-to-work check"
+              description={`${check.firstName} ${check.lastName} · ${check.documentType?.replace(/_/g, ' ')} · Created ${formatDate(check.createdAt as unknown as string)}`}
+              icon={<User className="h-5 w-5" />}
+              actions={
+                <>
                   <Button 
                     variant="outline" 
-                    size="sm" 
                     onClick={() => window.print()}
                     data-testid="button-print-summary"
                   >
                     <Printer className="h-4 w-4 mr-2" />
                     Print Summary
                   </Button>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDeleteDialog(true)}
+                    data-testid="button-delete-check"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                </>
+              }
+            />
+          </div>
 
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold print:hidden">Check Details</h2>
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,_1.7fr)_minmax(0,_1.2fr)] gap-6 print:block">
+            <div className="space-y-4">{/* Left column: Decision-focused */}
             
             {/* Case Workflow Status - Interactive on screen, static in print */}
             <Card data-testid="card-case-status">
@@ -436,17 +436,16 @@ export default function CheckDetail() {
             <div className="print:hidden">
               <CheckAuditTrail check={check} />
             </div>
-          </div>
+            </div>{/* End left column */}
 
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Paperclip className="h-5 w-5 print:hidden" />
-              Attachments
-            </h2>
-            <Card className="print:hidden">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-base">Supporting Documents</CardTitle>
-              </CardHeader>
+            <div className="space-y-4">{/* Right column: Record-focused */}
+              <Card className="print:hidden">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="h-4 w-4" />
+                    <CardTitle className="text-base">Supporting Documents</CardTitle>
+                  </div>
+                </CardHeader>
               <CardContent className="space-y-6">
                 {/* Upload Form */}
                 <div className="space-y-3">
@@ -580,18 +579,15 @@ export default function CheckDetail() {
                   <p><strong>Attachments:</strong> {attachments.length} file(s) stored (see Certia for full list)</p>
                 </div>
               </CardContent>
-            </Card>
-          </div>
+              </Card>
 
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <FileText className="h-5 w-5 print:hidden" />
-              Case File Notes
-            </h2>
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-base">Internal Notes & Comments</CardTitle>
-              </CardHeader>
+              <Card>
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    <CardTitle className="text-base">Internal Notes & Comments</CardTitle>
+                  </div>
+                </CardHeader>
               <CardContent className="space-y-6">
                 {/* Add Note Form - Hide in print */}
                 <div className="space-y-3 print:hidden">
@@ -656,18 +652,15 @@ export default function CheckDetail() {
                   </div>
                 )}
               </CardContent>
-            </Card>
-          </div>
+              </Card>
 
-          <div className="space-y-4 print:hidden">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Recent Activity
-            </h2>
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-base">Audit Log</CardTitle>
-              </CardHeader>
+              <Card className="print:hidden">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    <CardTitle className="text-base">Recent Activity</CardTitle>
+                  </div>
+                </CardHeader>
               <CardContent>
                 {auditLogsLoading ? (
                   <div className="space-y-2">
@@ -706,24 +699,13 @@ export default function CheckDetail() {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+            </div>{/* End right column */}
+          </div>{/* End grid */}
+        </div>{/* End space-y-6 */}
 
-          <div className="flex justify-end print:hidden pt-4 border-t">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowDeleteDialog(true)}
-              data-testid="button-delete-check"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Check
-            </Button>
-          </div>
-        </div>
-
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Right-to-Work Check</AlertDialogTitle>
