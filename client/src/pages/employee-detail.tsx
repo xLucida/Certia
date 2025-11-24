@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckDecisionPanel, CheckAuditTrail } from "@/components/check-components";
 import { StatusBadge } from "@/components/StatusBadge";
+import { StatusInterpretation } from "@/components/StatusInterpretation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check, Clock, Printer } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check, Clock, Printer, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import { apiRequest } from "@/lib/queryClient";
@@ -20,6 +21,7 @@ export default function EmployeeDetail() {
   const employeeId = params?.id;
   const { toast } = useToast();
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showStatusInterpretation, setShowStatusInterpretation] = useState(false);
 
   const { data: employee, isLoading } = useQuery<EmployeeWithChecks>({
     queryKey: ["/api/employees", employeeId],
@@ -273,6 +275,27 @@ export default function EmployeeDetail() {
                       <p className="text-lg font-semibold text-amber-700">{statusCounts.NEEDS_REVIEW}</p>
                     </div>
                   </div>
+                </div>
+
+                {/* Collapsible status interpretation - screen only */}
+                <div className="print:hidden mt-6 pt-4 border-t border-muted">
+                  <button
+                    onClick={() => setShowStatusInterpretation(!showStatusInterpretation)}
+                    className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                    data-testid="button-toggle-status-interpretation"
+                  >
+                    {showStatusInterpretation ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                    How to interpret this status
+                  </button>
+                  {showStatusInterpretation && (
+                    <div className="mt-4">
+                      <StatusInterpretation status={sortedChecks[0].workStatus} />
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

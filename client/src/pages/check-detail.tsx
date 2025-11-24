@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CheckDecisionPanel, CheckAuditTrail } from "@/components/check-components";
+import { StatusInterpretation } from "@/components/StatusInterpretation";
 import { ArrowLeft, User, Printer, Trash2, FileText, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -183,6 +184,10 @@ export default function CheckDetail() {
           <div className="space-y-4">
             <h2 className="text-xl font-semibold print:hidden">Check Details</h2>
             <CheckDecisionPanel check={check} />
+            
+            {/* Status Interpretation - shows in both screen and print */}
+            <StatusInterpretation status={check.workStatus} />
+            
             <div className="print:hidden">
               <CheckAuditTrail check={check} />
             </div>
