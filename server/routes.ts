@@ -1040,7 +1040,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Prepare data for rules engine using aggregated results
-      const documentType = primaryDocumentTypeGuess || "UNKNOWN";
+      // If no document type was detected (null or "UNKNOWN"), treat as OTHER for evaluation
+      const documentType = (primaryDocumentTypeGuess && primaryDocumentTypeGuess !== "UNKNOWN") 
+        ? primaryDocumentTypeGuess 
+        : "OTHER";
       const expiryDateStr = earliestExpiryGuessIso;
       const expiryDateObj = expiryDateStr ? new Date(expiryDateStr) : null;
 
@@ -1063,7 +1066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         employeeId,
         firstName: null,
         lastName: null,
-        documentType: (documentType !== "UNKNOWN" ? documentType : null) as any,
+        documentType: (primaryDocumentTypeGuess && primaryDocumentTypeGuess !== "UNKNOWN" ? documentType : null) as any,
         documentNumber: (primaryDocumentNumberGuess || null) as any,
         expiryDate: (expiryDateStr || null) as any,
         workStatus: evaluation.workStatus,
