@@ -24,6 +24,8 @@ import { ArrowLeft, FileText, Upload, UserPlus, Users, Sparkles, AlertCircle, Ch
 import { Link } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type CheckFormData = z.infer<typeof checkFormSchema>;
 
@@ -80,6 +82,33 @@ export default function CheckNew() {
       setCheckType("existing");
     }
   }, [preselectedEmployeeId, form]);
+
+  // Preview mutation for live decision evaluation (no DB write)
+  const [previewResult, setPreviewResult] = useState<{
+    workStatus: string;
+    decisionSummary: string;
+    decisionDetails: string[];
+  } | null>(null);
+
+  const previewMutation = useMutation({
+    mutationFn: async (data: {
+      documentType: string;
+      expiryDate: string;
+      dateOfIssue?: string;
+      ocrRawText?: string;
+      ocrExtractedFields?: any;
+    }) => {
+      const response = await apiRequest("POST", "/api/checks/preview", data);
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      setPreviewResult(data);
+    },
+    onError: (error: Error) => {
+      console.error("Preview error:", error);
+      setPreviewResult(null);
+    },
+  });
 
   const createMutation = useMutation({
     mutationFn: async (data: CheckFormData) => {
@@ -285,6 +314,28 @@ export default function CheckNew() {
   const firstName = form.watch("firstName");
   const lastName = form.watch("lastName");
   const employeeId = form.watch("employeeId");
+  const dateOfIssue = form.watch("dateOfIssue");
+
+  // Auto-trigger preview when required fields are filled
+  useEffect(() => {
+    if (documentType && expiryDate) {
+      previewMutation.mutate({
+        documentType,
+        expiryDate,
+        dateOfIssue: dateOfIssue || undefined,
+        ocrRawText: ocrResult?.rawText,
+        ocrExtractedFields: ocrResult ? {
+          documentTypeGuess: ocrResult.documentTypeGuess,
+          documentNumberGuess: ocrResult.documentNumberGuess,
+          expiryDateGuessIso: ocrResult.expiryDateGuessIso,
+          employerNameGuess: ocrResult.employerNameGuess,
+          employmentPermissionGuess: ocrResult.employmentPermissionGuess,
+        } : undefined,
+      });
+    } else {
+      setPreviewResult(null);
+    }
+  }, [documentType, expiryDate, dateOfIssue, ocrResult]);
   
   // Check if user has started filling the form (beyond default values)
   const hasStartedFillingForm = (checkType === "new" && (firstName || lastName))
@@ -684,6 +735,64 @@ export default function CheckNew() {
                         Please verify that the extracted information matches your document before submitting.
                       </p>
                     </div>
+                  </div>
+                )}
+
+                {/* Preview Decision Panel */}
+                {hasRequiredFields && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-px flex-1 bg-border" />
+                      <p className="text-sm font-medium text-muted-foreground">Decision Preview</p>
+                      <div className="h-px flex-1 bg-border" />
+                    </div>
+                    
+                    {previewMutation.isPending ? (
+                      <Card className="border-2">
+                        <CardContent className="pt-6 space-y-4">
+                          <Skeleton className="h-6 w-32" />
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-16 w-full" />
+                        </CardContent>
+                      </Card>
+                    ) : previewResult ? (
+                      <Card className="border-2 bg-gradient-to-br from-card to-background" data-testid="card-preview-decision">
+                        <CardContent className="pt-6 space-y-4">
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Preliminary Assessment</p>
+                            <StatusBadge status={previewResult.workStatus as any} />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Summary</p>
+                            <p className="text-sm leading-relaxed" data-testid="text-preview-summary">
+                              {previewResult.decisionSummary}
+                            </p>
+                          </div>
+                          
+                          {previewResult.decisionDetails && previewResult.decisionDetails.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Details</p>
+                              <ul className="space-y-1.5" data-testid="list-preview-details">
+                                {previewResult.decisionDetails.map((detail, index) => (
+                                  <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                                    <span className="text-primary mt-0.5">•</span>
+                                    <span className="flex-1">{detail}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          <Alert className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
+                            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            <AlertDescription className="text-xs text-blue-900 dark:text-blue-100">
+                              This is a preview. The final decision will be saved when you create the check.
+                            </AlertDescription>
+                          </Alert>
+                        </CardContent>
+                      </Card>
+                    ) : null}
                   </div>
                 )}
 
