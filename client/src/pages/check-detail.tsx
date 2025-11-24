@@ -188,6 +188,39 @@ export default function CheckDetail() {
             {/* Status Interpretation - shows in both screen and print */}
             <StatusInterpretation status={check.workStatus} />
             
+            {/* How this decision was made - shows in both screen and print */}
+            <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900" data-testid="how-decision-made">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 text-blue-900 dark:text-blue-100">
+                  <FileText className="h-4 w-4" />
+                  How this decision was made
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-foreground/90">
+                  Certia combines a rules engine based on German right-to-work guidelines with an AI review of the scanned document. When the AI and rules engine disagree, or key information is missing, the status is set to 'Needs review' for safety.
+                </p>
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
+                    <span>Document was scanned and parsed using OCR.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
+                    <span>AI reviewed the OCR text and extracted fields.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
+                    <span>A rules engine checked document type and expiry.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
+                    <span>Any conflicts or uncertainties automatically downgrade the status to 'Needs review'.</span>
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+            
             <div className="print:hidden">
               <CheckAuditTrail check={check} />
             </div>
