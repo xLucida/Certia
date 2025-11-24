@@ -1,0 +1,53 @@
+[
+  {
+    "endpoint": "/",
+    "method": "GET",
+    "status": "PASS",
+    "statusCode": 200,
+    "note": "Landing page"
+  },
+  {
+    "endpoint": "/api/login",
+    "method": "GET",
+    "status": "FAIL",
+    "statusCode": 400,
+    "error": "Expected 302 or 200, got 400",
+    "note": "Login redirect"
+  },
+  {
+    "endpoint": "/api/auth/user",
+    "method": "GET",
+    "status": "PASS",
+    "statusCode": 401,
+    "note": "User profile endpoint"
+  },
+  {
+    "endpoint": "/api/employees",
+    "method": "GET",
+    "status": "PASS",
+    "statusCode": 401,
+    "note": "List employees"
+  },
+  {
+    "endpoint": "/api/checks/standalone",
+    "method": "GET",
+    "status": "PASS",
+    "statusCode": 401,
+    "note": "Standalone checks"
+  },
+  {
+    "endpoint": "/api/employees",
+    "method": "POST",
+    "status": "PASS",
+    "statusCode": 401,
+    "note": "Create employee"
+  },
+  {
+    "endpoint": "/api/public-upload/validate",
+    "method": "POST",
+    "status": "FAIL",
+    "statusCode": 200,
+    "error": "Expected 400 or 401, got 200",
+    "note": "Validate upload token"
+  }
+]
