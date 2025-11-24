@@ -347,6 +347,9 @@ export default function CheckNew() {
     ? firstName && lastName && documentType && expiryDate
     : employeeId && documentType && expiryDate;
   
+  // Preview can show as soon as we have document details (regardless of employee info)
+  const canShowPreview = documentType && expiryDate;
+  
   // Step progression:
   // Step 1: Initial state - no upload and no form started
   // Step 2: File uploaded OR user has started filling form
@@ -739,7 +742,7 @@ export default function CheckNew() {
                 )}
 
                 {/* Preview Decision Panel */}
-                {hasRequiredFields && (
+                {canShowPreview && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="h-px flex-1 bg-border" />
