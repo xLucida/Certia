@@ -1,0 +1,78 @@
+Goal:
+Control Venice.ai token usage and improve robustness by clipping OCR raw text and extracted fields JSON to a reasonable length BEFORE sending them to Venice. Behavior of decisions should remain the same; we’re just limiting input size.
+
+Very important constraints:
+- BACKEND ONLY: modify server-side Venice client helper file (and any tiny related types). Do NOT change database schema, routes for checks, or rules engine logic beyond what’s required to clip text.
+- Do NOT alter the behavior of how workStatus is merged (AI vs rules); only preprocess the input strings passed into the Venice API.
+- If variable names differ from this prompt, adapt to the existing code.
+
+Context:
+- Venice client helper: server/veniceClient.ts
+  - Exports getVeniceRightToWorkDecision(input: VeniceReviewInput).
+  - Builds system + user messages and calls Venice API.
+- Right-to-work check pipeline already calls getVeniceRightToWorkDecision with:
+  - currentRulesStatus
+  - ocrRawText
+  - ocrExtractedFields (parsed from stored JSON).
+
+==================================================
+TASK 1 — Clip OCR raw text and extracted fields before sending to Venice
+==================================================
+
+1) Open server/veniceClient.ts.
+
+2) Inside getVeniceRightToWorkDecision (or equivalent function that builds the Venice prompt):
+
+- Before constructing the user message / prompt, create safe, truncated values:
+
+  ```ts
+  const rawText = (input.ocrRawText || "").toString();
+  const trimmedRawText = rawText.slice(0, 4000); // or similar length
+
+  let extractedJson = "";
+  if (input.ocrExtractedFields) {
+    try {
+      extractedJson = JSON.stringify(input.ocrExtractedFields);
+    } catch (err) {
+      console.warn("Failed to stringify ocrExtractedFields for Venice:", err);
+      extractedJson = "";
+    }
+  }
+  const trimmedExtractedJson = extractedJson.slice(0, 4000);
+Then, when composing the user message content, use trimmedRawText and trimmedExtractedJson instead of the unbounded versions.
+
+Example (adapt to your existing message building):
+
+ts
+Copy code
+const userContent = `
+Current rules-engine status: ${input.currentRulesStatus ?? "NEEDS_REVIEW"}.
+
+OCR raw text:
+${trimmedRawText}
+
+Extracted fields JSON:
+${trimmedExtractedJson}
+
+Return ONLY a JSON object with keys: status (one of 'ELIGIBLE','NOT_ELIGIBLE','NEEDS_REVIEW','UNKNOWN'), explanation (string), missingInformation (string[]).
+`.trim();
+Keep the existing VENICE_SYSTEM_PROMPT and control flow intact. Only replace the values plugged into the user message with the trimmed versions.
+
+==================================================
+TASK 2 — Safety & tests
+Ensure that:
+
+If ocrRawText is undefined/null, we still pass an empty string (no crashes).
+
+If ocrExtractedFields is not serializable, we log a warning and continue with an empty extracted JSON string.
+
+Run app tests to confirm:
+
+New Check flow still works end-to-end.
+
+Venice is called as before, but with truncated content.
+
+If Venice env vars are missing, existing fallback behavior (status=UNKNOWN, explanation) is unchanged.
+
+yaml
+Copy code

@@ -108,17 +108,30 @@ function buildSystemMessage(): string {
 function buildUserMessage(input: VeniceReviewInput): string {
   const { currentRulesStatus, ocrRawText, ocrExtractedFields } = input;
 
-  let message = `Current rules-engine status: ${currentRulesStatus}.\n\n`;
+  let message = `Current rules-engine status: ${currentRulesStatus ?? "NEEDS_REVIEW"}.\n\n`;
 
-  if (ocrRawText) {
-    const trimmedText = ocrRawText.substring(0, 4000);
-    message += `OCR raw text:\n${trimmedText}\n\n`;
+  const rawText = (ocrRawText || "").toString();
+  const trimmedRawText = rawText.slice(0, 4000);
+
+  if (trimmedRawText) {
+    message += `OCR raw text:\n${trimmedRawText}\n\n`;
   } else {
     message += `OCR raw text: (none available)\n\n`;
   }
 
-  if (ocrExtractedFields && typeof ocrExtractedFields === "object") {
-    message += `Extracted fields JSON:\n${JSON.stringify(ocrExtractedFields, null, 2)}\n\n`;
+  let extractedJson = "";
+  if (ocrExtractedFields) {
+    try {
+      extractedJson = JSON.stringify(ocrExtractedFields, null, 2);
+    } catch (err) {
+      log("Failed to stringify ocrExtractedFields for Venice:", String(err));
+      extractedJson = "";
+    }
+  }
+  const trimmedExtractedJson = extractedJson.slice(0, 4000);
+
+  if (trimmedExtractedJson) {
+    message += `Extracted fields JSON:\n${trimmedExtractedJson}\n\n`;
   } else {
     message += `Extracted fields JSON: (none available)\n\n`;
   }
