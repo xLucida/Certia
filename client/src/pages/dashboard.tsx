@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, CheckCircle, AlertTriangle, Plus, Eye, Search, X, Database, Download } from "lucide-react";
+import { Users, CheckCircle, AlertTriangle, Plus, Eye, Search, X, Database, Download, HelpCircle } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import { formatDate } from "@/lib/dateUtils";
@@ -240,6 +240,12 @@ export default function Dashboard() {
                   {seedMutation.isPending ? "Seeding..." : "Seed Demo Data"}
                 </Button>
               )}
+              <Link href="/help">
+                <Button variant="outline" data-testid="button-help">
+                  <HelpCircle className="h-4 w-4 mr-2" />
+                  Help & FAQ
+                </Button>
+              </Link>
               <Button
                 variant="outline"
                 onClick={() => {
