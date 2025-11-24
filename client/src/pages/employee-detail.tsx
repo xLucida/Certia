@@ -1,14 +1,24 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CheckDecisionPanel, CheckAuditTrail } from "@/components/check-components";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusInterpretation } from "@/components/StatusInterpretation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check, Clock, Printer, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check, Clock, Printer, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import { apiRequest } from "@/lib/queryClient";
@@ -18,10 +28,12 @@ import type { EmployeeWithChecks } from "@shared/schema";
 
 export default function EmployeeDetail() {
   const [, params] = useRoute("/employees/:id");
+  const [, setLocation] = useLocation();
   const employeeId = params?.id;
   const { toast } = useToast();
   const [linkCopied, setLinkCopied] = useState(false);
   const [showStatusInterpretation, setShowStatusInterpretation] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { data: employee, isLoading } = useQuery<EmployeeWithChecks>({
     queryKey: ["/api/employees", employeeId],
@@ -67,6 +79,26 @@ export default function EmployeeDetail() {
       generateLinkMutation.mutate(employeeId);
     }
   };
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/employees/${employeeId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Employee deleted",
+        description: "The employee and all related right-to-work checks have been successfully deleted.",
+      });
+      setLocation("/");
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete employee. Please try again.",
+      });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -313,7 +345,8 @@ export default function EmployeeDetail() {
                     <TableRow>
                       <TableHead className="print:text-gray-700">Check ID</TableHead>
                       <TableHead className="print:text-gray-700">Created</TableHead>
-                      <TableHead className="print:text-gray-700">Status</TableHead>
+                      <TableHead className="print:text-gray-700">Work Status</TableHead>
+                      <TableHead className="print:text-gray-700">Case Status</TableHead>
                       <TableHead className="print:text-gray-700">Document Type</TableHead>
                       <TableHead className="print:text-gray-700">Expiry Date</TableHead>
                       <TableHead className="print:text-gray-700">Summary</TableHead>
@@ -335,6 +368,11 @@ export default function EmployeeDetail() {
                             {check.workStatus === 'NOT_ELIGIBLE' ? 'Not Eligible' : ''}
                             {check.workStatus === 'NEEDS_REVIEW' ? 'Needs Review' : ''}
                           </span>
+                        </TableCell>
+                        <TableCell className="text-sm print:text-gray-900">
+                          {check.caseStatus === 'OPEN' ? 'Open' : ''}
+                          {check.caseStatus === 'UNDER_REVIEW' ? 'Under Review' : ''}
+                          {check.caseStatus === 'CLEARED' ? 'Cleared' : ''}
                         </TableCell>
                         <TableCell className="text-sm print:text-gray-900">{formatDocumentType(check.documentType)}</TableCell>
                         <TableCell className="text-sm print:text-gray-900">{check.expiryDate ? formatDate(check.expiryDate) : '—'}</TableCell>
@@ -389,7 +427,64 @@ export default function EmployeeDetail() {
               </div>
             )}
           </div>
+
+          {/* Danger Zone - Employee Deletion */}
+          <div className="space-y-4 print:hidden pt-8 border-t border-destructive/20">
+            <h2 className="text-xl font-semibold text-destructive">Danger Zone</h2>
+            <Card className="border-destructive/50">
+              <CardHeader>
+                <CardTitle className="text-base text-destructive">Delete Employee & All Checks</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Permanently delete this employee record and all associated right-to-work checks, case notes, and uploaded documents. This action cannot be undone.
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowDeleteDialog(true)}
+                  data-testid="button-delete-employee"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Employee and All Checks
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Employee & All Data</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete <strong>{employee?.firstName} {employee?.lastName}</strong> and all related right-to-work checks and notes?
+                <br /><br />
+                This will permanently remove:
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Employee record</li>
+                  <li>All right-to-work checks ({sortedChecks.length} check{sortedChecks.length !== 1 ? 's' : ''})</li>
+                  <li>All case file notes</li>
+                  <li>All uploaded documents</li>
+                </ul>
+                <br />
+                <strong>This action cannot be undone.</strong>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteEmployeeMutation.mutate()}
+                disabled={deleteEmployeeMutation.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="button-confirm-delete"
+              >
+                {deleteEmployeeMutation.isPending ? "Deleting..." : "Delete Employee"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }

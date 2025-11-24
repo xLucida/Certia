@@ -85,9 +85,27 @@ export function CheckDecisionPanel({ check, showLatestBadge = false }: CheckDeci
       </div>
       <CardHeader>
         <div className="flex items-start justify-between flex-wrap gap-4">
-          <CardTitle className="text-lg">
-            {formatDocumentType(check.documentType)}
-          </CardTitle>
+          <div className="flex flex-col gap-2">
+            <CardTitle className="text-lg">
+              {formatDocumentType(check.documentType)}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Case Status:</span>
+              <Badge 
+                variant="secondary"
+                className={`text-xs ${
+                  check.caseStatus === 'OPEN' 
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100' 
+                    : check.caseStatus === 'UNDER_REVIEW'
+                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100'
+                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100'
+                }`}
+                data-testid="badge-case-status"
+              >
+                {check.caseStatus === 'OPEN' ? 'Open' : check.caseStatus === 'UNDER_REVIEW' ? 'Under Review' : 'Cleared'}
+              </Badge>
+            </div>
+          </div>
           <div className="text-right text-sm text-muted-foreground">
             <p>Created {check.createdAt ? formatDate(check.createdAt instanceof Date ? check.createdAt.toISOString() : check.createdAt) : '—'}</p>
           </div>

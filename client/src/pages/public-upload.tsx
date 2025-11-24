@@ -156,9 +156,9 @@ export default function PublicUploadPage() {
                 <CheckCircle2 className="h-10 w-10 text-success" data-testid="icon-success" />
               </div>
             </div>
-            <CardTitle>Document Uploaded Successfully</CardTitle>
+            <CardTitle>Thank you — your documents have been received</CardTitle>
             <CardDescription className="text-base mt-2">
-              Thank you for submitting your residence document. Your HR team has been notified and will review it shortly.
+              Your prospective employer will review them and contact you if anything else is needed.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -187,9 +187,9 @@ export default function PublicUploadPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30 p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Upload Residence Document</CardTitle>
+          <CardTitle className="text-2xl">Upload your right-to-work documents</CardTitle>
           <CardDescription className="text-base mt-2">
-            Please upload a clear photo or scan of your German residence permit, visa, or work authorization document.
+            Your documents will be securely sent to your prospective employer so they can check your right to work in Germany.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -290,13 +290,14 @@ export default function PublicUploadPage() {
           </div>
 
           <div className="bg-muted/50 rounded-lg p-4">
-            <h4 className="text-sm font-medium mb-2">Important Information</h4>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li>• Your document will be securely processed and reviewed by your HR team</li>
-              <li>• Make sure all text on the document is clearly readable</li>
-              <li>• The document should show your name, document type, and expiry date</li>
-              <li>• You will receive a confirmation once your document is uploaded</li>
+            <h4 className="text-sm font-medium mb-2">What to upload</h4>
+            <ul className="text-xs text-muted-foreground space-y-1.5">
+              <li>• A clear photo or PDF of your residence permit (front, and back if applicable)</li>
+              <li>• If you have multiple valid documents, you can upload each one</li>
             </ul>
+            <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-muted">
+              <strong>Your privacy matters:</strong> Certia only uses this information to help your employer perform a right-to-work check.
+            </p>
           </div>
         </CardContent>
       </Card>

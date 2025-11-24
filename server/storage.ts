@@ -35,6 +35,7 @@ export interface IStorage {
   getEmployeeById(id: string): Promise<EmployeeWithChecks | undefined>;
   createEmployee(employee: InsertEmployee): Promise<Employee>;
   updateEmployee(id: string, employee: Partial<InsertEmployee>): Promise<Employee | undefined>;
+  deleteEmployeeAndRelatedData(employeeId: string, userId: string): Promise<void>;
   
   // Right-to-work check operations
   createRightToWorkCheck(check: InsertRightToWorkCheck): Promise<RightToWorkCheck>;
@@ -190,6 +191,43 @@ export class DatabaseStorage implements IStorage {
       .where(eq(employees.id, id))
       .returning();
     return employee;
+  }
+
+  async deleteEmployeeAndRelatedData(employeeId: string, userId: string): Promise<void> {
+    // 1. Verify employee belongs to this user/tenant
+    const [employee] = await db
+      .select()
+      .from(employees)
+      .where(and(eq(employees.id, employeeId), eq(employees.userId, userId)));
+    
+    if (!employee) {
+      throw new Error("Employee not found or unauthorized");
+    }
+
+    // 2. Get all checks for this employee
+    const checks = await db
+      .select()
+      .from(rightToWorkChecks)
+      .where(eq(rightToWorkChecks.employeeId, employeeId));
+    
+    const checkIds = checks.map(check => check.id);
+
+    // 3. Delete notes for those checks
+    if (checkIds.length > 0) {
+      await db
+        .delete(rightToWorkCheckNotes)
+        .where(inArray(rightToWorkCheckNotes.checkId, checkIds));
+    }
+
+    // 4. Delete the checks
+    await db
+      .delete(rightToWorkChecks)
+      .where(eq(rightToWorkChecks.employeeId, employeeId));
+
+    // 5. Delete the employee
+    await db
+      .delete(employees)
+      .where(eq(employees.id, employeeId));
   }
 
   async createRightToWorkCheck(checkData: InsertRightToWorkCheck): Promise<RightToWorkCheck> {

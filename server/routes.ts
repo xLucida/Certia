@@ -333,6 +333,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/employees/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const employeeId = req.params.id;
+      
+      // Delete employee and all related checks and notes
+      await storage.deleteEmployeeAndRelatedData(employeeId, userId);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting employee:", error);
+      if (error.message === "Employee not found or unauthorized") {
+        return res.status(404).json({ error: "Employee not found" });
+      }
+      res.status(500).json({ error: "Failed to delete employee" });
+    }
+  });
+
   // Bulk import route
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
   app.post("/api/employees/import", isAuthenticated, upload.single("file"), async (req: any, res) => {

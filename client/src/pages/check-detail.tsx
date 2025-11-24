@@ -7,6 +7,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -83,9 +90,55 @@ export default function CheckDetail() {
     },
   });
 
+  const updateCaseStatusMutation = useMutation({
+    mutationFn: async (caseStatus: string) => {
+      return await apiRequest("PATCH", `/api/checks/${checkId}/case-status`, { caseStatus });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/checks", checkId] });
+      toast({
+        title: "Case status updated",
+        description: "The case workflow status has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update case status. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddNote = () => {
     if (!newNote.trim()) return;
     addNoteMutation.mutate(newNote);
+  };
+
+  const getCaseStatusBadge = (caseStatus: string) => {
+    switch (caseStatus) {
+      case "OPEN":
+        return { variant: "secondary" as const, label: "Open", className: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" };
+      case "UNDER_REVIEW":
+        return { variant: "secondary" as const, label: "Under Review", className: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100" };
+      case "CLEARED":
+        return { variant: "secondary" as const, label: "Cleared", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" };
+      default:
+        return { variant: "secondary" as const, label: "Unknown", className: "" };
+    }
+  };
+
+  const getCaseStatusLabel = (caseStatus: string) => {
+    switch (caseStatus) {
+      case "OPEN":
+        return "Open";
+      case "UNDER_REVIEW":
+        return "Under Review";
+      case "CLEARED":
+        return "Cleared";
+      default:
+        return "Unknown";
+    }
   };
 
   if (isLoading) {
@@ -183,6 +236,66 @@ export default function CheckDetail() {
 
           <div className="space-y-4">
             <h2 className="text-xl font-semibold print:hidden">Check Details</h2>
+            
+            {/* Case Workflow Status - Interactive on screen, static in print */}
+            <Card data-testid="card-case-status">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Case Workflow Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* Print view - static text */}
+                <div className="hidden print:block">
+                  <p className="text-sm">
+                    <span className="font-medium">Case status: </span>
+                    <span>{getCaseStatusLabel(check.caseStatus)}</span>
+                  </p>
+                </div>
+                
+                {/* Screen view - interactive select */}
+                <div className="flex items-center gap-3 print:hidden">
+                  <div className="flex-1">
+                    <Select 
+                      value={check.caseStatus} 
+                      onValueChange={(value) => updateCaseStatusMutation.mutate(value)}
+                      disabled={updateCaseStatusMutation.isPending}
+                      data-testid="select-case-status"
+                    >
+                      <SelectTrigger aria-labelledby="case-status-label">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="OPEN" data-testid="option-case-status-open">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-500" />
+                            <span>Open</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="UNDER_REVIEW" data-testid="option-case-status-under-review">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-amber-500" />
+                            <span>Under Review</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="CLEARED" data-testid="option-case-status-cleared">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                            <span>Cleared</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Badge 
+                    variant={getCaseStatusBadge(check.caseStatus).variant}
+                    className={getCaseStatusBadge(check.caseStatus).className}
+                    data-testid="badge-case-status"
+                  >
+                    {getCaseStatusBadge(check.caseStatus).label}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+            
             <CheckDecisionPanel check={check} />
             
             {/* Status Interpretation - shows in both screen and print */}
