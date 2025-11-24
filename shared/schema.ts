@@ -96,13 +96,34 @@ export const rightToWorkChecks = pgTable("right_to_work_checks", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const rightToWorkChecksRelations = relations(rightToWorkChecks, ({ one }) => ({
+export const rightToWorkChecksRelations = relations(rightToWorkChecks, ({ one, many }) => ({
   employee: one(employees, {
     fields: [rightToWorkChecks.employeeId],
     references: [employees.id],
   }),
   user: one(users, {
     fields: [rightToWorkChecks.userId],
+    references: [users.id],
+  }),
+  notes: many(rightToWorkCheckNotes),
+}));
+
+// Right to Work Check Notes table
+export const rightToWorkCheckNotes = pgTable("right_to_work_check_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  checkId: varchar("check_id").notNull().references(() => rightToWorkChecks.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const rightToWorkCheckNotesRelations = relations(rightToWorkCheckNotes, ({ one }) => ({
+  check: one(rightToWorkChecks, {
+    fields: [rightToWorkCheckNotes.checkId],
+    references: [rightToWorkChecks.id],
+  }),
+  user: one(users, {
+    fields: [rightToWorkCheckNotes.userId],
     references: [users.id],
   }),
 }));
@@ -143,6 +164,11 @@ export const checkFormSchema = insertRightToWorkCheckSchema.omit({ userId: true 
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   employeeId: z.string().optional(),
+});
+
+export const insertRightToWorkCheckNoteSchema = createInsertSchema(rightToWorkCheckNotes).omit({
+  id: true,
+  createdAt: true,
 });
 
 // Types
@@ -202,3 +228,5 @@ export type CheckWithEmployee = RightToWorkCheck & {
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+export type InsertRightToWorkCheckNote = z.infer<typeof insertRightToWorkCheckNoteSchema>;
+export type RightToWorkCheckNote = typeof rightToWorkCheckNotes.$inferSelect;

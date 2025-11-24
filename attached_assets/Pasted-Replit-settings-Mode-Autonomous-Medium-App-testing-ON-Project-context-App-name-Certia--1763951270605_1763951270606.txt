@@ -1,0 +1,220 @@
+Replit settings:
+- Mode: Autonomous – Medium
+- App testing: ON
+
+Project context:
+- App name: Certia.
+- Purpose: Right-to-work screening and tracking for German HR.
+- Stack:
+  - Backend: Node/Express-style server with routes in `server/routes.ts` and storage helpers in `@shared/schema` / `server/storage`.
+  - Frontend: React + Tailwind, routing via `client/src/App.tsx`.
+- Existing features:
+  - Employees and right-to-work checks (including document expiry, status, summary, details).
+  - Upload-first OCR flow (lib/ocr.ts + /api/ocr/extract).
+  - Rules engine in `lib/rightToWork.ts`, now combined with Venice AI in `server/veniceClient.ts`.
+  - Dashboard with metrics and an “Expiring soon / Cases requiring review” card.
+  - Check detail view with decision summary, details, “Missing information”, and disclaimer.
+- Product goal for this phase:
+  - Make Certia feel like a real tool HR can use to manage **renewals** and **case handling**, not just single checks.
+
+Overall constraints:
+- Be minimal and precise; do NOT refactor unrelated areas.
+- Preserve existing behavior of check creation, status logic, and AI integration.
+- If you introduce schema changes, keep them small, additive, and follow the existing migration / schema pattern (no breaking changes to existing tables).
+- Keep UI consistent with the current premium SaaS look (navy theme, cards, hover states).
+
+==================================================
+PHASE 1 FEATURE SET
+- A) Renewals & expiring checks
+- B) Case file view with notes & review log
+==================================================
+
+=============================
+A) Renewals & Expiring Checks
+=============================
+
+Goal:
+Make it easy for HR to see:
+- Which employees/checks are expiring soon or overdue.
+- On a per-employee basis, what the “next expiry” is.
+We will NOT send emails in this phase; this is an internal dashboard + per-employee view only.
+
+Assumptions:
+- Right-to-work checks already store a document expiry date (or equivalent).
+- We can derive “expiring soon” purely from existing check data and the current date.
+
+A1) Backend: helpers to compute latest check and expiry status
+
+1) In the storage layer (e.g. `server/storage.ts` or wherever check/employee queries are defined), add helper(s) to:
+
+- For the dashboard:
+  - Fetch checks that:
+    - Have a non-null expiry date.
+    - Are expiring within the next X days (e.g. 90 days).
+    - Or already expired.
+  - You can implement this as:
+    - Either a new storage function like `getExpiringRightToWorkChecks({ userId, withinDays })`,
+    - Or by extending an existing “get checks” function with filters.
+
+- On a per-employee basis:
+  - Fetch all checks for an employee and determine:
+    - The latest check (by createdAt or check date).
+    - The next upcoming expiry date from those checks (if any).
+
+2) If your schema has an explicit `createdAt` / `checkDate` field, use that to sort. If not, use the existing pattern already used in the app to show “recent checks.”
+
+3) Do NOT modify existing columns or semantics. Use the same types and date handling patterns that the app already uses.
+
+A2) Dashboard UI: “Expiring soon” list
+
+1) Locate the main dashboard page component:
+   - Likely `client/src/pages/dashboard.tsx` or similar.
+
+2) Extend the existing “Expiring soon” / “Cases requiring review” area to include a dedicated “Expiring soon” card that shows:
+
+- A count summary (e.g. “3 documents expiring in the next 60 days”).
+- A small table/list of the top ~5 expiring/overdue items with:
+  - Employee name.
+  - Document expiry date.
+  - Status badge:
+    - “Expiring soon” (e.g. within 60 days),
+    - “Overdue” (expiry in the past),
+    - “Upcoming” (within 90 days but more than 60 days, if you want a third tier).
+  - Optional: a link to jump to that employee’s detail page.
+
+3) Use clear thresholds:
+
+- For example:
+  - Overdue: expiry < today
+  - Expiring soon: expiry within 0–60 days
+  - Upcoming: expiry within 61–90 days (optional)
+
+Expose the threshold(s) as constants so they’re easy to adjust later.
+
+4) Styling:
+- Use the same card & table patterns as existing dashboard sections:
+  - Card header with title “Expiring soon”.
+  - Muted description like “Right-to-work documents that need attention in the next 60–90 days.”
+  - Rows with subtle hover states and status badges using existing success/warning/error colors.
+
+A3) Employee detail: “Next expiry” summary
+
+1) On the employee detail page (e.g. `client/src/pages/employee-detail.tsx`), add a small **“Right-to-work status”** panel near the top that shows:
+
+- Latest check status (using the existing status badge).
+- Next expiry date (if there is one), with a small indicator:
+  - “Expires in X days”, or
+  - “Expired X days ago”.
+
+2) Reuse the backend helper from A1 to determine the latest check and next expiry for that employee.
+
+3) If no checks/expiry exist for that employee, show a simple line:
+   - “No right-to-work checks recorded yet.”
+
+4) Keep styling consistent with existing cards on the page (same card, badge, text styles).
+
+============================
+B) Case File View: Notes & Log
+============================
+
+Goal:
+For each right-to-work check, allow HR to add internal notes and see a simple history of who reviewed what and when. This lives alongside the decision, not mixed into the AI/rules details.
+
+We’ll implement:
+
+- A notes log per check (e.g. “Spoke with Ausländerbehörde; they confirmed X”).
+- A simple “review log” entry when someone explicitly marks a check as reviewed.
+- All stored server-side; no emails or notifications in this phase.
+
+B1) Schema: minimal notes table (additive only)
+
+1) Following the existing schema/migration pattern (for `@shared/schema`, etc.), add a new table for check notes, for example:
+
+- Table name: `right_to_work_check_notes`
+
+- Columns:
+  - `id` (primary key, appropriate type for the project)
+  - `checkId` (foreign key referencing the right-to-work check)
+  - `userId` (who wrote the note)
+  - `content` (text)
+  - `createdAt` (timestamp)
+
+2) Use the existing migration mechanism and types to define this table without modifying existing tables’ structures.
+
+3) Add storage helpers:
+   - `createRightToWorkCheckNote({ checkId, userId, content })`
+   - `getRightToWorkCheckNotesByCheckId(checkId, userId)` – should only return notes for checks belonging to that user/account.
+
+B2) Backend routes for notes
+
+1) In `server/routes.ts`, add authenticated routes:
+
+- GET `/api/checks/:id/notes`
+  - Validate that the check belongs to the current user (userId from `req.user.claims.sub`).
+  - Return an array of notes sorted by `createdAt` ascending.
+
+- POST `/api/checks/:id/notes`
+  - Validate check ownership as above.
+  - Accept JSON body `{ content: string }`.
+  - Create a new note using `createRightToWorkCheckNote`.
+  - Return the created note or the full updated list.
+
+2) Errors:
+  - Use existing error patterns (400 for missing content, 404 for not-found, 500 for server).
+  - Do not log note content in server logs; only log errors in a generic way.
+
+B3) Optional “mark as reviewed” hint using notes
+
+We can keep this simple in this phase:
+
+- If you want a “Reviewed by X” line:
+  - When posting a note with a special prefix like `[REVIEW]`, you can treat it as a manual review entry (displayed differently in the UI).
+  - But don’t build a full separate review entity yet; keep data model small.
+
+If you implement that, keep the pattern simple and documented in comments.
+
+B4) Frontend: Case file panel on check detail view
+
+1) Locate the standalone check detail page (e.g. `client/src/pages/check-detail.tsx`) where the existing decision panel is rendered.
+
+2) Below the decision panel, add a **“Case file”** section with:
+
+- Subheading: “Case file (internal notes)”
+- A scrollable list of notes:
+  - Each note shows:
+    - Content
+    - Created date/time (formatted)
+    - Optional: “by [current user name or ‘You’]” if you have access to a name; if not, omit or show “by HR user”.
+- At the bottom (or top), a textarea and button to add a new note:
+  - Placeholder: “Add an internal note about this case (e.g., calls with authorities, internal decisions)…”
+  - Button: “Add note”
+  - Use local state, call the POST `/api/checks/:id/notes` endpoint, then refresh the list.
+
+3) Loading and errors:
+  - On initial load of the check detail, fetch notes via GET `/api/checks/:id/notes`.
+  - Show a simple loading indicator while notes load.
+  - On error, show a small, non-blocking message like “Could not load case notes; please try again later.”
+
+4) Styling:
+  - Use the same card patterns as existing components.
+  - Make the notes list compact but readable:
+    - e.g., `text-sm`, `text-muted-foreground` for timestamps, regular text for the content.
+  - Keep this clearly separate from the AI/rules “Decision details” and “Missing information.”
+
+==================================================
+C) Safety & Final Checks
+==================================================
+
+- Ensure that:
+  - All new routes are behind `isAuthenticated` and enforce that checks/employees belong to the current `userId`.
+  - No PII (note text) is logged to console in production-like logs.
+  - New schema changes are additive and follow existing migration patterns.
+
+- After implementation, verify manually:
+  1) Dashboard correctly shows expiring checks with sensible thresholds.
+  2) Employee detail shows latest status + next expiry.
+  3) Check detail shows the “Case file”:
+     - You can add notes, see them, refresh the page, and they persist.
+  4) Existing flows (New Check, Help/FAQ, AI diagnostics) still work as before.
+
+Do not introduce any unrelated refactors or redesigns; focus only on the renewals/expiring view and the case file notes.

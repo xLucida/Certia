@@ -2,6 +2,7 @@ import {
   users,
   employees,
   rightToWorkChecks,
+  rightToWorkCheckNotes,
   type User,
   type UpsertUser,
   type Employee,
@@ -9,6 +10,8 @@ import {
   type RightToWorkCheck,
   type InsertRightToWorkCheck,
   type EmployeeWithChecks,
+  type RightToWorkCheckNote,
+  type InsertRightToWorkCheckNote,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, like, sql, inArray } from "drizzle-orm";
@@ -38,6 +41,11 @@ export interface IStorage {
   getStandaloneChecksByUserId(userId: string): Promise<RightToWorkCheck[]>;
   getRightToWorkCheckById(id: string): Promise<RightToWorkCheck | undefined>;
   deleteRightToWorkCheck(id: string): Promise<void>;
+  getExpiringRightToWorkChecks(userId: string, withinDays: number): Promise<RightToWorkCheck[]>;
+  
+  // Check notes operations
+  createRightToWorkCheckNote(note: InsertRightToWorkCheckNote): Promise<RightToWorkCheckNote>;
+  getRightToWorkCheckNotesByCheckId(checkId: string, userId: string): Promise<RightToWorkCheckNote[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -221,6 +229,46 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRightToWorkCheck(id: string): Promise<void> {
     await db.delete(rightToWorkChecks).where(eq(rightToWorkChecks.id, id));
+  }
+
+  async getExpiringRightToWorkChecks(userId: string, withinDays: number): Promise<RightToWorkCheck[]> {
+    const today = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(today.getDate() + withinDays);
+
+    const todayStr = today.toISOString().split('T')[0];
+    const futureDateStr = futureDate.toISOString().split('T')[0];
+
+    return await db
+      .select()
+      .from(rightToWorkChecks)
+      .where(
+        and(
+          eq(rightToWorkChecks.userId, userId),
+          sql`${rightToWorkChecks.expiryDate} IS NOT NULL`,
+          lte(rightToWorkChecks.expiryDate, futureDateStr)
+        )
+      )
+      .orderBy(rightToWorkChecks.expiryDate);
+  }
+
+  async createRightToWorkCheckNote(noteData: InsertRightToWorkCheckNote): Promise<RightToWorkCheckNote> {
+    const [note] = await db.insert(rightToWorkCheckNotes).values(noteData).returning();
+    return note;
+  }
+
+  async getRightToWorkCheckNotesByCheckId(checkId: string, userId: string): Promise<RightToWorkCheckNote[]> {
+    // Verify the check belongs to this user before returning notes
+    const check = await this.getRightToWorkCheckById(checkId);
+    if (!check || check.userId !== userId) {
+      return [];
+    }
+
+    return await db
+      .select()
+      .from(rightToWorkCheckNotes)
+      .where(eq(rightToWorkCheckNotes.checkId, checkId))
+      .orderBy(rightToWorkCheckNotes.createdAt);
   }
 }
 
