@@ -1,0 +1,97 @@
+[
+  {
+    "component": "pages/landing.tsx",
+    "status": "PASS",
+    "note": "Landing/login page"
+  },
+  {
+    "component": "pages/dashboard.tsx",
+    "status": "PASS",
+    "note": "Main dashboard"
+  },
+  {
+    "component": "pages/employee-detail.tsx",
+    "status": "PASS",
+    "note": "Employee detail page"
+  },
+  {
+    "component": "pages/check-detail.tsx",
+    "status": "PASS",
+    "note": "Check detail page"
+  },
+  {
+    "component": "pages/check-new.tsx",
+    "status": "PASS",
+    "note": "New check form"
+  },
+  {
+    "component": "pages/public-upload.tsx",
+    "status": "PASS",
+    "note": "Public upload page"
+  },
+  {
+    "component": "pages/employee-new.tsx",
+    "status": "PASS",
+    "note": "New employee form"
+  },
+  {
+    "component": "components/PageHeader.tsx",
+    "status": "PASS",
+    "note": "Page header component"
+  },
+  {
+    "component": "components/ObjectUploader.tsx",
+    "status": "PASS",
+    "note": "File uploader component"
+  },
+  {
+    "component": "components/CertiaLogo.tsx",
+    "status": "PASS",
+    "note": "Certia logo component"
+  },
+  {
+    "component": "App.tsx",
+    "status": "PASS",
+    "note": "Main app component"
+  },
+  {
+    "component": "components/ui/button.tsx",
+    "status": "PASS",
+    "note": "Button component"
+  },
+  {
+    "component": "components/ui/card.tsx",
+    "status": "PASS",
+    "note": "Card component"
+  },
+  {
+    "component": "components/ui/form.tsx",
+    "status": "PASS",
+    "note": "Form component"
+  },
+  {
+    "component": "components/ui/input.tsx",
+    "status": "PASS",
+    "note": "Input component"
+  },
+  {
+    "component": "components/ui/table.tsx",
+    "status": "PASS",
+    "note": "Table component"
+  },
+  {
+    "component": "dashboard (testids)",
+    "status": "PASS",
+    "note": "All 4 test IDs present"
+  },
+  {
+    "component": "check-new (testids)",
+    "status": "PASS",
+    "note": "All 3 test IDs present"
+  },
+  {
+    "component": "check-detail (testids)",
+    "status": "PASS",
+    "note": "All 2 test IDs present"
+  }
+]
