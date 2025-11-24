@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -222,48 +223,49 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
-      <div className="space-y-8">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Dashboard</h1>
-              <p className="text-foreground/70 mt-1.5 text-base">Right-to-work cockpit for your German workforce.</p>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {import.meta.env.MODE !== 'production' && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => seedMutation.mutate()}
-                  disabled={seedMutation.isPending}
-                  data-testid="button-seed-demo"
+      <div className="space-y-6">
+          <PageHeader
+            kicker="Dashboard"
+            title="Right-to-work cockpit"
+            description="Monitor expiring documents, review flagged checks, and keep your German workforce compliant."
+            actions={
+              <>
+                {import.meta.env.MODE !== 'production' && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => seedMutation.mutate()}
+                    disabled={seedMutation.isPending}
+                    data-testid="button-seed-demo"
+                  >
+                    <Database className="h-4 w-4 mr-2" />
+                    {seedMutation.isPending ? "Seeding..." : "Seed Demo Data"}
+                  </Button>
+                )}
+                <Link href="/help">
+                  <Button variant="outline" data-testid="button-help">
+                    <HelpCircle className="h-4 w-4 mr-2" />
+                    Help & FAQ
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    window.location.href = "/api/audit/checks.csv";
+                  }}
+                  data-testid="button-export-checks"
                 >
-                  <Database className="h-4 w-4 mr-2" />
-                  {seedMutation.isPending ? "Seeding..." : "Seed Demo Data"}
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Checks (CSV)
                 </Button>
-              )}
-              <Link href="/help">
-                <Button variant="outline" data-testid="button-help">
-                  <HelpCircle className="h-4 w-4 mr-2" />
-                  Help & FAQ
-                </Button>
-              </Link>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  window.location.href = "/api/audit/checks.csv";
-                }}
-                data-testid="button-export-checks"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export Checks (CSV)
-              </Button>
-              <Link href="/employees/new">
-                <Button data-testid="button-add-employee">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Employee
-                </Button>
-              </Link>
-            </div>
-          </div>
+                <Link href="/employees/new">
+                  <Button data-testid="button-add-employee">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Employee
+                  </Button>
+                </Link>
+              </>
+            }
+          />
 
           {totalEmployees === 0 && (!standaloneChecks || standaloneChecks.length === 0) && (
             <Card className="border-2 border-primary/20 shadow-lg bg-gradient-to-br from-primary/5 to-background" data-testid="card-getting-started">
@@ -329,46 +331,46 @@ export default function Dashboard() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="hover:-translate-y-0.5 transition-all hover:shadow-lg bg-gradient-to-br from-white to-muted/30 dark:from-card dark:to-background min-h-[140px]">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Total Employees</CardTitle>
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shadow-sm">
-                  <Users className="h-6 w-6 text-primary" />
+            <Card className="hover:-translate-y-0.5 hover:shadow-md transition-all bg-gradient-to-br from-card to-background">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Employees</CardTitle>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-primary" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-5xl font-bold tracking-tight" data-testid="text-total-employees">{totalEmployees}</div>
-                <p className="text-sm text-muted-foreground mt-2.5">
+                <div className="text-4xl font-bold tracking-tight" data-testid="text-total-employees">{totalEmployees}</div>
+                <p className="text-xs text-muted-foreground mt-1">
                   Active employee records
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="hover:-translate-y-0.5 transition-all hover:shadow-lg bg-gradient-to-br from-white to-muted/30 dark:from-card dark:to-background min-h-[140px]">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Eligible Workers</CardTitle>
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center shadow-sm">
-                  <CheckCircle className="h-6 w-6 text-accent" />
+            <Card className="hover:-translate-y-0.5 hover:shadow-md transition-all bg-gradient-to-br from-card to-background">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Eligible Workers</CardTitle>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-accent/15 to-accent/5 flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-accent" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-5xl font-bold tracking-tight text-accent" data-testid="text-eligible-count">{eligibleCount}</div>
-                <p className="text-sm text-muted-foreground mt-2.5">
+                <div className="text-4xl font-bold tracking-tight text-accent" data-testid="text-eligible-count">{eligibleCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">
                   Currently authorized to work
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="hover:-translate-y-0.5 transition-all hover:shadow-lg bg-gradient-to-br from-white to-muted/30 dark:from-card dark:to-background min-h-[140px]">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Expiring Soon</CardTitle>
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center shadow-sm">
-                  <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-500" />
+            <Card className="hover:-translate-y-0.5 hover:shadow-md transition-all bg-gradient-to-br from-card to-background">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Expiring Soon</CardTitle>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-5xl font-bold tracking-tight text-amber-600 dark:text-amber-500" data-testid="text-expiring-count">{expiringSoon.length}</div>
-                <p className="text-sm text-muted-foreground mt-2.5">
+                <div className="text-4xl font-bold tracking-tight text-amber-600 dark:text-amber-500" data-testid="text-expiring-count">{expiringSoon.length}</div>
+                <p className="text-xs text-muted-foreground mt-1">
                   Documents expiring in 60 days
                 </p>
               </CardContent>
@@ -397,22 +399,26 @@ export default function Dashboard() {
             </Alert>
           )}
 
-          <Card className="border-2 shadow-sm bg-gradient-to-br from-card to-background border-l-4 border-l-amber-300 dark:border-l-amber-600">
-            <CardHeader className="border-b bg-amber-50/60 dark:bg-amber-950/20">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500/30 to-amber-500/10 flex items-center justify-center shadow-sm">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="xl:col-span-2">
+              <Card className="shadow-sm bg-gradient-to-br from-card to-background border-l-4 border-l-amber-400 dark:border-l-amber-600">
+                <CardHeader className="border-b bg-amber-50/40 dark:bg-amber-950/10">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-amber-500/25 to-amber-500/10 flex items-center justify-center">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base font-bold">
+                          Cases requiring review
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {openCases.length} open · {resolvedCases.length} resolved
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <CardTitle className="text-lg font-bold">
-                    Cases requiring review
-                  </CardTitle>
-                </div>
-                <p className="text-sm text-muted-foreground font-medium">
-                  {openCases.length} open · {resolvedCases.length} resolved
-                </p>
-              </div>
-            </CardHeader>
+                </CardHeader>
             <CardContent className="p-6">
               {casesRequiringReview.length === 0 && (
                 <div className="flex items-center gap-3 text-muted-foreground p-4 bg-muted/30 rounded-lg">
@@ -478,45 +484,31 @@ export default function Dashboard() {
                   </Table>
                 </div>
               )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
           {allExpiringDocs.length > 0 && (
-            <Card className="border-2 shadow-sm bg-gradient-to-br from-card to-background">
-              <CardHeader className="border-b bg-amber-50/30 dark:bg-amber-950/5">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="xl:col-span-1">
+              <Card className="shadow-sm bg-gradient-to-br from-card to-background">
+                <CardHeader className="border-b bg-amber-50/20 dark:bg-amber-950/5">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center">
-                      <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+                    <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-500/5 flex items-center justify-center">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg font-bold">
+                      <CardTitle className="text-base font-bold">
                         Expiring Documents
                       </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        Documents expiring within the next 90 days
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {allExpiringDocs.length} document{allExpiringDocs.length !== 1 ? 's' : ''} within 90 days
                       </p>
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground font-medium">
-                    {allExpiringDocs.length} document{allExpiringDocs.length !== 1 ? 's' : ''} requiring attention
-                  </p>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="overflow-x-auto -mx-6 px-6">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/30 hover:bg-muted/30">
-                        <TableHead className="font-bold text-xs uppercase tracking-wider">Person</TableHead>
-                        <TableHead className="font-bold text-xs uppercase tracking-wider">Document Type</TableHead>
-                        <TableHead className="font-bold text-xs uppercase tracking-wider">Expiry Date</TableHead>
-                        <TableHead className="font-bold text-xs uppercase tracking-wider">Status</TableHead>
-                        <TableHead className="font-bold text-xs uppercase tracking-wider">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {allExpiringDocs.slice(0, 5).map((row) => {
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    {allExpiringDocs.slice(0, 5).map((row) => {
                         const check = row.latestCheck;
                         if (!check) return null;
                         const name = `${row.firstName} ${row.lastName}`.trim() || "Unnamed";
@@ -531,53 +523,55 @@ export default function Dashboard() {
                         };
 
                         return (
-                          <TableRow key={check.id} className="hover:bg-muted/50 transition-colors" data-testid={`row-expiring-${check.id}`}>
-                            <TableCell className="font-medium">{name}</TableCell>
-                            <TableCell className="text-muted-foreground text-sm">
-                              {documentTypeLabels[check.documentType] || check.documentType}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {formatDate(check.expiryDate!)}
-                            </TableCell>
-                            <TableCell>
+                          <div key={check.id} className="p-3 rounded-lg border hover-elevate transition-all" data-testid={`row-expiring-${check.id}`}>
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-sm truncate">{name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {documentTypeLabels[check.documentType] || check.documentType}
+                                </p>
+                              </div>
                               <Badge 
                                 variant={expiryStatus.variant}
                                 className={
                                   expiryStatus.variant === "destructive" 
-                                    ? "bg-red-100 text-red-900 border-red-300 dark:bg-red-950 dark:text-red-100 dark:border-red-800" 
+                                    ? "bg-red-100 text-red-900 border-red-300 dark:bg-red-950 dark:text-red-100 dark:border-red-800 text-xs" 
                                     : expiryStatus.variant === "default"
-                                    ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-800"
-                                    : "bg-gray-100 text-gray-900 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
+                                    ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-800 text-xs"
+                                    : "bg-gray-100 text-gray-900 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 text-xs"
                                 }
                                 data-testid={`badge-expiry-status-${check.id}`}
                               >
-                                {expiryStatus.label} ({expiryStatus.days}d)
+                                {expiryStatus.days}d
                               </Badge>
-                            </TableCell>
-                            <TableCell>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                              <p className="text-xs text-muted-foreground">
+                                {formatDate(check.expiryDate!)}
+                              </p>
                               <Link href={row.isStandalone ? `/checks/${check.id}` : `/employees/${row.id}`}>
-                                <Button variant="outline" size="sm" className="button-transition" data-testid={`button-view-expiring-${check.id}`}>
-                                  <Eye className="h-3.5 w-3.5 mr-1.5" />
+                                <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid={`button-view-expiring-${check.id}`}>
+                                  <Eye className="h-3 w-3 mr-1" />
                                   View
                                 </Button>
                               </Link>
-                            </TableCell>
-                          </TableRow>
+                            </div>
+                          </div>
                         );
                       })}
-                    </TableBody>
-                  </Table>
-                </div>
-                {allExpiringDocs.length > 5 && (
-                  <div className="mt-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Showing 5 of {allExpiringDocs.length} expiring documents. Use filters to view more.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                    </div>
+                    {allExpiringDocs.length > 5 && (
+                      <div className="mt-3 pt-3 border-t text-center">
+                        <p className="text-xs text-muted-foreground">
+                          Showing 5 of {allExpiringDocs.length}
+                        </p>
+                      </div>
+                    )}
+                </CardContent>
+              </Card>
+            </div>
           )}
+          </div>
 
           <Card className="shadow-sm">
             <CardHeader className="border-b bg-muted/40">

@@ -1,0 +1,206 @@
+Replit settings:
+- Mode: Autonomous – Medium
+- Fast mode: OFF
+- App testing: ON
+
+Goal:
+Do a focused UI/UX polish pass on Certia’s core internal screens so it feels closer to Stripe/Coinbase quality:
+- Premium but calm visuals.
+- Very clear hierarchy and layout.
+- Consistent page headers and spacing.
+- NO changes to backend, OCR, AI, or business logic.
+
+Scope:
+Only touch these frontend files (and any new shared component you introduce):
+- client/src/pages/dashboard.tsx
+- client/src/pages/check-detail.tsx
+- client/src/pages/employee-detail.tsx
+- client/src/pages/check-new.tsx (lightly, to align with the new pattern)
+- client/src/components (for a new shared PageHeader component if useful)
+
+Global constraints:
+- Do NOT change any API routes, schemas, or business logic.
+- Do NOT change how data is fetched or mutated.
+- Do NOT touch server-side files in this prompt.
+- Keep all existing tests, print views, and behaviors intact.
+- This is a visual/layout pass only: Tailwind classNames, component structure, and small new presentational components.
+
+==================================================
+TASK 1 — Introduce a shared <PageHeader> component
+==================================================
+
+Create a new component, for example:
+- File: client/src/components/PageHeader.tsx
+
+This component should:
+- Accept props like:
+  - title: string
+  - kicker?: string   // small all-caps label above the title (e.g. “Dashboard”, “Employee”, “Check”)
+  - description?: string
+  - icon?: React.ReactNode
+  - actions?: React.ReactNode   // right-aligned buttons/filters
+- Layout:
+  - Full-width header block with:
+    - Left side: kicker (small, muted), big title, and description.
+    - Optional icon to the left of the text (small, subtle).
+  - Right side: actions row (e.g. primary / secondary buttons).
+- Visual style:
+  - Use the existing design tokens (primary, muted, etc.).
+  - Add a subtle gradient/soft background behind the header (e.g. bg-gradient-to-r from-primary/5 via-background to-background, rounded-xl, border, etc.).
+  - Spacing similar to: `py-4 md:py-6 px-4 md:px-6`.
+
+We’ll use this header on the core pages below.
+
+==================================================
+TASK 2 — Dashboard: reorganize into a calm “control room”
+==================================================
+
+File: client/src/pages/dashboard.tsx
+
+1) At the top of the main content (inside the `max-w-7xl mx-auto px-6 py-8` container), replace the existing ad-hoc heading block with the new <PageHeader>:
+
+- Kicker: “Dashboard”
+- Title: “Right-to-work cockpit”
+- Description (something like):
+  - “Monitor expiring documents, review flagged checks, and keep your German workforce compliant.”
+- Actions: the main “Add employee” / “New check” / “Export CSV” buttons that already exist on this page (reuse existing buttons, don’t add new flows).
+
+2) Below the PageHeader, refine the layout:
+
+- Use a consistent `space-y-6` or `space-y-8` vertical rhythm.
+- Keep the top metrics row as a `grid grid-cols-1 md:grid-cols-3 gap-6`, but:
+  - Ensure all metric cards share consistent height and padding.
+  - Add subtle hover: e.g. `hover:shadow-md hover:-translate-y-0.5 transition-all` and a very light gradient or border accent.
+  - Use bolder numbers and smaller labels for cleaner hierarchy.
+
+- For the main tables/cards below:
+  - Group “Cases requiring review” and “Expiring documents” into a 2-column layout on desktop:
+    - Something like `grid grid-cols-1 xl:grid-cols-3 gap-6`, with:
+      - Left: 2 columns wide (queue / main table).
+      - Right: 1 column wide (expiring docs card + maybe recent checks stacked).
+  - On small screens, it should still stack naturally (single column).
+
+The aim: when HR lands here, their eye flows:
+PageHeader → top metrics → review queue → expiring docs.
+
+Do NOT change any of the filtering logic, search, or how rows are built; just reorganize JSX and classNames.
+
+==================================================
+TASK 3 — Check Detail: 2-column “case workspace”
+==================================================
+
+File: client/src/pages/check-detail.tsx
+
+1) Wrap the main non-print content in a responsive 2-column layout:
+
+- Keep the existing print header exactly as-is.
+- For the main content (currently using a stacked Card layout), refactor so that:
+
+  - Use a container like:
+    - `<div className="max-w-7xl mx-auto px-6 py-8 space-y-6 print:px-0 print:py-0">`
+  - Immediately inside, render a <PageHeader> at the top (visible in normal view, hidden when printing):
+    - Kicker: “Check”
+    - Title: Something like “Right-to-work check”
+    - Description: Derived from the check if available, e.g. employee or candidate name + document info.
+    - Actions: the existing Print + Delete buttons, plus any other primary actions.
+
+2) Below the PageHeader, create a grid:
+
+- Something like: `grid grid-cols-1 xl:grid-cols-[minmax(0,_1.7fr)_minmax(0,_1.2fr)] gap-6 print:block`.
+- Left column (decision-focused):
+  - The core Card with:
+    - Check metadata (ID, created date, case status select).
+    - Work status badge.
+    - `CheckDecisionPanel` (summary + details).
+    - `StatusInterpretation` / missing information block.
+  - This should read from top to bottom as “Everything you need to know about the decision.”
+
+- Right column (record-focused), using Cards:
+  - Attachments (upload drop zone + list).
+  - Notes (add note + history).
+  - Recent activity (audit logs).
+
+3) Visual polish:
+- Make sure cards use consistent paddings and headings (e.g. `CardTitle` with `text-base` or `text-lg`).
+- Add subtle separators between sections inside a card using `border-t` and `pt-4` where helpful.
+- Keep all print behavior:
+  - The print view should still show the audit header and main decision content; it’s fine if the 2-column layout collapses to single column when printing.
+
+Do not change any mutations, fetches, or case-status logic. Only reorganize JSX and Tailwind classes.
+
+==================================================
+TASK 4 — Employee Detail: profile + timeline
+==================================================
+
+File: client/src/pages/employee-detail.tsx
+
+1) Replace the top h1/heading section with <PageHeader>:
+
+- Kicker: “Employee”
+- Title: “{FirstName} {LastName}”
+- Description:
+  - Include optional info if available, e.g. date of birth or internal employee ID.
+- Actions:
+  - “Print Employee Audit Report”, “Generate upload link”, and the existing Edit/Delete buttons.
+
+2) Below the header, restructure the main content into two areas:
+
+- Use something like `space-y-6` for overall layout.
+- Add a 2-column grid on desktop: `grid grid-cols-1 xl:grid-cols-[minmax(0,_1.6fr)_minmax(0,_1.1fr)] gap-6`.
+
+Left column:
+- The card showing:
+  - Latest status (StatusBadge).
+  - Next expiry (big date + “in X days” badge).
+- The card listing all checks for this employee (table or list). This is the “timeline” of checks.
+
+Right column:
+- Any summary cards (e.g. key info, quick links).
+- The “generate upload link” block.
+- Any helpful small cards (e.g. quick actions, tips).
+
+3) Ensure on small screens it still stacks vertically and remains readable.
+
+Do not change the logic for how checks are sorted or how the upload link is generated; only layout and styling.
+
+==================================================
+TASK 5 — New Check page: align with the new visual language
+==================================================
+
+File: client/src/pages/check-new.tsx
+
+1) At the top of the page container, add a <PageHeader>:
+
+- Kicker: “New check”
+- Title: “Create right-to-work check”
+- Description:
+  - “Upload the document, review the extracted details, then confirm and save the check.”
+
+2) Keep the existing stepper and cards, but:
+- Ensure the spacing and headings feel consistent with the new design:
+  - Use similar `space-y`, `Card` paddings, and typography as the upgraded Dashboard / Check Detail pages.
+- Slightly reduce visual noise:
+  - Prefer fewer borders and more whitespace where possible.
+  - Ensure the most important actions (upload, save) stand out.
+
+Do not change any of the step logic, validations, or OCR behavior.
+
+==================================================
+Final constraints and checks
+==================================================
+
+- NO backend / server / schema / rules engine changes.
+- NO new routes or flows.
+- Do not remove existing functionality (print, delete, notes, attachments, status changes, etc.).
+- Keep print views working; it’s OK if the print layout is single-column.
+- Focus purely on:
+  - Consistent PageHeader usage.
+  - Cleaner layout and spacing.
+  - Better grouping of content (decision vs record).
+  - Subtle visual polish (hover, gradients, typography).
+
+At the end, summarize in ≤5 bullets what changed visually on:
+- Dashboard
+- Check detail
+- Employee detail
+- New check
