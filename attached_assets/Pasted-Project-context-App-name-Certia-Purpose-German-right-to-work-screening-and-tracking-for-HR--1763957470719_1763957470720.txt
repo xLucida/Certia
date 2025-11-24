@@ -1,0 +1,315 @@
+Project context:
+- App name: Certia.
+- Purpose: German right-to-work screening and tracking for HR.
+- Current features:
+  - Employees + right-to-work checks.
+  - Upload-first OCR with Venice AI + rules-engine decisions.
+  - Work status: ELIGIBLE / NOT_ELIGIBLE / NEEDS_REVIEW.
+  - Renewals dashboard card (Overdue / Expiring soon / Upcoming).
+  - Check detail view with:
+    - Status badge, summary, decision details, missing information, disclaimer.
+    - Case file notes and audit-ready print report.
+  - Employee detail view with:
+    - “Right-to-Work Status” card (latest status + next expiry).
+    - Table of all checks.
+    - Employee-level audit print.
+  - CSV export of checks from dashboard.
+  - Public candidate upload flow is implemented (document upload for a given check request).
+
+Phase 4 goal:
+Make Certia feel **pilot-ready** by:
+1) Adding a simple **case workflow status** for each check (Open / Under review / Cleared).
+2) Allowing HR to **delete an employee and all related checks & notes** in one action (data hygiene/privacy).
+3) Polishing the **candidate upload page** copy so it feels trustworthy and clear.
+
+Please keep this phase tight and focused. No major refactors.
+
+Global constraints:
+- It is OK to make a small database schema change for this phase, but:
+  - Keep it minimal and backward compatible.
+  - Do NOT alter or drop existing columns; only add what is necessary.
+- Do NOT change the right-to-work decision logic (rules engine or Venice AI).
+- Do NOT add any new required fields to the New Check form.
+- Keep UI additions consistent with existing design (cards, badges, buttons).
+
+==================================================
+TASK 1 — Case workflow status per check (Open / Under review / Cleared)
+==================================================
+
+Goal:
+Give HR a simple way to track the **administrative status** of each case, separate from legal workStatus.
+
+1.1) Data model
+
+1) In the shared schema for right-to-work checks (e.g. `shared/schema.ts`):
+
+- Add a new column to the `rightToWorkChecks` table, something like:
+
+  - `caseStatus` (text) with default `'OPEN'`.
+
+- At the TypeScript level, define a type:
+
+  ```ts
+  export type CaseStatus = "OPEN" | "UNDER_REVIEW" | "CLEARED";
+Make sure new checks default to "OPEN" if no value is provided.
+
+Update relevant storage helpers in server/storage.ts so that:
+
+When creating a new check, caseStatus is set to "OPEN" by default.
+
+When reading checks, caseStatus is always included in the returned object.
+
+Add a simple API endpoint to update caseStatus for a check, for example:
+
+Route: PATCH /api/checks/:id/case-status
+
+Auth:
+
+Protected with existing isAuthenticated middleware.
+
+Verify the check belongs to the current user/tenant (like in other check routes).
+
+Request body:
+
+{ caseStatus: "OPEN" | "UNDER_REVIEW" | "CLEARED" }
+
+Behavior:
+
+Validate that caseStatus is one of the allowed values.
+
+Update the check’s caseStatus.
+
+Return the updated check or a small { success: true } payload.
+
+1.2) UI: Case status on check detail page
+
+On the check detail page (client/src/pages/check-detail.tsx):
+
+Near the top of the page, close to the main decision header (status badge + summary), add a small “Case status” control.
+
+UI behavior:
+
+Label: Case status
+
+A simple dropdown or pill selector with three options:
+
+“Open”
+
+“Under review”
+
+“Cleared”
+
+When the user changes the selection:
+
+Call the new PATCH /api/checks/:id/case-status endpoint.
+
+Optimistically update the UI or refresh the check data on success.
+
+Show a subtle success toast or inline feedback.
+
+Styling:
+
+Use existing button / select / badge components (consistent with the rest of the app).
+
+Optionally show a small colored badge for the current status:
+
+OPEN → neutral/blue
+
+UNDER REVIEW → amber
+
+CLEARED → green
+
+Include caseStatus in the audit print:
+
+When printing a single Check Audit Report:
+
+In the “Check Information” section, add a line:
+
+Case status: Open / Under review / Cleared
+
+Make sure it prints as simple text (no interactive controls).
+
+1.3) Surface case status in employee view
+
+On the employee detail page (client/src/pages/employee-detail.tsx):
+
+In the table listing checks for that employee, add a new column “Case status” that shows the current value as a small badge (read-only here is fine; editing should happen on the check detail page to keep things simple).
+
+No extra filters are required for this phase; just display the status.
+
+==================================================
+TASK 2 — Delete employee + all related checks & notes (data hygiene)
+Goal:
+Allow HR admins to remove an employee and all stored right-to-work data (checks, OCR text, notes) for that person in one safe operation.
+
+2.1) Backend: cascade delete
+
+In server/storage.ts:
+
+Add a method that, given an employee ID and a user/tenant ID, performs a cascade delete. For example:
+
+ts
+Copy code
+async deleteEmployeeAndRelatedData(employeeId: string, userId: string) {
+  // 1) Verify employee belongs to this user/tenant
+  // 2) Fetch all checks for that employee
+  // 3) Delete notes for those checks
+  // 4) Delete the checks
+  // 5) Delete the employee
+}
+Ensure tenant isolation:
+
+If the employee does not exist or does not belong to userId, throw or return a safe error.
+
+In server/routes.ts:
+
+Add a route:
+
+DELETE /api/employees/:id
+
+Auth:
+
+Use isAuthenticated.
+
+Behavior:
+
+Use the above storage helper with req.user.claims.sub as userId.
+
+On success: return e.g. { success: true }.
+
+On failure:
+
+404 if employee not found.
+
+403 if not owned by user.
+
+500 for unexpected errors.
+
+2.2) Frontend: “Delete employee & all checks” button
+
+On the employee detail page:
+
+Add a “Danger zone” section at the bottom of the page, clearly separated from normal actions.
+
+Include:
+
+A red/destructive button labeled:
+
+“Delete employee and all checks”
+
+On click:
+
+Show a confirmation dialog (modal or window.confirm for simplicity), with clear wording, e.g.:
+
+“Are you sure you want to delete this employee and all related right-to-work checks and notes? This action cannot be undone.”
+
+If confirmed:
+
+Call DELETE /api/employees/:id.
+
+On success:
+
+Redirect back to the Employees list or Dashboard.
+
+Show a success toast.
+
+On error:
+
+Show a small error message/toast.
+
+Ensure this button is hidden from print views.
+
+==================================================
+TASK 3 — Candidate upload page: copy & trust polish
+Goal:
+Make the public candidate upload experience feel more trustworthy and clear without changing the underlying logic.
+
+3.1) Candidate upload UI copy
+
+Locate the public upload page component (the page that candidates see when they follow the upload link from an employer). Update it to:
+
+Use the product name Certia consistently.
+
+Use clear, friendly copy along these lines (adapt to structure of the component):
+
+Heading:
+
+“Upload your right-to-work documents”
+
+Short lead text:
+
+“Your documents will be securely sent to your prospective employer so they can check your right to work in Germany.”
+
+Bullet or short list of what to upload:
+
+“A clear photo or PDF of your residence permit (front, and back if applicable).”
+
+“If you have multiple valid documents, you can upload each one.”
+
+Small reassurance line:
+
+“Certia only uses this information to help your employer perform a right-to-work check.”
+
+After a successful upload:
+
+Improve the success state message:
+
+Show a clear confirmation, e.g.:
+
+“Thank you — your documents have been received.”
+“Your prospective employer will review them and contact you if anything else is needed.”
+
+If the candidate page already shows employer/company name, keep using it. If not, a generic “your prospective employer” is fine.
+
+3.2) No logic changes
+
+Do NOT change:
+
+How uploads are stored or linked.
+
+Any backend routes or data shape for public uploads.
+
+This task is copy + small UI layout only.
+
+==================================================
+TASK 4 — Sanity checks
+Verify checks:
+
+Creating a new check:
+
+caseStatus defaults to OPEN.
+
+Check detail shows “Case status: Open”.
+
+Updating caseStatus:
+
+Changing to “Under review” or “Cleared” via check detail UI works and persists on reload.
+
+Employee detail table shows the updated status.
+
+Check Audit print includes the case status.
+
+Deleting an employee:
+
+Employee detail “Delete employee and all checks” button works.
+
+After deletion:
+
+Employee disappears from Employees list.
+
+Their checks and notes are no longer visible anywhere.
+
+Candidate upload page:
+
+Copy looks polished and trustworthy.
+
+Upload + success flow still works exactly as before.
+
+Keep all changes scoped strictly to:
+
+Case workflow status,
+
+Employee cascade deletion,
+
+Candidate upload copy/UX polish.
+No other refactors or visual redesigns.

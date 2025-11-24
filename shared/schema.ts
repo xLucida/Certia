@@ -74,6 +74,13 @@ export const workStatuses = [
   "NEEDS_REVIEW",
 ] as const;
 
+// Case status enum values
+export const caseStatuses = [
+  "OPEN",
+  "UNDER_REVIEW",
+  "CLEARED",
+] as const;
+
 // Right to Work Check table
 export const rightToWorkChecks = pgTable("right_to_work_checks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -87,6 +94,7 @@ export const rightToWorkChecks = pgTable("right_to_work_checks", {
   dateOfIssue: date("date_of_issue"),
   expiryDate: date("expiry_date").notNull(),
   workStatus: varchar("work_status", { enum: workStatuses }).notNull(),
+  caseStatus: varchar("case_status", { enum: caseStatuses }).notNull().default("OPEN"),
   decisionSummary: text("decision_summary"),
   decisionDetails: text("decision_details").array(),
   fileUrl: varchar("file_url"),
@@ -180,6 +188,7 @@ export type InsertRightToWorkCheck = z.infer<typeof insertRightToWorkCheckSchema
 export type RightToWorkCheck = typeof rightToWorkChecks.$inferSelect;
 export type DocumentType = typeof documentTypes[number];
 export type WorkStatus = typeof workStatuses[number];
+export type CaseStatus = typeof caseStatuses[number];
 
 // Notification preferences table
 export const notificationPreferences = pgTable("notification_preferences", {
