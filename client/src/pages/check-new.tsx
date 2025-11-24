@@ -58,6 +58,9 @@ export default function CheckNew() {
     queryKey: ["/api/employees"],
   });
 
+  // Get the selected employee details when coming from Employee detail page
+  const selectedEmployee = employees?.find(emp => emp.id === preselectedEmployeeId);
+
   const form = useForm<CheckFormData>({
     resolver: zodResolver(checkFormSchema),
     defaultValues: {
@@ -316,7 +319,11 @@ export default function CheckNew() {
         <PageHeader
           kicker="New"
           title="Right-to-work check"
-          description="Upload a document, review extracted information, and create a compliance check"
+          description={
+            selectedEmployee
+              ? `Creating a new right-to-work check for ${selectedEmployee.firstName} ${selectedEmployee.lastName}`
+              : "Upload a document, review extracted information, and create a compliance check"
+          }
           icon={<ClipboardCheck className="h-5 w-5" />}
         />
 
@@ -403,85 +410,99 @@ export default function CheckNew() {
               </div>
 
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Tabs value={checkType} onValueChange={(value) => setCheckType(value as "new" | "existing")}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="new" data-testid="tab-new-candidate">
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      New Candidate
-                    </TabsTrigger>
-                    <TabsTrigger value="existing" data-testid="tab-existing-employee">
-                      <Users className="h-4 w-4 mr-2" />
-                      Existing Employee
-                    </TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="new" className="space-y-4 mt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="firstName">
-                          First Name <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="firstName"
-                          {...form.register("firstName")}
-                          placeholder="e.g., John"
-                          data-testid="input-first-name"
-                        />
-                        {form.formState.errors.firstName && (
-                          <p className="text-sm text-destructive">
-                            {form.formState.errors.firstName.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="lastName">
-                          Last Name <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="lastName"
-                          {...form.register("lastName")}
-                          placeholder="e.g., Doe"
-                          data-testid="input-last-name"
-                        />
-                        {form.formState.errors.lastName && (
-                          <p className="text-sm text-destructive">
-                            {form.formState.errors.lastName.message}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="existing" className="space-y-4 mt-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="employeeId">
-                        Select Employee <span className="text-destructive">*</span>
-                      </Label>
-                      <Select
-                        value={form.watch("employeeId")}
-                        onValueChange={(value) => form.setValue("employeeId", value)}
-                      >
-                        <SelectTrigger data-testid="select-employee">
-                          <SelectValue placeholder="Select an employee" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {employees?.map((employee) => (
-                            <SelectItem 
-                              key={employee.id} 
-                              value={employee.id}
-                              data-testid={`option-employee-${employee.id}`}
-                            >
-                              {employee.firstName} {employee.lastName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {form.formState.errors.employeeId && (
-                        <p className="text-sm text-destructive">
-                          {form.formState.errors.employeeId.message}
+                {preselectedEmployeeId ? (
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="text-sm font-medium">Creating check for</p>
+                        <p className="text-lg font-semibold">
+                          {selectedEmployee ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}` : 'Employee'}
                         </p>
-                      )}
+                      </div>
                     </div>
-                  </TabsContent>
-                </Tabs>
+                  </div>
+                ) : (
+                  <Tabs value={checkType} onValueChange={(value) => setCheckType(value as "new" | "existing")}>
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="new" data-testid="tab-new-candidate">
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        New Candidate
+                      </TabsTrigger>
+                      <TabsTrigger value="existing" data-testid="tab-existing-employee">
+                        <Users className="h-4 w-4 mr-2" />
+                        Existing Employee
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="new" className="space-y-4 mt-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="firstName">
+                            First Name <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="firstName"
+                            {...form.register("firstName")}
+                            placeholder="e.g., John"
+                            data-testid="input-first-name"
+                          />
+                          {form.formState.errors.firstName && (
+                            <p className="text-sm text-destructive">
+                              {form.formState.errors.firstName.message}
+                            </p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="lastName">
+                            Last Name <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="lastName"
+                            {...form.register("lastName")}
+                            placeholder="e.g., Doe"
+                            data-testid="input-last-name"
+                          />
+                          {form.formState.errors.lastName && (
+                            <p className="text-sm text-destructive">
+                              {form.formState.errors.lastName.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="existing" className="space-y-4 mt-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="employeeId">
+                          Select Employee <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
+                          value={form.watch("employeeId")}
+                          onValueChange={(value) => form.setValue("employeeId", value)}
+                        >
+                          <SelectTrigger data-testid="select-employee">
+                            <SelectValue placeholder="Select an employee" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {employees?.map((employee) => (
+                              <SelectItem 
+                                key={employee.id} 
+                                value={employee.id}
+                                data-testid={`option-employee-${employee.id}`}
+                              >
+                                {employee.firstName} {employee.lastName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {form.formState.errors.employeeId && (
+                          <p className="text-sm text-destructive">
+                            {form.formState.errors.employeeId.message}
+                          </p>
+                        )}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                )}
 
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">

@@ -1,0 +1,227 @@
+Replit settings:
+- Mode: Autonomous – Medium
+- Fast mode: OFF
+- App testing: ON
+
+Project:
+- Certia (RightToWorkDE) – app is GREEN per DIAGNOSTICS.md.
+- All tests pass; build passes; diagnostics are clean.
+- This prompt is about **reducing friction in the core flow**, not adding new features.
+
+High-level goal:
+Make the core experience feel like:
+- “I upload docs and Certia tells me if this person can work, with a clear explanation.”
+Minimize unnecessary choices/steps for HR, especially when starting from an Employee.
+
+Scope:
+- Frontend: New Check flow, Check detail layout, Employee → New Check navigation.
+- Backend: Add a small, read-only “preview” endpoint that reuses existing evaluation logic.
+- No database schema changes.
+
+Global constraints:
+- Do NOT change any existing database schema.
+- Do NOT change the semantics of the final “create check” behavior.
+- Do NOT remove compliance/traceability features (audit log, notes, attachments, etc.).
+- Only introduce:
+  - Context-aware defaults,
+  - A non-persisting preview,
+  - Visual hierarchy improvements.
+
+==================================================
+TASK 1 — Context-aware “New Check” from Employee detail
+==================================================
+
+Goal:
+If HR starts from an Employee, they shouldn’t have to re-specify who the check is for. The flow should feel like: “New check for THIS person”.
+
+1) Employee detail → “New check” link:
+
+- Find the Employee detail page (e.g. `client/src/pages/employee-detail.tsx`) and locate the “New check” / “Create check” button.
+- Update that link/button so it navigates to the New Check page with the **employeeId in the URL**, for example:
+  - `/checks/new?employeeId=<id>`
+- You can choose query string (`?employeeId=`) or route param if a pattern already exists; query string is fine if nothing else is using it.
+
+2) New Check page: accept optional employeeId:
+
+- In `client/src/pages/check-new.tsx`:
+  - Read the `employeeId` from the URL (e.g. using React Router’s `useSearchParams` or equivalent).
+  - If `employeeId` is present:
+    - Pre-select that employee in the New Check form.
+    - Hide or disable any “New candidate vs existing employee” toggle if it exists, so the user isn’t confused.
+    - Show a small line of context, e.g. “Creating a new right-to-work check for [Employee Name]”.
+
+- If `employeeId` is NOT present:
+  - Keep existing behavior as-is (user can choose employee or enter a new candidate).
+
+3) Constraints:
+- Do NOT add new required fields.
+- Do NOT change how checks are ultimately linked to employees; just pre-fill and lock the choice when coming from Employee detail.
+
+==================================================
+TASK 2 — Live “preview decision” on New Check (no DB write)
+==================================================
+
+Goal:
+As soon as Certia has enough info (upload + basic fields), show HR a **preview** of the decision (status + summary + details) BEFORE they confirm and create the check. This should use the same logic as the real check, but **not** save anything.
+
+Backend changes (read-only):
+
+1) Add a new POST endpoint, e.g. `/api/checks/preview`:
+
+- In `server/routes.ts`:
+  - Create `POST /api/checks/preview`.
+  - This endpoint:
+    - Accepts the same payload shape as the existing `POST /api/checks` (or whatever you use to create a check), minus any IDs/DB fields.
+    - Calls the **same adapter/logic** used to evaluate a real check:
+      - Use `mapToRulesEngineInput` and `evaluateRightToWork` (and Venice AI if that’s part of the existing creation path).
+    - Does **NOT** write anything to the database.
+    - Returns JSON with:
+      - `workStatus`
+      - `decisionSummary`
+      - `decisionDetails`
+    - You can also include a flag like `isPreview: true`, but that’s optional.
+
+- Reuse the same types and validation as the create-check path as much as possible to avoid duplication.
+
+2) Add a small smoke test for `/api/checks/preview` in your backend tests:
+
+- Similar to the existing backend-smoke tests:
+  - Send a minimal valid payload.
+  - Assert that you get a 200 with `workStatus`, `decisionSummary`, `decisionDetails`.
+
+Frontend changes:
+
+3) On `check-new.tsx`, call the preview after OCR + required fields:
+
+- Identify where the form state holds:
+  - Document type
+  - Expiry date
+  - Any other required fields that the rules engine needs.
+- Once:
+  - OCR is finished (or manually filled),
+  - and all required fields are valid,
+
+Trigger a call to `/api/checks/preview` to get a **live evaluation**.
+
+- Use a React Query `useMutation` or `useQuery` for preview.
+- Debounce or only trigger when the user clicks a “Preview decision” button if necessary, but a small auto-trigger when the form is “ready” is ideal.
+
+4) Add a “Preview decision” panel to the New Check UI:
+
+- On the confirmation/review step (before final “Create check”):
+  - Show a card with:
+    - Status badge (ELIGIBLE / NEEDS_REVIEW / NOT_ELIGIBLE).
+    - Decision summary.
+    - Bullet list of decision details.
+    - A little note: “This is a preview and will be saved once you create the check.”
+
+- If preview is loading, show a small spinner / skeleton.
+- If preview errors (e.g. OCR missing critical info), show a simple error and keep the “Create check” action available (the real endpoint will still run evaluation, so this is just UX sugar).
+
+5) Important:
+- Keep the existing final “Create check” behavior exactly as-is: it should still call the normal create endpoint and compute a fresh evaluation.
+- We’re not trying to reuse the preview result for persistence; we just want HR to “see what’s coming” before they commit.
+
+==================================================
+TASK 3 — Make advanced case tools visually secondary on Check Detail
+==================================================
+
+Goal:
+On the Check detail page, the **first thing** HR should see and understand is:
+- “What is the status?”
+- “In plain language, what does that mean?”
+- “What should I do next?”
+
+Notes, attachments, and activity are important but should feel like supporting “Case tools”.
+
+1) In `client/src/pages/check-detail.tsx`:
+
+- Keep the 2-column layout introduced earlier:
+  - Left: decision-focused.
+  - Right: case tools.
+
+2) In the left column (decision-focused):
+
+- Ensure the top-most card contains, in order:
+  - Status badge (workStatus).
+  - Case status (OPEN / UNDER_REVIEW / CLEARED) if present.
+  - Decision summary (bigger text).
+  - “Next action” hint line.
+  - Decision details.
+  - “Missing information” section.
+
+- Make this card visually dominant:
+  - Slightly more padding.
+  - Optionally a subtle colored accent depending on status:
+    - ELIGIBLE: soft green top border or icon.
+    - NEEDS_REVIEW: amber.
+    - NOT_ELIGIBLE: red.
+  - But keep it subtle; no harsh blocks.
+
+3) In the right column (case tools):
+
+- Group:
+  - Attachments.
+  - Notes.
+  - Recent activity (audit logs).
+- Make these clearly labeled as supporting sections, e.g.:
+
+  - “Attachments”
+  - “Notes”
+  - “Recent activity”
+
+- Optionally, wrap them in a titled container like “Case tools” on desktop:
+
+  - Keep them visible by default (no extra click), but use:
+    - Smaller headings (`text-sm font-semibold`).
+    - Slightly less visual weight than the decision card.
+
+4) Do NOT change any behavior:
+- Attachments should still upload/delete as before.
+- Notes should still work as before.
+- Recent activity should still show the last few log entries.
+
+This is purely about **hierarchy and layout**, not functionality.
+
+==================================================
+TASK 4 — Sanity checks & tests
+==================================================
+
+1) Re-run:
+   - TypeScript check
+   - Backend smoke tests (including the new `/api/checks/preview` test)
+   - Frontend smoke tests
+   - Production build
+
+2) Manually verify:
+
+- From Employee detail:
+  - Click “New check”.
+  - Confirm the New Check page is pre-populated for that employee and doesn’t ask you to choose “who” again.
+- New Check:
+  - Upload a document, wait for OCR.
+  - Ensure:
+    - Fields are auto-filled as before.
+    - A “Preview decision” panel appears (or can be triggered) BEFORE you create the check.
+    - The final “Create check” still works and leads to a saved check with the expected status.
+- Check Detail:
+  - Confirm the first thing you see is the status + summary + next action.
+  - Attachments, notes, and recent activity are still present but visually secondary.
+
+3) Update DIAGNOSTICS.md with a short note:
+- That `/api/checks/preview` was added for non-persisting evaluation.
+- That New Check is now context-aware from Employee detail.
+- That Check Detail hierarchy was updated (decision first, case tools second).
+
+==================================================
+Constraints recap
+==================================================
+
+- No DB schema changes.
+- No changes to the final “create check” semantics.
+- No changes to rules engine behavior.
+- Preview endpoint must be read-only: no DB writes, no side-effects beyond logging.
+- Focus is strictly on:
+  - Reducing friction for HR,
+  - Making the decision obvious sooner,
+  - Keeping advanced tools in a supporting role.
