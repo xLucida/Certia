@@ -4,6 +4,7 @@ import {
   rightToWorkChecks,
   rightToWorkCheckNotes,
   rightToWorkCheckDocuments,
+  auditLogs,
   type User,
   type UpsertUser,
   type Employee,
@@ -16,6 +17,7 @@ import {
   type RightToWorkCheckDocument,
   type InsertRightToWorkCheckDocument,
   type CaseStatus,
+  type AuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, gte, lte, like, sql, inArray } from "drizzle-orm";
@@ -58,6 +60,10 @@ export interface IStorage {
   createRightToWorkCheckDocument(document: InsertRightToWorkCheckDocument): Promise<RightToWorkCheckDocument>;
   getRightToWorkCheckDocumentsByCheckId(checkId: string, userId: string): Promise<RightToWorkCheckDocument[]>;
   deleteRightToWorkCheckDocument(id: string, userId: string): Promise<void>;
+  
+  // Audit log operations
+  createAuditLog(entry: { userId: string; action: string; entityType: string; entityId?: string; details?: string }): Promise<AuditLog>;
+  getRecentAuditLogsForCheck(checkId: string, userId: string, limit?: number): Promise<AuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -383,6 +389,31 @@ export class DatabaseStorage implements IStorage {
     }
 
     await db.delete(rightToWorkCheckDocuments).where(eq(rightToWorkCheckDocuments.id, id));
+  }
+
+  async createAuditLog(entry: { userId: string; action: string; entityType: string; entityId?: string; details?: string }): Promise<AuditLog> {
+    const [log] = await db.insert(auditLogs).values(entry).returning();
+    return log;
+  }
+
+  async getRecentAuditLogsForCheck(checkId: string, userId: string, limit: number = 5): Promise<AuditLog[]> {
+    // Verify the check belongs to this user before returning logs
+    const check = await this.getRightToWorkCheckById(checkId);
+    if (!check || check.userId !== userId) {
+      return [];
+    }
+
+    return await db
+      .select()
+      .from(auditLogs)
+      .where(
+        and(
+          eq(auditLogs.entityType, "check"),
+          eq(auditLogs.entityId, checkId)
+        )
+      )
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
   }
 }
 

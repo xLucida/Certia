@@ -1,0 +1,145 @@
+Replit settings:
+- Mode: Autonomous – Medium
+- App testing: ON
+- Fast mode: OFF
+
+Goal:
+Make Certia feel like a real “compliance-grade” tool by:
+1) Starting to use the existing audit_logs table for key actions.
+2) Showing a small “Next action” hint on the check detail page based on workStatus.
+
+Scope:
+- Backend: write audit log rows for a few critical actions and expose a simple “recent activity” list per check.
+- Frontend: show a compact “Recent activity” section on check detail, and a “Next action” line under the decision summary.
+- Keep this minimal and additive.
+
+Context:
+- There is already an audit_logs table defined in `@shared/schema.ts` (not currently used).
+- Storage & routes live in `server/storage.ts` and `server/routes.ts`.
+- Check detail page and decision panel live in:
+  - `client/src/pages/check-detail.tsx`
+  - and shared components like `client/src/components/check-components.tsx`.
+
+==================================================
+TASK 1 — Backend: minimal audit logging for key events
+==================================================
+
+1) In `@shared/schema.ts`:
+
+- Confirm the `audit_logs` table (or similarly named) exists.
+- Do NOT change its schema; just use it as-is.
+
+2) In `server/storage.ts`:
+
+- Add helpers for audit logs, for example:
+
+  - `createAuditLog(entry)` – inserts a new audit log row.
+  - `getRecentAuditLogsForCheck(checkId: string, userId: string, limit = 5)` – returns the last few entries for a given check, verifying tenant isolation.
+
+- Tenant isolation rule:
+  - Before returning logs, verify that the associated check belongs to the given `userId`.
+  - If not, return an empty array or throw a safe error.
+
+3) In `server/routes.ts`, hook audit logging into a few key actions:
+
+- At minimum, log:
+
+  - When a check is created (public upload or internal).
+    - Event example: `CHECK_CREATED`
+  - When `caseStatus` is updated (OPEN / UNDER_REVIEW / CLEARED).
+    - Event example: `CASE_STATUS_UPDATED`
+  - When a note is added to a check.
+    - Event example: `NOTE_ADDED`
+  - When an attachment is uploaded.
+    - Event example: `ATTACHMENT_ADDED`
+  - When an employee is deleted (and checks are cascaded).
+    - Event example: `EMPLOYEE_DELETED`
+
+- Each log entry should include:
+  - `userId` (if available / authenticated).
+  - `checkId` (where applicable).
+  - `eventType` (string).
+  - `message` or `details` describing what happened in 1–2 short phrases.
+  - `createdAt` (default now).
+
+- Keep messages short and human-readable, e.g.:
+  - “Check created via public upload.”
+  - “Case status set to UNDER_REVIEW.”
+  - “Note added.”
+  - “Attachment ‘bluecard_front.pdf’ uploaded.”
+
+==================================================
+TASK 2 — Backend: endpoint to fetch recent audit logs for a check
+==================================================
+
+1) In `server/routes.ts`:
+
+- Add an authenticated route:
+
+  - `GET /api/checks/:id/audit-logs`
+
+- Behavior:
+
+  - Validate user via `isAuthenticated`.
+  - Verify the check belongs to the current user/tenant.
+  - Use `getRecentAuditLogsForCheck(checkId, userId, limit)` to fetch the last 5–10 logs.
+  - Return them in chronological order (newest first).
+
+==================================================
+TASK 3 — Frontend: “Recent activity” on check detail
+==================================================
+
+1) On `client/src/pages/check-detail.tsx`:
+
+- Add a query to fetch audit logs for this check (using the new endpoint).
+- Add a small section/card titled “Recent activity” below the existing decision / notes / attachments sections.
+
+2) Display:
+
+- Up to 5 entries showing:
+
+  - A timestamp (formatted).
+  - A short message (the `message` from the audit log).
+  - Optionally, an icon per event type (if easy), but this is optional.
+
+- If there are no logs, show:
+  - “No recent activity recorded yet.”
+
+3) Keep the layout compact; this should look like a simple activity feed, not a full log viewer.
+
+==================================================
+TASK 4 — Frontend: “Next action” hint under decision summary
+==================================================
+
+1) In the decision panel component (e.g. `CheckDecisionPanel` in `client/src/components/check-components.tsx`):
+
+- Add a small “Next action” line under the existing decision summary.
+
+2) Implement a tiny helper function that maps `workStatus` → suggested next action:
+
+- ELIGIBLE:
+  - “Next action: Record this clearance in your HR system and set a reminder before the expiry date.”
+- NEEDS_REVIEW:
+  - “Next action: Review the original document and consider escalating to HR legal or compliance.”
+- NOT_ELIGIBLE:
+  - “Next action: Do not onboard or schedule work until HR legal or compliance clears this case.”
+
+3) Styling:
+
+- Use `text-sm` and `text-muted-foreground`.
+- Prepend with a label like “Next action:” in semi-bold.
+
+==================================================
+Constraints & checks
+==================================================
+
+- Do NOT change:
+  - Right-to-work decision logic.
+  - OCR or Venice.ai behavior.
+  - Database schema for `audit_logs` (use as-is).
+- Only log a small set of events as described above; no need to cover every single action yet.
+- Confirm:
+  - Audit logs are written when actions occur.
+  - Check detail page shows “Recent activity” for that check.
+  - “Next action” line appears under the decision summary and matches the workStatus.
+- Keep your explanation summary short (≤5 bullets).
