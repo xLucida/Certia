@@ -755,6 +755,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check notes routes
+  app.get("/api/checks/:id/notes", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const checkId = req.params.id;
+      
+      // Verify check exists and belongs to user (handled in storage layer)
+      const notes = await storage.getRightToWorkCheckNotesByCheckId(checkId, userId);
+      res.json(notes);
+    } catch (error: any) {
+      console.error("Error fetching check notes:", error);
+      res.status(500).json({ error: "Failed to fetch notes" });
+    }
+  });
+
+  app.post("/api/checks/:id/notes", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const checkId = req.params.id;
+      const { content } = req.body;
+      
+      if (!content || typeof content !== "string" || content.trim().length === 0) {
+        return res.status(400).json({ error: "Note content is required" });
+      }
+      
+      // Verify check exists and belongs to user
+      const check = await storage.getRightToWorkCheckById(checkId);
+      if (!check) {
+        return res.status(404).json({ error: "Check not found" });
+      }
+      if (check.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      const note = await storage.createRightToWorkCheckNote({
+        checkId,
+        userId,
+        content: content.trim(),
+      });
+      
+      res.status(201).json(note);
+    } catch (error: any) {
+      console.error("Error creating check note:", error);
+      res.status(500).json({ error: "Failed to create note" });
+    }
+  });
+
   // Public upload link routes
   // Create upload link (authenticated - for HR users)
   app.post("/api/public-upload/link", isAuthenticated, async (req: any, res) => {
