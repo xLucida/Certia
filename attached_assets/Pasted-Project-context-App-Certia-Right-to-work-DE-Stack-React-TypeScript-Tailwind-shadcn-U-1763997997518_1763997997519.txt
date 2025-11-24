@@ -1,0 +1,252 @@
+Project context:
+- App: Certia (Right-to-work DE).
+- Stack: React + TypeScript + Tailwind + shadcn UI (client/src), Node/Express-style backend (server/routes.ts, server/storage.ts, @shared/schema).
+- Current upload flows:
+  - Public candidate upload:
+    - `/api/public-upload/submit` with `multer` + OCR + AI + rules → creates a check.
+    - Does NOT persist raw files; only saves OCR text + extracted fields.
+  - Internal HR app:
+    - New Check page allows HR to create a check and attach a single document (via existing upload / object storage helper).
+- Goal for this task:
+  - Allow HR users to upload and store **multiple attachments** per check on the internal side (e.g., front/back, letters, additional permits).
+  - Show these attachments clearly on the check detail page for audit/reference.
+  - Do NOT change OCR / AI decision logic for this feature; attachments are for human review and audit evidence.
+
+Global constraints:
+- Backend schema changes are allowed, but must be:
+  - Additive only (new table or column), no breaking changes to existing tables.
+- Do NOT modify:
+  - `/api/public-upload/submit` behavior.
+  - Rules engine (`lib/rightToWork.ts`) or Venice AI logic.
+  - Work status or case status semantics.
+- Keep UX consistent with existing Certia styling.
+
+==================================================
+TASK 1 — Data model: multiple attachments per check
+==================================================
+
+Goal:
+Introduce a small, dedicated table to store multiple file attachments per right-to-work check.
+
+1) In `@shared/schema.ts` (or equivalent schema file):
+
+- Add a new table, e.g. `rightToWorkCheckDocuments`:
+
+  Suggested fields (adapt names/types to your existing schema conventions):
+
+  - `id` (primary key)
+  - `checkId` (FK referencing `rightToWorkChecks.id`)
+  - `fileName` (string)
+  - `fileUrl` (string)
+  - `mimeType` (string, optional)
+  - `sizeBytes` (number, optional)
+  - `uploadedAt` (timestamp, default now)
+
+- Export appropriate types, for example:
+
+  ```ts
+  export type RightToWorkCheckDocument = typeof rightToWorkCheckDocuments.$inferSelect;
+  export type InsertRightToWorkCheckDocument = typeof rightToWorkCheckDocuments.$inferInsert;
+Ensure this is added via the project’s existing migration pattern (if applicable).
+
+In server/storage.ts:
+
+Add helpers:
+
+ts
+Copy code
+async createRightToWorkCheckDocument(data: InsertRightToWorkCheckDocument) { /* ... */ }
+
+async getRightToWorkCheckDocumentsByCheckId(checkId: string, userId: string) {
+  // Verify the check belongs to this userId (tenant isolation).
+  // Then return all documents for that check, ordered by uploadedAt.
+}
+
+async deleteRightToWorkCheckDocument(id: string, userId: string) {
+  // Verify that the document's check belongs to this userId.
+  // Then delete the document row.
+}
+Always enforce tenant isolation:
+
+If the underlying check does not belong to userId, return [] or throw safely.
+
+==================================================
+TASK 2 — Backend: upload endpoint for internal attachments
+Goal:
+Provide an authenticated endpoint HR can use to upload one or more files and link them to an existing check.
+
+In server/routes.ts:
+
+Reuse existing object-storage integration you already have (e.g., the endpoint used by the internal uploader for a single file). If that code is currently generic (e.g. /api/upload), either:
+
+Extend it to support attaching to a check, OR
+
+Create a dedicated new endpoint for check attachments.
+
+For clarity, please implement a dedicated route:
+
+Route: POST /api/checks/:id/attachments
+
+Middleware:
+
+isAuthenticated
+
+multer or equivalent for multi-file upload, e.g. upload.array("files", 5)
+
+Behavior:
+
+ts
+Copy code
+app.post("/api/checks/:id/attachments", isAuthenticated, upload.array("files", 5), async (req, res) => {
+  const userId = req.user.claims.sub;
+  const checkId = req.params.id;
+  const files = req.files as Express.Multer.File[] | undefined;
+
+  // 1) Validate check belongs to userId (tenant isolation).
+  // 2) Validate files not empty and within allowed mimeTypes and size.
+  // 3) For each file:
+  //    - Upload to existing object storage (reuse your existing upload helper).
+  //    - Create a rightToWorkCheckDocuments row:
+  //      - checkId
+  //      - fileName: originalname
+  //      - fileUrl: returned URL from storage
+  //      - mimeType: mimetype
+  //      - sizeBytes: size
+  // 4) Return a list of created document records.
+});
+Use the same allowed mime types and max size as your existing internal upload (likely PDF/JPG/PNG, <= 10MB).
+
+Optional: delete endpoint
+
+Add:
+
+DELETE /api/checks/:checkId/attachments/:attachmentId
+
+Behavior:
+
+Authenticated & tenant-isolated.
+
+Deletes the rightToWorkCheckDocuments row.
+
+Optionally, also delete from object storage (only if your existing patterns already support that; if not, leave storage cleanup out for now and focus on DB-level cleanup).
+
+==================================================
+TASK 3 — Frontend: HR-side multi-attachments on check detail
+Goal:
+Allow HR users to see and add attachments on the check detail page. Start here rather than the New Check page, to keep the flow simple.
+
+File: client/src/pages/check-detail.tsx (or equivalent)
+
+Fetch attachments:
+
+When fetching the check, also fetch its attachments via a new query (e.g., /api/checks/:id/attachments).
+
+Or, if you prefer, add attachments to the existing check detail API response and consume them there.
+
+Display them in a new section, e.g. “Attachments”.
+
+“Attachments” UI section:
+
+Add a card below the Decision / Case File sections:
+
+Title: “Attachments”
+
+If there are attachments:
+
+Show a list:
+
+For each attachment:
+
+File icon (based on type if easy, or a generic file icon).
+
+File name (with truncation for long names).
+
+File size (if stored).
+
+A View / Open button (link to fileUrl with target="_blank").
+
+Optional: small “Remove” button (DELETE endpoint) with confirmation.
+
+If no attachments:
+
+Show an empty state similar to other empty states you’ve just implemented, e.g.:
+
+Icon (e.g. Paperclip).
+
+Text: “No attachments yet.”
+
+Subtitle: “Upload the scanned document(s) you used to make this check for a complete audit trail.”
+
+Upload area:
+
+In the same “Attachments” card, add a small multi-file uploader for HR:
+
+Use a simple <input type="file" multiple> solution styled with your existing button patterns.
+
+On change:
+
+Call POST /api/checks/:id/attachments with selected files via FormData.
+
+On success:
+
+Refresh the attachments list (or optimistically append returned records).
+
+Handle loading and basic error feedback.
+
+Keep this uploader internal to the check detail; no need to add attachments on the New Check page yet. This keeps the main check creation flow simple.
+
+Print behavior:
+
+By default, do NOT include the full attachment list in the print audit report (since these are external links).
+
+Option:
+
+Show a compact line in the print view under “Check Information”:
+
+Attachments: N file(s) stored (see Certia for full list)
+
+Ensure the main “Attachments” card is print:hidden to avoid clutter.
+
+==================================================
+TASK 4 — (Optional, small) New Check page hint
+If it’s straightforward given your current New Check UI:
+
+On the New Check confirmation step, add a small info line reminding HR:
+
+“After saving this check, you can upload any supporting documents (front/back, letters, etc.) from the check detail page under ‘Attachments’.”
+
+This is just a text hint; no new navigation needed.
+
+==================================================
+TASK 5 — Sanity checks
+Ensure:
+
+Public upload flow remains unchanged and still works with multi-file OCR.
+
+Creating a new check internally still works exactly as before.
+
+On the check detail page:
+
+You can upload 1–5 attachments.
+
+They appear in the list with working “View” links.
+
+Optional delete works (if implemented).
+
+Tenant isolation:
+
+A user cannot see or modify attachments for checks that do not belong to them.
+
+Print audit reports:
+
+Still look correct and are not overloaded by the attachments UI.
+
+Summarize changes in ≤5 bullets, focused ONLY on:
+
+New attachment table
+
+New attachment API
+
+Check detail “Attachments” section
+
+Any hint added to New Check flow.

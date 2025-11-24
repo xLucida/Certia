@@ -114,6 +114,7 @@ export const rightToWorkChecksRelations = relations(rightToWorkChecks, ({ one, m
     references: [users.id],
   }),
   notes: many(rightToWorkCheckNotes),
+  documents: many(rightToWorkCheckDocuments),
 }));
 
 // Right to Work Check Notes table
@@ -133,6 +134,24 @@ export const rightToWorkCheckNotesRelations = relations(rightToWorkCheckNotes, (
   user: one(users, {
     fields: [rightToWorkCheckNotes.userId],
     references: [users.id],
+  }),
+}));
+
+// Right to Work Check Documents table
+export const rightToWorkCheckDocuments = pgTable("right_to_work_check_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  checkId: varchar("check_id").notNull().references(() => rightToWorkChecks.id, { onDelete: "cascade" }),
+  fileName: varchar("file_name").notNull(),
+  fileUrl: varchar("file_url").notNull(),
+  mimeType: varchar("mime_type"),
+  sizeBytes: varchar("size_bytes"),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+});
+
+export const rightToWorkCheckDocumentsRelations = relations(rightToWorkCheckDocuments, ({ one }) => ({
+  check: one(rightToWorkChecks, {
+    fields: [rightToWorkCheckDocuments.checkId],
+    references: [rightToWorkChecks.id],
   }),
 }));
 
@@ -177,6 +196,11 @@ export const checkFormSchema = insertRightToWorkCheckSchema.omit({ userId: true 
 export const insertRightToWorkCheckNoteSchema = createInsertSchema(rightToWorkCheckNotes).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertRightToWorkCheckDocumentSchema = createInsertSchema(rightToWorkCheckDocuments).omit({
+  id: true,
+  uploadedAt: true,
 });
 
 // Types
@@ -239,3 +263,5 @@ export type AuditLog = typeof auditLogs.$inferSelect;
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
 export type InsertRightToWorkCheckNote = z.infer<typeof insertRightToWorkCheckNoteSchema>;
 export type RightToWorkCheckNote = typeof rightToWorkCheckNotes.$inferSelect;
+export type InsertRightToWorkCheckDocument = z.infer<typeof insertRightToWorkCheckDocumentSchema>;
+export type RightToWorkCheckDocument = typeof rightToWorkCheckDocuments.$inferSelect;
