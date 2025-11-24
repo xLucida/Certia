@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckDecisionPanel, CheckAuditTrail } from "@/components/check-components";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check, Clock } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ArrowLeft, Calendar, FileText, Download, Plus, File, Pencil, Link2, Check, Clock, Printer } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
+import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -97,10 +99,31 @@ export default function EmployeeDetail() {
     (a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
   );
 
+  const reportDate = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  const statusCounts = {
+    ELIGIBLE: sortedChecks.filter(c => c.workStatus === 'ELIGIBLE').length,
+    NOT_ELIGIBLE: sortedChecks.filter(c => c.workStatus === 'NOT_ELIGIBLE').length,
+    NEEDS_REVIEW: sortedChecks.filter(c => c.workStatus === 'NEEDS_REVIEW').length,
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
+      {/* Print Header - Only visible when printing */}
+      <div className="hidden print:block mb-8">
+        <div className="text-center border-b-2 border-gray-300 pb-4 mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Certia</h1>
+          <h2 className="text-xl font-semibold text-gray-700 mt-2">Employee Audit Report</h2>
+          <p className="text-sm text-gray-600 mt-1">Report Date: {reportDate}</p>
+        </div>
+      </div>
+
       <div className="space-y-8">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 print:hidden">
             <Link href="/employees">
               <Button variant="ghost" size="sm" data-testid="button-back">
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -126,6 +149,14 @@ export default function EmployeeDetail() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => window.print()}
+                    data-testid="button-print-employee-audit"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Print Employee Audit Report
+                  </Button>
                   <Link href={`/employees/${employee.id}/edit`}>
                     <Button variant="outline" data-testid="button-edit-employee">
                       <Pencil className="h-4 w-4 mr-2" />
@@ -170,26 +201,26 @@ export default function EmployeeDetail() {
           </Card>
 
           {sortedChecks.length > 0 && (
-            <Card className="border-2 bg-gradient-to-br from-card to-background">
+            <Card className="border-2 bg-gradient-to-br from-card to-background print:bg-white print:border-gray-300">
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-bold">Right-to-Work Status</CardTitle>
+                <CardTitle className="text-lg font-bold">Right-to-Work Status Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Latest Status</p>
+                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider print:text-gray-600">Latest Status</p>
                     <StatusBadge status={sortedChecks[0].workStatus} />
                   </div>
                   {sortedChecks[0].expiryDate && (
                     <div className="space-y-2">
-                      <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Next Expiry</p>
+                      <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider print:text-gray-600">Next Expiry</p>
                       <div className="space-y-1">
-                        <p className="text-lg font-semibold" data-testid="text-next-expiry">
+                        <p className="text-lg font-semibold print:text-gray-900" data-testid="text-next-expiry">
                           {formatDate(sortedChecks[0].expiryDate)}
                         </p>
                         <div className="flex items-center gap-2 text-sm">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground" data-testid="text-expiry-countdown">
+                          <Clock className="h-4 w-4 text-muted-foreground print:hidden" />
+                          <span className="text-muted-foreground print:text-gray-700" data-testid="text-expiry-countdown">
                             {(() => {
                               const today = new Date();
                               const expiry = new Date(sortedChecks[0].expiryDate);
@@ -198,20 +229,20 @@ export default function EmployeeDetail() {
                               
                               if (diffDays < 0) {
                                 return (
-                                  <span className="text-red-600 dark:text-red-400 font-medium">
+                                  <span className="text-red-600 dark:text-red-400 font-medium print:text-red-700">
                                     Expired {Math.abs(diffDays)} day{Math.abs(diffDays) !== 1 ? 's' : ''} ago
                                   </span>
                                 );
                               } else if (diffDays === 0) {
-                                return <span className="text-amber-600 dark:text-amber-400 font-medium">Expires today</span>;
+                                return <span className="text-amber-600 dark:text-amber-400 font-medium print:text-amber-700">Expires today</span>;
                               } else if (diffDays <= 60) {
                                 return (
-                                  <span className="text-amber-600 dark:text-amber-400 font-medium">
+                                  <span className="text-amber-600 dark:text-amber-400 font-medium print:text-amber-700">
                                     Expires in {diffDays} day{diffDays !== 1 ? 's' : ''}
                                   </span>
                                 );
                               } else {
-                                return <span className="text-muted-foreground">Expires in {diffDays} day{diffDays !== 1 ? 's' : ''}</span>;
+                                return <span className="text-muted-foreground print:text-gray-700">Expires in {diffDays} day{diffDays !== 1 ? 's' : ''}</span>;
                               }
                             })()}
                           </span>
@@ -220,11 +251,80 @@ export default function EmployeeDetail() {
                     </div>
                   )}
                 </div>
+
+                {/* Print-only summary table */}
+                <div className="hidden print:block mt-6 pt-4 border-t">
+                  <p className="text-sm font-medium text-gray-700 mb-3">Check Summary</p>
+                  <div className="grid grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-600">Total Checks</p>
+                      <p className="text-lg font-semibold text-gray-900">{sortedChecks.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Eligible</p>
+                      <p className="text-lg font-semibold text-green-700">{statusCounts.ELIGIBLE}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Not Eligible</p>
+                      <p className="text-lg font-semibold text-red-700">{statusCounts.NOT_ELIGIBLE}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Needs Review</p>
+                      <p className="text-lg font-semibold text-amber-700">{statusCounts.NEEDS_REVIEW}</p>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
 
-          <div className="space-y-4">
+          {/* Print-only checks table */}
+          {sortedChecks.length > 0 && (
+            <Card className="hidden print:block print:bg-white print:border-gray-300">
+              <CardHeader>
+                <CardTitle className="text-lg">All Right-to-Work Checks</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="print:text-gray-700">Check ID</TableHead>
+                      <TableHead className="print:text-gray-700">Created</TableHead>
+                      <TableHead className="print:text-gray-700">Status</TableHead>
+                      <TableHead className="print:text-gray-700">Document Type</TableHead>
+                      <TableHead className="print:text-gray-700">Expiry Date</TableHead>
+                      <TableHead className="print:text-gray-700">Summary</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedChecks.map((check) => (
+                      <TableRow key={check.id} className="print:border-gray-200">
+                        <TableCell className="font-mono text-xs print:text-gray-900">{check.id.substring(0, 8)}</TableCell>
+                        <TableCell className="text-sm print:text-gray-900">{formatDate(check.createdAt instanceof Date ? check.createdAt.toISOString() : check.createdAt)}</TableCell>
+                        <TableCell className="text-sm">
+                          <span className={`
+                            ${check.workStatus === 'ELIGIBLE' ? 'text-green-700' : ''}
+                            ${check.workStatus === 'NOT_ELIGIBLE' ? 'text-red-700' : ''}
+                            ${check.workStatus === 'NEEDS_REVIEW' ? 'text-amber-700' : ''}
+                            font-medium
+                          `}>
+                            {check.workStatus === 'ELIGIBLE' ? 'Eligible' : ''}
+                            {check.workStatus === 'NOT_ELIGIBLE' ? 'Not Eligible' : ''}
+                            {check.workStatus === 'NEEDS_REVIEW' ? 'Needs Review' : ''}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm print:text-gray-900">{formatDocumentType(check.documentType)}</TableCell>
+                        <TableCell className="text-sm print:text-gray-900">{check.expiryDate ? formatDate(check.expiryDate) : '—'}</TableCell>
+                        <TableCell className="text-xs print:text-gray-700 max-w-xs truncate">{check.decisionSummary || '—'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="space-y-4 print:hidden">
             <h2 className="text-xl font-semibold">Right-to-Work Check History</h2>
             
             {sortedChecks.length === 0 ? (

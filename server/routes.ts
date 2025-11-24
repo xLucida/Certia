@@ -1045,6 +1045,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CSV export route for audit purposes
+  app.get("/api/audit/checks.csv", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Fetch all checks for this user
+      const checks = await storage.getAllRightToWorkChecksForUser(userId);
+
+      // Fetch all employees for this user to join with checks
+      const employees = await storage.getEmployeesByUserId(userId);
+      const employeeMap = new Map(employees.map(e => [e.id, e]));
+
+      // Build CSV header
+      const header = [
+        "employeeName",
+        "employeeId",
+        "checkId",
+        "workStatus",
+        "documentType",
+        "documentNumber",
+        "expiryDate",
+        "createdAt"
+      ];
+
+      const rows = [header.join(",")];
+
+      // Build CSV rows
+      for (const check of checks) {
+        let employeeName = "";
+        let employeeExternalId = "";
+        
+        if (check.employeeId) {
+          const employee = employeeMap.get(check.employeeId);
+          if (employee) {
+            employeeName = `${employee.firstName} ${employee.lastName}`;
+            employeeExternalId = employee.id;
+          }
+        } else if (check.firstName && check.lastName) {
+          // Standalone check - use candidate name
+          employeeName = `${check.firstName} ${check.lastName}`;
+        }
+
+        const row = [
+          JSON.stringify(employeeName),
+          JSON.stringify(employeeExternalId),
+          JSON.stringify(check.id),
+          JSON.stringify(check.workStatus),
+          JSON.stringify(check.documentType ?? ""),
+          JSON.stringify(check.documentNumber ?? ""),
+          JSON.stringify(check.expiryDate ?? ""),
+          JSON.stringify(check.createdAt ?? "")
+        ].join(",");
+
+        rows.push(row);
+      }
+
+      const csv = rows.join("\n");
+
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", "attachment; filename=\"certia-checks.csv\"");
+      return res.send(csv);
+    } catch (err) {
+      console.error("Error exporting checks CSV:", err);
+      return res.status(500).json({ error: "Failed to export checks CSV" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -42,6 +42,7 @@ export interface IStorage {
   getRightToWorkCheckById(id: string): Promise<RightToWorkCheck | undefined>;
   deleteRightToWorkCheck(id: string): Promise<void>;
   getExpiringRightToWorkChecks(userId: string, withinDays: number): Promise<RightToWorkCheck[]>;
+  getAllRightToWorkChecksForUser(userId: string): Promise<RightToWorkCheck[]>;
   
   // Check notes operations
   createRightToWorkCheckNote(note: InsertRightToWorkCheckNote): Promise<RightToWorkCheckNote>;
@@ -250,6 +251,14 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(rightToWorkChecks.expiryDate);
+  }
+
+  async getAllRightToWorkChecksForUser(userId: string): Promise<RightToWorkCheck[]> {
+    return await db
+      .select()
+      .from(rightToWorkChecks)
+      .where(eq(rightToWorkChecks.userId, userId))
+      .orderBy(desc(rightToWorkChecks.createdAt));
   }
 
   async createRightToWorkCheckNote(noteData: InsertRightToWorkCheckNote): Promise<RightToWorkCheckNote> {

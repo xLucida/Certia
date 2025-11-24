@@ -312,3 +312,65 @@
     @apply translate-y-0 scale-[0.98];
   }
 }
+
+/* Print Styles for Audit Reports */
+@media print {
+  /* Global print setup */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  /* Hide app navigation and chrome */
+  nav, header, footer, aside, .sidebar {
+    display: none !important;
+  }
+
+  /* Ensure content fills page */
+  .print\:block {
+    display: block !important;
+  }
+
+  /* Clean up print content */
+  .print\:text-gray-900 {
+    color: #111827 !important;
+  }
+
+  .print\:text-gray-700 {
+    color: #374151 !important;
+  }
+
+  .print\:text-gray-600 {
+    color: #4B5563 !important;
+  }
+
+  .print\:bg-white {
+    background-color: white !important;
+  }
+
+  .print\:bg-gray-100 {
+    background-color: #F3F4F6 !important;
+  }
+
+  .print\:border-gray-300 {
+    border-color: #D1D5DB !important;
+  }
+
+  /* Page breaks */
+  .print-page-break {
+    page-break-before: always !important;
+  }
+
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+  }
+
+  /* Remove shadows and backgrounds for cleaner print */
+  .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl {
+    box-shadow: none !important;
+  }
+}

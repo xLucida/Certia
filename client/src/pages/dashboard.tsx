@@ -191,7 +191,7 @@ export default function Dashboard() {
     if (diffDays < 0) {
       return { label: "Overdue", variant: "destructive" as const, days: Math.abs(diffDays) };
     } else if (diffDays <= 60) {
-      return { label: "Expiring soon", variant: "warning" as const, days: diffDays };
+      return { label: "Expiring soon", variant: "default" as const, days: diffDays };
     } else if (diffDays <= 90) {
       return { label: "Upcoming", variant: "secondary" as const, days: diffDays };
     }
@@ -243,12 +243,12 @@ export default function Dashboard() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  window.open("/api/checks/export", "_blank");
+                  window.location.href = "/api/audit/checks.csv";
                 }}
                 data-testid="button-export-checks"
               >
                 <Download className="h-4 w-4 mr-2" />
-                Export checks (CSV)
+                Export Checks (CSV)
               </Button>
               <Link href="/employees/new">
                 <Button data-testid="button-add-employee">
@@ -476,7 +476,7 @@ export default function Dashboard() {
                                 className={
                                   expiryStatus.variant === "destructive" 
                                     ? "bg-red-100 text-red-900 border-red-300 dark:bg-red-950 dark:text-red-100 dark:border-red-800" 
-                                    : expiryStatus.variant === "warning"
+                                    : expiryStatus.variant === "default"
                                     ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-100 dark:border-amber-800"
                                     : "bg-gray-100 text-gray-900 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
                                 }
