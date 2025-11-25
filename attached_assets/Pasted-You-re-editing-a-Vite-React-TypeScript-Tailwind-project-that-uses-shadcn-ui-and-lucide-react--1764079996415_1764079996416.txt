@@ -1,0 +1,67 @@
+You’re editing a Vite + React + TypeScript + Tailwind project that uses shadcn/ui and lucide-react.
+The landing page lives at: client/src/pages/landing.tsx
+
+Goal:
+Redesign the landing page for Certia to feel like a modern B2B SaaS (Stripe / Deel / Personio style),
+while keeping almost all existing copy and CTAs.
+
+Implementation requirements:
+- Keep the existing components (Button, Card, CardContent, CardHeader, CardTitle, CertiaLogo).
+- Do NOT change any server code or routing logic. Only touch client/src/pages/landing.tsx
+  and, if absolutely needed, minor styling helpers.
+
+New layout spec:
+
+1) Top navigation (sticky)
+   - Left: Certia logo + product name
+   - Right: simple nav links: “Product”, “How it works”, “Pricing” (anchor links that scroll to sections),
+     plus a subtle “Log in” text button and a primary “Get started” button that calls the existing login handler.
+   - Use a light, subtle gradient background and a border-bottom, with slight blur on scroll.
+
+2) Hero section (above the fold)
+   - 2-column layout on desktop, stacked on mobile.
+   - Left column:
+     - Big headline: “Right-to-Work Checks for German HR Teams, Documented and Audit-Ready”
+     - Short supporting paragraph (reuse current copy).
+     - Primary CTA: “Get started with Certia” (calls the existing login handler).
+     - Secondary CTA: “View demo” as an outline button that scrolls to the “How it works” section.
+     - A small trust line below (e.g. “Built for German HR, works with EU Blue Cards, eAT permits, Fiktionsbescheinigungen.”)
+   - Right column:
+     - A single, polished product preview Card that looks like the right-to-work cockpit:
+       KPIs (Total employees, Eligible workers, Expiring soon) and a subtle “Cases requiring review” banner.
+
+3) “Why Certia” feature row
+   - Three cards in a row (stack on mobile), each with a lucide icon:
+     - “Standardized Process”
+     - “Conservative Defaults”
+     - “Audit-Ready Reports”
+   - Use a simple, consistent height and spacing so the cards don’t feel busy.
+
+4) “How Certia Works” section
+   - Simple 3-step horizontal or vertical flow:
+     1. Add employee and document
+     2. Certia analyzes right-to-work eligibility
+     3. Track renewals and export records
+   - Each step has a small icon, title, and one sentence explanation.
+
+5) “Compliance for German HR” band
+   - A full-width, slightly elevated band explaining the German context
+     (blue cards, eAT, Fiktionsbescheinigung, etc.), reusing the existing longer paragraph.
+   - Include 3 bullet points with small check icons: “Documented decisions”, “AI + rules engine”, “Complete audit trail”.
+
+6) Final CTA section
+   - Centered section near the bottom: headline + 1–2 lines of copy + primary CTA button
+     (“Get started today”) that calls the same login handler.
+   - Below that, a small note about pricing model (e.g., “Start with one team, expand as you grow.” placeholder).
+
+7) Footer
+   - Keep the current footer text, but ensure spacing is consistent with the rest of the page.
+
+Styling:
+- Use Tailwind utility classes and existing shadcn/ui components.
+- Prioritize clean vertical rhythm (consistent top/bottom padding between sections).
+- Make sure everything looks good on mobile: sections should stack cleanly, no horizontal scroll.
+
+After changes:
+- Ensure the page compiles with TypeScript.
+- Do not rename the Landing component or change how it’s imported in App.tsx.
