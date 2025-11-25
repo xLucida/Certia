@@ -1,80 +1,30 @@
-import type { DocumentType, WorkStatus } from "@shared/schema";
+import type { EvaluateRightToWorkInput, EvaluateRightToWorkResult } from "../lib/rightToWork";
+import { evaluateRightToWork as runRulesEngine } from "../lib/rightToWork";
+import type { DocumentType } from "@shared/schema";
+import { mapToRulesEngineInput } from "./rightToWorkAdapter";
 
-export interface EvaluationResult {
-  workStatus: WorkStatus;
-  decisionSummary: string;
-  decisionDetails: string;
-}
+export type EvaluationResult = EvaluateRightToWorkResult;
 
 /**
- * Evaluates right-to-work eligibility based on German visa documentation rules.
- * 
- * Rules:
- * - EU_BLUE_CARD or EAT:
- *   - if expiryDate > now → ELIGIBLE
- *   - else → NOT_ELIGIBLE
- * - FIKTIONSBESCHEINIGUNG:
- *   - if expiryDate > now → NEEDS_REVIEW
- *   - else → NOT_ELIGIBLE
- * - OTHER: always NEEDS_REVIEW
+ * Thin wrapper that routes server-side eligibility checks through the
+ * comprehensive rules engine. This keeps the decision process consistent
+ * with the guardrails used in API routes and avoids overly-optimistic
+ * shortcuts for titles like Fiktionsbescheinigung or employer-tied permits.
  */
 export function evaluateRightToWork({
   documentType,
   expiryDate,
+  dateOfIssue,
 }: {
   documentType: DocumentType;
   expiryDate: string;
+  dateOfIssue?: string;
 }): EvaluationResult {
-  const now = new Date();
-  const expiry = new Date(expiryDate);
-  const isExpired = expiry < now;
+  const mappedInput: EvaluateRightToWorkInput = mapToRulesEngineInput({
+    documentType,
+    expiryDate: new Date(expiryDate),
+    dateOfIssue: dateOfIssue ? new Date(dateOfIssue) : undefined,
+  });
 
-  if (documentType === "EU_BLUE_CARD" || documentType === "EAT") {
-    if (isExpired) {
-      return {
-        workStatus: "NOT_ELIGIBLE",
-        decisionSummary: "Document expired",
-        decisionDetails: `This ${formatDocumentType(documentType)} expired on ${expiry.toLocaleDateString()}. The employee is not eligible to work in Germany.`,
-      };
-    } else {
-      return {
-        workStatus: "ELIGIBLE",
-        decisionSummary: "Valid work authorization",
-        decisionDetails: `This ${formatDocumentType(documentType)} is valid until ${expiry.toLocaleDateString()}. The employee is eligible to work in Germany.`,
-      };
-    }
-  }
-
-  if (documentType === "FIKTIONSBESCHEINIGUNG") {
-    if (isExpired) {
-      return {
-        workStatus: "NOT_ELIGIBLE",
-        decisionSummary: "Fiktionsbescheinigung expired",
-        decisionDetails: `This Fiktionsbescheinigung expired on ${expiry.toLocaleDateString()}. The employee is not eligible to work in Germany.`,
-      };
-    } else {
-      return {
-        workStatus: "NEEDS_REVIEW",
-        decisionSummary: "Manual review required",
-        decisionDetails: `This Fiktionsbescheinigung is valid until ${expiry.toLocaleDateString()}. Manual review is required to verify work authorization conditions and restrictions.`,
-      };
-    }
-  }
-
-  // OTHER
-  return {
-    workStatus: "NEEDS_REVIEW",
-    decisionSummary: "Manual review required",
-    decisionDetails: `This document requires manual review to determine work eligibility. Please verify the document type and validity with German immigration authorities.`,
-  };
-}
-
-function formatDocumentType(type: DocumentType): string {
-  const typeMap: Record<DocumentType, string> = {
-    EU_BLUE_CARD: "EU Blue Card",
-    EAT: "EAT (Employment Authorization)",
-    FIKTIONSBESCHEINIGUNG: "Fiktionsbescheinigung",
-    OTHER: "Other Document",
-  };
-  return typeMap[type];
+  return runRulesEngine(mappedInput);
 }

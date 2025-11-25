@@ -1,38 +1,16 @@
-/**
- * OCR Extraction Service - STUB
- * 
- * TODO: Implement document field extraction using a client-side OCR solution
- * or hosted OCR service to avoid server-side performance and security issues.
- * 
- * Options to consider:
- * - Client-side Tesseract.js (runs in browser, no server impact)
- * - Google Cloud Vision API (hosted OCR service)
- * - AWS Textract (hosted OCR service)
- * - Azure Computer Vision (hosted OCR service)
- */
+import { promises as fs } from "fs";
+import type { OcrExtractionResult } from "../lib/ocr";
+import { extractFieldsFromDocument as runOcrExtraction } from "../lib/ocr";
 
-export interface ExtractedDocumentFields {
-  documentType?: string;
-  documentNumber?: string;
-  countryOfIssue?: string;
-  dateOfIssue?: string;
-  expiryDate?: string;
-  rawText?: string;
-}
+export type ExtractedDocumentFields = OcrExtractionResult;
 
 /**
- * Extract fields from an uploaded document using OCR.
- * 
- * @param fileUrl - The URL or file path of the uploaded document
- * @returns Extracted document fields
+ * Thin wrapper around the real OCR implementation so any legacy imports use
+ * the configured Google Vision client instead of the old stub.
  */
 export async function extractFieldsFromDocument(
-  fileUrl: string
+  file: string | Buffer
 ): Promise<ExtractedDocumentFields> {
-  // TODO: Implement actual OCR extraction
-  console.log(`[OCR STUB] Would extract fields from: ${fileUrl}`);
-  
-  return {
-    rawText: "OCR extraction not yet implemented. Please enter document details manually.",
-  };
+  const buffer = Buffer.isBuffer(file) ? file : await fs.readFile(file);
+  return runOcrExtraction(buffer);
 }

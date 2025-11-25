@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/PageHeader";
 import { Link } from "wouter";
-import { Users, MapPin, Clock, Calendar, Languages, FileCheck, ChevronRight } from "lucide-react";
+import { Users, Users2, MapPin, Clock, Calendar, Languages, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import {
   Select,
@@ -159,90 +159,83 @@ export default function Talent() {
   const filteredProfiles = profiles || [];
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       <PageHeader
-        kicker="Certia Talent"
-        title="Talent pool (work visas)"
-        description="Shift-based workers on German work visas for cleaning, stadiums, catering, warehouse and more. All profiles are linked to structured right-to-work checks in Certia."
-        icon={<Users className="h-5 w-5" />}
+        kicker="Internal talent pool"
+        title="Talent"
+        description="Browse employees with valid or reviewable permits for shift-based and short-term roles. All profiles are linked to structured right-to-work checks in Certia."
+        icon={<Users2 className="h-5 w-5" />}
       />
 
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <Select value={workAreaFilter || "CLEAR_FILTER"} onValueChange={(val) => setWorkAreaFilter(val === "CLEAR_FILTER" ? "" : val)}>
-                <SelectTrigger data-testid="filter-work-area">
-                  <SelectValue placeholder="All Work Areas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CLEAR_FILTER">All Work Areas</SelectItem>
-                  {WORK_AREAS.map(area => (
-                    <SelectItem key={area.value} value={area.value}>
-                      {area.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 items-end">
+            <Select value={workAreaFilter || "CLEAR_FILTER"} onValueChange={(val) => setWorkAreaFilter(val === "CLEAR_FILTER" ? "" : val)}>
+              <SelectTrigger data-testid="filter-work-area">
+                <SelectValue placeholder="All Work Areas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CLEAR_FILTER">All Work Areas</SelectItem>
+                {WORK_AREAS.map(area => (
+                  <SelectItem key={area.value} value={area.value}>
+                    {area.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-            <div className="flex-1 min-w-[200px]">
-              <Input
-                placeholder="Location (city or region)"
-                value={locationFilter}
-                onChange={(e) => setLocationFilter(e.target.value)}
-                data-testid="filter-location"
-              />
-            </div>
+            <Input
+              placeholder="Location (city or region)"
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              data-testid="filter-location"
+              className="w-full"
+            />
 
-            <div className="flex-1 min-w-[200px]">
-              <Select value={shiftFilter || "CLEAR_FILTER"} onValueChange={(val) => setShiftFilter(val === "CLEAR_FILTER" ? "" : val)}>
-                <SelectTrigger data-testid="filter-shift">
-                  <SelectValue placeholder="All Shifts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CLEAR_FILTER">All Shifts</SelectItem>
-                  {SHIFT_PREFERENCES.map(shift => (
-                    <SelectItem key={shift.value} value={shift.value}>
-                      {shift.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={shiftFilter || "CLEAR_FILTER"} onValueChange={(val) => setShiftFilter(val === "CLEAR_FILTER" ? "" : val)}>
+              <SelectTrigger data-testid="filter-shift">
+                <SelectValue placeholder="All Shifts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CLEAR_FILTER">All Shifts</SelectItem>
+                {SHIFT_PREFERENCES.map(shift => (
+                  <SelectItem key={shift.value} value={shift.value}>
+                    {shift.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-            <div className="flex-1 min-w-[200px]">
-              <Select value={hoursFilter || "CLEAR_FILTER"} onValueChange={(val) => setHoursFilter(val === "CLEAR_FILTER" ? "" : val)}>
-                <SelectTrigger data-testid="filter-hours">
-                  <SelectValue placeholder="All Hours" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CLEAR_FILTER">All Hours</SelectItem>
-                  {WEEKLY_HOURS_BANDS.map(band => (
-                    <SelectItem key={band.value} value={band.value}>
-                      {band.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={hoursFilter || "CLEAR_FILTER"} onValueChange={(val) => setHoursFilter(val === "CLEAR_FILTER" ? "" : val)}>
+              <SelectTrigger data-testid="filter-hours">
+                <SelectValue placeholder="All Hours" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CLEAR_FILTER">All Hours</SelectItem>
+                {WEEKLY_HOURS_BANDS.map(band => (
+                  <SelectItem key={band.value} value={band.value}>
+                    {band.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-            <div className="flex-1 min-w-[200px]">
-              <Select value={permitFilter || "CLEAR_FILTER"} onValueChange={(val) => setPermitFilter(val === "CLEAR_FILTER" ? "" : val)}>
-                <SelectTrigger data-testid="filter-permit">
-                  <SelectValue placeholder="All Permits" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CLEAR_FILTER">All Permits</SelectItem>
-                  {PERMIT_HORIZONS.map(horizon => (
-                    <SelectItem key={horizon.value} value={horizon.value}>
-                      {horizon.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={permitFilter || "CLEAR_FILTER"} onValueChange={(val) => setPermitFilter(val === "CLEAR_FILTER" ? "" : val)}>
+              <SelectTrigger data-testid="filter-permit">
+                <SelectValue placeholder="All Permits" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CLEAR_FILTER">All Permits</SelectItem>
+                {PERMIT_HORIZONS.map(horizon => (
+                  <SelectItem key={horizon.value} value={horizon.value}>
+                    {horizon.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
+          <div className="mt-4 flex flex-wrap items-center gap-3">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="actively-looking"
@@ -268,7 +261,7 @@ export default function Talent() {
                 }}
                 data-testid="button-clear-filters"
               >
-                Clear Filters
+                Clear filters
               </Button>
             )}
           </div>
@@ -283,24 +276,34 @@ export default function Talent() {
         </div>
       ) : filteredProfiles.length === 0 ? (
         <Card>
-          <CardContent className="py-16 text-center">
-            <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              {workAreaFilter || locationFilter || shiftFilter || hoursFilter || permitFilter
-                ? "No talent profiles match your filters"
-                : "No talent profiles yet. Invite employees from their detail page."}
-            </p>
+          <CardContent className="py-16 text-center space-y-3">
+            <Users className="h-12 w-12 mx-auto text-muted-foreground" />
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold">No talent profiles found</h3>
+              <p className="text-muted-foreground">
+                {workAreaFilter || locationFilter || shiftFilter || hoursFilter || permitFilter
+                  ? "Try adjusting your filters to see more candidates."
+                  : "Invite employees from their detail page to grow your internal pool."}
+              </p>
+            </div>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredProfiles.map((profile) => (
-            <Card key={profile.id} className="hover-elevate" data-testid={`talent-card-${profile.id}`}>
+            <Card
+              key={profile.id}
+              className="hover:shadow-sm transition-shadow"
+              data-testid={`talent-card-${profile.id}`}
+            >
               <CardHeader className="pb-3">
                 <div className="flex flex-col gap-3">
                   <div className="flex-1">
                     <Link href={`/employees/${profile.employee.id}`}>
-                      <h3 className="font-semibold text-lg hover:underline" data-testid={`talent-name-${profile.id}`}>
+                      <h3
+                        className="font-semibold text-lg hover:underline"
+                        data-testid={`talent-name-${profile.id}`}
+                      >
                         {profile.employee.firstName} {profile.employee.lastName}
                       </h3>
                     </Link>
@@ -310,25 +313,23 @@ export default function Talent() {
                       </p>
                     )}
                   </div>
-                  
+
                   {profile.isActivelyLooking === "true" && (
                     <div className="flex items-center gap-2 text-sm font-medium text-green-600">
                       <span>✓ Actively looking</span>
                     </div>
                   )}
-                  
+
                   {profile.availableFrom ? (
                     <div className="text-sm text-muted-foreground">
                       Available from: {formatDate(profile.availableFrom)}
                     </div>
                   ) : profile.isActivelyLooking === "true" ? (
-                    <div className="text-sm text-muted-foreground">
-                      Available now
-                    </div>
+                    <div className="text-sm text-muted-foreground">Available now</div>
                   ) : null}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">
@@ -384,24 +385,24 @@ export default function Talent() {
                   </div>
                 )}
 
-                <div className="pt-2 border-t space-y-1.5">
+                <div className="mt-3 rounded-md bg-muted/40 p-3 space-y-1.5">
                   <div className="text-xs text-muted-foreground">
                     {getRTWBadgeText(profile.lastCheckStatus, profile.lastCheckDate)}
                   </div>
-                  
+
                   {profile.lastCheckDate && (
                     <div className="text-xs text-muted-foreground">
                       Checked {getDaysSince(profile.lastCheckDate)} days ago
                     </div>
                   )}
-                  
+
                   <div className={`text-xs font-medium ${getPermitHorizonColor(profile.permitHorizonBand)}`}>
                     {formatPermitHorizon(profile.permitHorizonBand)}
                   </div>
                 </div>
 
                 <Link href={`/employees/${profile.employee.id}`}>
-                  <Button variant="outline" className="w-full mt-2" data-testid={`button-view-profile-${profile.id}`}>
+                  <Button variant="outline" className="w-full" data-testid={`button-view-profile-${profile.id}`}>
                     View Full Profile
                     <ChevronRight className="h-4 w-4 ml-2" />
                   </Button>
