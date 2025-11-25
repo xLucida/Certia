@@ -1468,6 +1468,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Document management routes for checks
+  app.get("/api/checks/:checkId/documents", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { checkId } = req.params;
+      
+      const documents = await storage.getRightToWorkCheckDocumentsByCheckId(checkId, userId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      res.status(500).json({ error: "Failed to fetch documents" });
+    }
+  });
+
+  app.post("/api/checks/:checkId/documents", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { checkId } = req.params;
+      const { fileName, fileUrl, mimeType, sizeBytes, isPrimary } = req.body;
+      
+      // Verify the check belongs to this user
+      const check = await storage.getRightToWorkCheckById(checkId);
+      if (!check || check.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Create the document
+      const document = await storage.createRightToWorkCheckDocument({
+        checkId,
+        fileName: fileName || "document",
+        fileUrl,
+        mimeType,
+        sizeBytes,
+        isPrimary: isPrimary || false,
+      });
+      
+      // If this is the primary document, update the check's fileUrl
+      if (isPrimary) {
+        await storage.setDocumentAsPrimary(document.id, checkId, userId);
+      }
+      
+      // Log the attachment
+      await storage.createAuditLog({
+        userId,
+        action: "ATTACHMENT_ADDED",
+        entityType: "check",
+        entityId: checkId,
+        details: `Document "${fileName}" attached`,
+      });
+      
+      res.json(document);
+    } catch (error) {
+      console.error("Error adding document:", error);
+      res.status(500).json({ error: "Failed to add document" });
+    }
+  });
+
+  app.delete("/api/checks/:checkId/documents/:documentId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { checkId, documentId } = req.params;
+      
+      await storage.deleteRightToWorkCheckDocument(documentId, userId);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting document:", error);
+      if (error.message === "Access denied" || error.message === "Document not found") {
+        return res.status(403).json({ error: error.message });
+      }
+      res.status(500).json({ error: "Failed to delete document" });
+    }
+  });
+
+  app.patch("/api/checks/:checkId/documents/:documentId/primary", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { checkId, documentId } = req.params;
+      
+      await storage.setDocumentAsPrimary(documentId, checkId, userId);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error setting primary document:", error);
+      if (error.message === "Access denied") {
+        return res.status(403).json({ error: error.message });
+      }
+      res.status(500).json({ error: "Failed to set primary document" });
+    }
+  });
+
   // CSV export route for audit purposes
   app.get("/api/audit/checks.csv", isAuthenticated, async (req: any, res) => {
     try {
