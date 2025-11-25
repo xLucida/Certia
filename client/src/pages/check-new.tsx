@@ -72,6 +72,8 @@ export default function CheckNew() {
       countryOfIssue: "",
       dateOfIssue: "",
       expiryDate: "",
+      employerName: "",
+      employmentPermission: undefined,
       fileUrl: "",
     },
   });
@@ -225,6 +227,7 @@ export default function CheckNew() {
     setOcrAutofilled(false);
 
     try {
+      // Step 1: Extract fields via OCR
       const formData = new FormData();
       formData.append('file', file);
 
@@ -248,6 +251,31 @@ export default function CheckNew() {
         return;
       }
 
+      // Step 2: Upload the document for storage (in parallel with showing OCR results)
+      try {
+        const uploadParamsResponse = await apiRequest("POST", "/api/objects/upload", {});
+        const uploadParams = await uploadParamsResponse.json() as { uploadURL: string };
+        
+        const uploadResponse = await fetch(uploadParams.uploadURL, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': file.type,
+          },
+        });
+
+        if (uploadResponse.ok) {
+          const documentResponse = await apiRequest("PUT", "/api/documents", {
+            documentURL: uploadParams.uploadURL,
+          });
+          const documentData = await documentResponse.json() as { objectPath: string };
+          setUploadedFileUrl(documentData.objectPath);
+        }
+      } catch (uploadError) {
+        console.error('Document upload failed:', uploadError);
+        // Don't block OCR results if upload fails
+      }
+
       // Success: check if any fields were extracted
       const autofilled = new Set<string>();
       if (result.documentTypeGuess) {
@@ -262,11 +290,21 @@ export default function CheckNew() {
         form.setValue('expiryDate', result.expiryDateGuessIso);
         autofilled.add('expiryDate');
       }
+      if (result.employerNameGuess) {
+        form.setValue('employerName', result.employerNameGuess);
+        autofilled.add('employerName');
+      }
+      if (result.employmentPermissionGuess) {
+        form.setValue('employmentPermission', result.employmentPermissionGuess);
+        autofilled.add('employmentPermission');
+      }
 
       const fieldsFound = [
         result.documentTypeGuess && 'document type',
         result.documentNumberGuess && 'document number',
         result.expiryDateGuessIso && 'expiry date',
+        result.employerNameGuess && 'employer name',
+        result.employmentPermissionGuess && 'employment permission',
       ].filter(Boolean);
 
       if (fieldsFound.length > 0) {
@@ -617,6 +655,51 @@ export default function CheckNew() {
                   />
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="employerName">Employer Name</Label>
+                      {autofilledFields.has('employerName') && (
+                        <span className="text-xs text-primary flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          Auto-filled from scan
+                        </span>
+                      )}
+                    </div>
+                    <Input
+                      id="employerName"
+                      {...form.register("employerName")}
+                      placeholder="e.g., ABC GmbH"
+                      data-testid="input-employer-name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="employmentPermission">Employment Permission</Label>
+                      {autofilledFields.has('employmentPermission') && (
+                        <span className="text-xs text-primary flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          Auto-filled from scan
+                        </span>
+                      )}
+                    </div>
+                    <Select
+                      value={form.watch("employmentPermission") || ""}
+                      onValueChange={(value) => form.setValue("employmentPermission", value as any)}
+                    >
+                      <SelectTrigger data-testid="select-employment-permission">
+                        <SelectValue placeholder="Select permission type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ANY_EMPLOYMENT_ALLOWED">Any Employment Allowed</SelectItem>
+                        <SelectItem value="RESTRICTED">Restricted to Specific Employer</SelectItem>
+                        <SelectItem value="UNKNOWN">Unknown</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="countryOfIssue">Country of Issue</Label>
                   <Input
@@ -664,63 +747,14 @@ export default function CheckNew() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <Label>Upload Document</Label>
-                  
-                  {/* Scan Tips Card */}
-                  <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900" data-testid="scan-tips-card">
-                    <CardContent className="pt-4 pb-4">
-                      <div className="flex items-start gap-3">
-                        <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
-                          <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div className="space-y-2 flex-1">
-                          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Scan Tips for Best Results</p>
-                          <ul className="space-y-1 text-xs text-muted-foreground">
-                            <li className="flex items-start gap-2">
-                              <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-                              <span>Use a clear, well-lit scan or photo of the document</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-                              <span>Certia will attempt to auto-fill fields from the document</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-blue-600 dark:text-blue-400 mt-0.5">•</span>
-                              <span>Always verify auto-filled information before submitting</span>
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-4">
-                    <div className="flex justify-center">
-                      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                        <FileText className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">
-                        {uploadedFileUrl ? "Document uploaded successfully" : "Upload visa or work permit document"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        PDF or Image (JPG, PNG) up to 10MB
-                      </p>
-                    </div>
-                    <ObjectUploader
-                      maxNumberOfFiles={1}
-                      maxFileSize={10485760}
-                      onGetUploadParameters={handleGetUploadParameters}
-                      onComplete={handleUploadComplete}
-                      buttonVariant={uploadedFileUrl ? "secondary" : "outline"}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      {uploadedFileUrl ? "Replace Document" : "Choose File"}
-                    </ObjectUploader>
-                  </div>
-                </div>
+                {uploadedFileUrl && (
+                  <Alert className="bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900">
+                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    <AlertDescription className="text-sm text-green-900 dark:text-green-100">
+                      Document uploaded and stored successfully
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 {ocrUsed && (
                   <div className="flex items-start gap-3 p-4 border rounded-lg bg-muted/30">
