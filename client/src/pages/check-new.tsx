@@ -270,6 +270,7 @@ export default function CheckNew() {
           });
           const documentData = await documentResponse.json() as { objectPath: string };
           setUploadedFileUrl(documentData.objectPath);
+          form.setValue('fileUrl', documentData.objectPath); // Set in form for submission
         }
       } catch (uploadError) {
         console.error('Document upload failed:', uploadError);

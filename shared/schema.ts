@@ -207,6 +207,8 @@ export const checkFormSchema = insertRightToWorkCheckSchema.omit({ userId: true 
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   employeeId: z.string().optional(),
+  employerName: z.string().optional(),
+  employmentPermission: z.enum(['ANY_EMPLOYMENT_ALLOWED', 'RESTRICTED', 'UNKNOWN']).optional(),
 });
 
 export const insertRightToWorkCheckNoteSchema = createInsertSchema(rightToWorkCheckNotes).omit({
