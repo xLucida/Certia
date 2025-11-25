@@ -26,6 +26,9 @@ Replit Auth (OpenID Connect) via Passport.js handles authentication, using sessi
 ### File Upload & Storage
 File uploads are managed via Google Cloud Storage, accessed through the Replit Object Storage sidecar. Uppy.js facilitates client-side direct-to-storage uploads for PDF, JPG, JPEG, and PNG formats.
 
+### OCR & Document Processing
+The application uses Google Cloud Vision API for Optical Character Recognition (OCR) to extract text from uploaded work permit documents. The OCR system automatically identifies document types (EU Blue Card, EAT, Fiktionsbescheinigung), extracts document numbers, expiry dates, employer names, and employment permissions. Extracted data pre-fills form fields to speed up right-to-work check creation. The system provides graceful fallbacks - if OCR fails, users can manually enter document details. Google Cloud Vision offers superior accuracy for German text extraction compared to alternatives, with a generous free tier (1,000 requests/month).
+
 ### Public Upload Link System
 A secure public upload link system allows HR users to request documents from employees without requiring login. It uses HMAC-SHA256 signed tokens with encrypted payloads and a 14-day expiry. Backend endpoints handle link generation, token validation, and document submission with automatic OCR processing and right-to-work evaluation. Frontend provides a public upload interface.
 
@@ -64,9 +67,9 @@ An internal talent pool system for managing low-skilled, shift-based workers on 
 
 ### Third-Party Services
 - **Replit Platform Services:** Replit Auth, Replit Object Storage, Neon PostgreSQL.
-- **Cloud Services:** Google Cloud Storage (proxied via Replit).
+- **Cloud Services:** Google Cloud Storage (proxied via Replit), Google Cloud Vision API (OCR).
 - **AI Service:** Venice AI (OpenAI-compatible API).
 
 ### Key NPM Packages
 - **Frontend:** `@tanstack/react-query`, `react-hook-form`, `zod`, `@radix-ui/*`, `@uppy/*`, `wouter`.
-- **Backend:** `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `@google-cloud/storage`, `multer`, `csv-parse`.
+- **Backend:** `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `@google-cloud/storage`, `@google-cloud/vision`, `multer`, `csv-parse`.
