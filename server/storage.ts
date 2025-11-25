@@ -75,6 +75,7 @@ export interface IStorage {
   createRightToWorkCheckDocument(document: InsertRightToWorkCheckDocument): Promise<RightToWorkCheckDocument>;
   getRightToWorkCheckDocumentsByCheckId(checkId: string, userId: string): Promise<RightToWorkCheckDocument[]>;
   deleteRightToWorkCheckDocument(id: string, userId: string): Promise<void>;
+  setDocumentAsPrimary(documentId: string, checkId: string, userId: string): Promise<void>;
   
   // Audit log operations
   createAuditLog(entry: { userId: string; action: string; entityType: string; entityId?: string; details?: string }): Promise<AuditLog>;
@@ -409,6 +410,35 @@ export class DatabaseStorage implements IStorage {
     }
 
     await db.delete(rightToWorkCheckDocuments).where(eq(rightToWorkCheckDocuments.id, id));
+  }
+
+  async setDocumentAsPrimary(documentId: string, checkId: string, userId: string): Promise<void> {
+    // Verify the check belongs to this user
+    const check = await this.getRightToWorkCheckById(checkId);
+    if (!check || check.userId !== userId) {
+      throw new Error("Access denied");
+    }
+
+    // First, unset all documents for this check as not primary
+    await db
+      .update(rightToWorkCheckDocuments)
+      .set({ isPrimary: false })
+      .where(eq(rightToWorkCheckDocuments.checkId, checkId));
+
+    // Then set the specified document as primary
+    const [updatedDoc] = await db
+      .update(rightToWorkCheckDocuments)
+      .set({ isPrimary: true })
+      .where(eq(rightToWorkCheckDocuments.id, documentId))
+      .returning();
+
+    // Also update the check's fileUrl to match the primary document
+    if (updatedDoc) {
+      await db
+        .update(rightToWorkChecks)
+        .set({ fileUrl: updatedDoc.fileUrl })
+        .where(eq(rightToWorkChecks.id, checkId));
+    }
   }
 
   async createAuditLog(entry: { userId: string; action: string; entityType: string; entityId?: string; details?: string }): Promise<AuditLog> {

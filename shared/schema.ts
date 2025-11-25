@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   jsonb,
   pgTable,
@@ -154,6 +155,7 @@ export const rightToWorkCheckDocuments = pgTable("right_to_work_check_documents"
   fileUrl: varchar("file_url").notNull(),
   mimeType: varchar("mime_type"),
   sizeBytes: varchar("size_bytes"),
+  isPrimary: boolean("is_primary").notNull().default(false),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
 
