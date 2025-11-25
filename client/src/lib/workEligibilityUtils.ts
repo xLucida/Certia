@@ -1,73 +1,84 @@
-import type { DocumentType, WorkStatus } from "@shared/schema";
+import type { DocumentType } from "@shared/schema";
+import type {
+  EvaluateRightToWorkInput,
+  EvaluateRightToWorkResult,
+} from "../../../lib/rightToWork";
+import { evaluateRightToWork as runRulesEngine } from "../../../lib/rightToWork";
 
-export interface EvaluationResult {
-  workStatus: WorkStatus;
-  decisionSummary: string;
-  decisionDetails: string;
-}
+export type EvaluationResult = EvaluateRightToWorkResult;
+
+type PreviewOverrides = Partial<
+  Omit<
+    EvaluateRightToWorkInput,
+    | "citizenshipCategory"
+    | "documentType"
+    | "documentValidFrom"
+    | "documentValidTo"
+    | "todayIsoDate"
+  >
+> & {
+  citizenshipCategory?: EvaluateRightToWorkInput["citizenshipCategory"];
+};
 
 /**
- * Evaluates right-to-work eligibility based on German visa documentation rules.
- * 
- * Rules:
- * - EU_BLUE_CARD or EAT:
- *   - if expiryDate > now → ELIGIBLE
- *   - else → NOT_ELIGIBLE
- * - FIKTIONSBESCHEINIGUNG:
- *   - if expiryDate > now → NEEDS_REVIEW
- *   - else → NOT_ELIGIBLE
- * - OTHER: always NEEDS_REVIEW
+ * Client-side helper that mirrors the server's conservative mapping into the
+ * rules engine. This avoids optimistic shortcuts when rendering previews or
+ * local UI, ensuring the same guardrails as the backend.
  */
 export function evaluateRightToWork({
   documentType,
   expiryDate,
+  dateOfIssue,
+  overrides,
 }: {
   documentType: DocumentType;
   expiryDate: string;
+  dateOfIssue?: string;
+  overrides?: PreviewOverrides;
 }): EvaluationResult {
-  const now = new Date();
-  const expiry = new Date(expiryDate);
-  const isExpired = expiry < now;
+  const documentValidFrom = (dateOfIssue
+    ? new Date(dateOfIssue)
+    : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
+  )
+    .toISOString()
+    .split("T")[0];
 
-  if (documentType === "EU_BLUE_CARD" || documentType === "EAT") {
-    if (isExpired) {
-      return {
-        workStatus: "NOT_ELIGIBLE",
-        decisionSummary: "Document expired",
-        decisionDetails: `This ${formatDocumentType(documentType)} expired on ${expiry.toLocaleDateString()}. The employee is not eligible to work in Germany.`,
-      };
-    } else {
-      return {
-        workStatus: "ELIGIBLE",
-        decisionSummary: "Valid work authorization",
-        decisionDetails: `This ${formatDocumentType(documentType)} is valid until ${expiry.toLocaleDateString()}. The employee is eligible to work in Germany.`,
-      };
-    }
-  }
-
-  if (documentType === "FIKTIONSBESCHEINIGUNG") {
-    if (isExpired) {
-      return {
-        workStatus: "NOT_ELIGIBLE",
-        decisionSummary: "Fiktionsbescheinigung expired",
-        decisionDetails: `This Fiktionsbescheinigung expired on ${expiry.toLocaleDateString()}. The employee is not eligible to work in Germany.`,
-      };
-    } else {
-      return {
-        workStatus: "NEEDS_REVIEW",
-        decisionSummary: "Manual review required",
-        decisionDetails: `This Fiktionsbescheinigung is valid until ${expiry.toLocaleDateString()}. Manual review is required to verify work authorization conditions and restrictions.`,
-      };
-    }
-  }
-
-  // OTHER
-  return {
-    workStatus: "NEEDS_REVIEW",
-    decisionSummary: "Manual review required",
-    decisionDetails: `This document requires manual review to determine work eligibility. Please verify the document type and validity with German immigration authorities.`,
+  const input: EvaluateRightToWorkInput = {
+    citizenshipCategory: overrides?.citizenshipCategory ?? "THIRD_COUNTRY",
+    documentType: documentTypeMapping[documentType],
+    documentValidFrom,
+    documentValidTo: new Date(expiryDate).toISOString().split("T")[0],
+    employmentPermission: overrides?.employmentPermission ?? "UNCLEAR",
+    hiringEmployerName: overrides?.hiringEmployerName ?? "Not specified",
+    permitNamesSpecificEmployer: overrides?.permitNamesSpecificEmployer ?? "UNKNOWN",
+    employerOnPermit: overrides?.employerOnPermit,
+    permitLimitedToOccupation: overrides?.permitLimitedToOccupation ?? "UNKNOWN",
+    occupationOnPermit: overrides?.occupationOnPermit,
+    plannedRoleCategory: overrides?.plannedRoleCategory ?? "Not specified",
+    hasHoursLimitOnPermit: overrides?.hasHoursLimitOnPermit ?? "UNKNOWN",
+    hoursLimitPerWeekOnPermit: overrides?.hoursLimitPerWeekOnPermit,
+    contractHoursPerWeek: overrides?.contractHoursPerWeek ?? 0,
+    hasLocationRestriction: overrides?.hasLocationRestriction ?? "UNKNOWN",
+    locationRestrictionDescription: overrides?.locationRestrictionDescription,
+    plannedWorkCity: overrides?.plannedWorkCity ?? "Not specified",
+    isBlueCard: overrides?.isBlueCard ?? documentType === "EU_BLUE_CARD",
+    isChangingEmployer: overrides?.isChangingEmployer ?? false,
+    monthsOnBlueCardInGermany: overrides?.monthsOnBlueCardInGermany,
+    isContinuationOfSameJobAndEmployer: overrides?.isContinuationOfSameJobAndEmployer,
+    freeTextNotes:
+      overrides?.freeTextNotes ||
+      "Front-end preview using provided inputs; verify permit conditions manually.",
   };
+
+  return runRulesEngine(input);
 }
+
+const documentTypeMapping: Record<DocumentType, EvaluateRightToWorkInput["documentType"]> = {
+  EU_BLUE_CARD: "EU_BLUE_CARD",
+  EAT: "EAT_EMPLOYMENT",
+  FIKTIONSBESCHEINIGUNG: "FIKTIONSBESCHEINIGUNG",
+  OTHER: "OTHER",
+};
 
 export function formatDocumentType(type: DocumentType): string {
   const typeMap: Record<DocumentType, string> = {

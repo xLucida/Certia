@@ -757,7 +757,7 @@ export default function CheckNew() {
                         </Button>
                       </label>
                       {isOcrProcessing && (
-                        <p className="text-sm text-muted-foreground">Processing...</p>
+                        <p className="text-sm text-muted-foreground">Processing…</p>
                       )}
                     </div>
 
