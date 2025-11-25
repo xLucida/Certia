@@ -44,6 +44,13 @@ A manual case workflow tracking system helps HR teams manage the administrative 
 ### Employee Cascade Delete
 The system supports secure deletion of employee records and all related compliance data (checks, notes, documents) via a confirmation workflow. Deletion is tenant-scoped and irreversible.
 
+### Multi-Document Support
+Right-to-work checks support multiple document uploads. The `rightToWorkCheckDocuments` table stores all documents with an `isPrimary` boolean field to designate which document drives OCR auto-fill. Features include:
+- **Primary Document Designation**: First uploaded document is automatically marked as primary; OCR runs only on the primary document to populate form fields.
+- **Document Management APIs**: GET/POST/DELETE/PATCH endpoints at `/api/checks/:checkId/documents` for CRUD operations including set-as-primary functionality.
+- **Check Detail Page**: Displays all documents with a visual "Primary" badge; star icon allows changing the primary document. Documents can be viewed (download) or deleted individually.
+- **Check Creation UI**: Document list with add/remove/primary toggle during check creation; "Add another document" button for additional uploads.
+
 ### Public Upload Page Polish
 The candidate-facing upload page has updated copy and design to be clearer, more trustworthy, and consistent with Certia branding, emphasizing privacy and ease of use for external candidates.
 

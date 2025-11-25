@@ -20,7 +20,7 @@ import { formatDocumentType } from "@/lib/workEligibilityUtils";
 import type { z } from "zod";
 import type { Employee } from "@shared/schema";
 import type { UploadResult } from "@uppy/core";
-import { ArrowLeft, FileText, Upload, UserPlus, Users, Sparkles, AlertCircle, CheckCircle, Lightbulb, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, FileText, Upload, UserPlus, Users, Sparkles, AlertCircle, CheckCircle, Lightbulb, ClipboardCheck, Star, Trash2, Plus, RotateCcw, File } from "lucide-react";
 import { Link } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -40,6 +40,16 @@ interface OcrExtractionResult {
   message?: string;
 }
 
+interface UploadedDocument {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  mimeType: string;
+  sizeBytes: string;
+  isPrimary: boolean;
+  status: 'uploading' | 'uploaded' | 'error';
+}
+
 export default function CheckNew() {
   const [, setLocationPath] = useLocation();
   const { toast } = useToast();
@@ -53,6 +63,7 @@ export default function CheckNew() {
   const [ocrConfirmed, setOcrConfirmed] = useState(false);
   const [autofilledFields, setAutofilledFields] = useState<Set<string>>(new Set());
   const [ocrResult, setOcrResult] = useState<OcrExtractionResult | null>(null);
+  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const searchParams = new URLSearchParams(window.location.search);
   const preselectedEmployeeId = searchParams.get("employeeId");
 
@@ -122,13 +133,16 @@ export default function CheckNew() {
         throw new Error("Please select an employee");
       }
 
+      // Get primary document URL
+      const primaryDoc = documents.find(d => d.isPrimary && d.status === 'uploaded');
+
       const payload = {
         ...data,
         // Convert empty strings to undefined for optional fields
         dateOfIssue: data.dateOfIssue || undefined,
         documentNumber: data.documentNumber || undefined,
         countryOfIssue: data.countryOfIssue || undefined,
-        fileUrl: uploadedFileUrl || undefined,
+        fileUrl: primaryDoc?.fileUrl || undefined,
         // Only include fields relevant to the check type
         employeeId: checkType === "existing" ? data.employeeId : undefined,
         firstName: checkType === "new" ? data.firstName : undefined,
@@ -143,23 +157,45 @@ export default function CheckNew() {
           employmentPermissionGuess: ocrResult.employmentPermissionGuess,
         } : undefined,
       };
-      return await apiRequest("POST", "/api/checks", payload);
+      
+      // Create the check
+      const response = await apiRequest("POST", "/api/checks", payload);
+      const check = await response.json() as { id: string };
+      
+      // Save all documents to the check
+      const uploadedDocs = documents.filter(d => d.status === 'uploaded');
+      for (const doc of uploadedDocs) {
+        try {
+          await apiRequest("POST", `/api/checks/${check.id}/documents`, {
+            fileName: doc.fileName,
+            fileUrl: doc.fileUrl,
+            mimeType: doc.mimeType,
+            sizeBytes: doc.sizeBytes,
+            isPrimary: doc.isPrimary,
+          });
+        } catch (err) {
+          console.error('Failed to save document:', doc.fileName, err);
+        }
+      }
+      
+      return { checkId: check.id, employeeId: data.employeeId };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
-      if (variables.employeeId) {
-        queryClient.invalidateQueries({ queryKey: ["/api/employees", variables.employeeId] });
+      if (result.employeeId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/employees", result.employeeId] });
       } else {
         // Invalidate standalone checks when creating a new candidate check
         queryClient.invalidateQueries({ queryKey: ["/api/checks/standalone"] });
       }
+      const docCount = documents.filter(d => d.status === 'uploaded').length;
       toast({
         title: "Success",
-        description: "Right-to-work check created successfully. You can upload additional supporting documents later from the check detail page.",
+        description: `Right-to-work check created with ${docCount} document${docCount !== 1 ? 's' : ''}.`,
       });
       // Redirect to dashboard for standalone checks, employee page for linked checks
-      if (variables.employeeId) {
-        setLocationPath(`/employees/${variables.employeeId}`);
+      if (result.employeeId) {
+        setLocationPath(`/employees/${result.employeeId}`);
       } else {
         setLocationPath("/");
       }
@@ -222,36 +258,34 @@ export default function CheckNew() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setIsOcrProcessing(true);
-    setOcrError("");
-    setOcrAutofilled(false);
+    // Generate a temporary ID for this document
+    const tempId = crypto.randomUUID();
+    const isFirstDocument = documents.length === 0;
+    
+    // Add document to list immediately with 'uploading' status
+    const newDoc: UploadedDocument = {
+      id: tempId,
+      fileName: file.name,
+      fileUrl: '',
+      mimeType: file.type,
+      sizeBytes: file.size.toString(),
+      isPrimary: isFirstDocument, // First document is automatically primary
+      status: 'uploading',
+    };
+    setDocuments(prev => [...prev, newDoc]);
+
+    // Only run OCR for primary document (first upload or when re-running)
+    const shouldRunOcr = isFirstDocument;
+    
+    if (shouldRunOcr) {
+      setIsOcrProcessing(true);
+      setOcrError("");
+      setOcrAutofilled(false);
+    }
 
     try {
-      // Step 1: Extract fields via OCR
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch('/api/ocr/extract', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-
-      const result: OcrExtractionResult = await response.json();
-
-      // Handle error responses (4xx, 5xx)
-      if (!response.ok || result.error) {
-        const errorMessage = result.message || result.error || "Failed to process document";
-        setOcrError(errorMessage);
-        toast({
-          title: "OCR failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Step 2: Upload the document for storage (in parallel with showing OCR results)
+      // Step 1: Upload the document for storage
+      let objectPath = '';
       try {
         const uploadParamsResponse = await apiRequest("POST", "/api/objects/upload", {});
         const uploadParams = await uploadParamsResponse.json() as { uploadURL: string };
@@ -269,15 +303,194 @@ export default function CheckNew() {
             documentURL: uploadParams.uploadURL,
           });
           const documentData = await documentResponse.json() as { objectPath: string };
-          setUploadedFileUrl(documentData.objectPath);
-          form.setValue('fileUrl', documentData.objectPath); // Set in form for submission
+          objectPath = documentData.objectPath;
+          
+          // Update document in list with uploaded URL
+          setDocuments(prev => prev.map(d => 
+            d.id === tempId 
+              ? { ...d, fileUrl: objectPath, status: 'uploaded' as const }
+              : d
+          ));
+          
+          // Set form fileUrl for primary document
+          if (isFirstDocument) {
+            setUploadedFileUrl(objectPath);
+            form.setValue('fileUrl', objectPath);
+          }
+          
+          toast({
+            title: "Document uploaded",
+            description: `${file.name} uploaded successfully`,
+          });
+        } else {
+          throw new Error('Upload failed');
         }
       } catch (uploadError) {
         console.error('Document upload failed:', uploadError);
-        // Don't block OCR results if upload fails
+        setDocuments(prev => prev.map(d => 
+          d.id === tempId ? { ...d, status: 'error' as const } : d
+        ));
+        toast({
+          title: "Upload failed",
+          description: `Failed to upload ${file.name}`,
+          variant: "destructive",
+        });
+        return;
       }
 
-      // Success: check if any fields were extracted
+      // Step 2: Run OCR only on primary document
+      if (shouldRunOcr) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/ocr/extract', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        });
+
+        const result: OcrExtractionResult = await response.json();
+
+        // Handle error responses (4xx, 5xx)
+        if (!response.ok || result.error) {
+          const errorMessage = result.message || result.error || "Failed to process document";
+          setOcrError(errorMessage);
+          // Don't block - document is still uploaded
+        } else {
+          // Success: check if any fields were extracted
+          const autofilled = new Set<string>();
+          if (result.documentTypeGuess) {
+            form.setValue('documentType', result.documentTypeGuess);
+            autofilled.add('documentType');
+          }
+          if (result.documentNumberGuess) {
+            form.setValue('documentNumber', result.documentNumberGuess);
+            autofilled.add('documentNumber');
+          }
+          if (result.expiryDateGuessIso) {
+            form.setValue('expiryDate', result.expiryDateGuessIso);
+            autofilled.add('expiryDate');
+          }
+          if (result.employerNameGuess) {
+            form.setValue('employerName', result.employerNameGuess);
+            autofilled.add('employerName');
+          }
+          if (result.employmentPermissionGuess) {
+            form.setValue('employmentPermission', result.employmentPermissionGuess);
+            autofilled.add('employmentPermission');
+          }
+
+          const fieldsFound = [
+            result.documentTypeGuess && 'document type',
+            result.documentNumberGuess && 'document number',
+            result.expiryDateGuessIso && 'expiry date',
+            result.employerNameGuess && 'employer name',
+            result.employmentPermissionGuess && 'employment permission',
+          ].filter(Boolean);
+
+          if (fieldsFound.length > 0) {
+            setOcrAutofilled(true);
+            setOcrUsed(true);
+            setAutofilledFields(autofilled);
+            setOcrResult(result);
+            toast({
+              title: "Fields auto-filled",
+              description: `Found: ${fieldsFound.join(', ')}. Please review and correct if needed.`,
+            });
+          } else {
+            setOcrResult(result);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Document processing error:', error);
+      setDocuments(prev => prev.map(d => 
+        d.id === tempId ? { ...d, status: 'error' as const } : d
+      ));
+    } finally {
+      if (shouldRunOcr) {
+        setIsOcrProcessing(false);
+      }
+      event.target.value = '';
+    }
+  };
+
+  // Handle removing a document from the list
+  const handleRemoveDocument = (docId: string) => {
+    setDocuments(prev => {
+      const updated = prev.filter(d => d.id !== docId);
+      // If we removed the primary, make the first remaining one primary
+      if (updated.length > 0 && !updated.some(d => d.isPrimary)) {
+        updated[0].isPrimary = true;
+        setUploadedFileUrl(updated[0].fileUrl);
+        form.setValue('fileUrl', updated[0].fileUrl);
+      } else if (updated.length === 0) {
+        setUploadedFileUrl('');
+        form.setValue('fileUrl', '');
+      }
+      return updated;
+    });
+  };
+
+  // Handle setting a document as primary
+  const handleSetPrimary = async (docId: string) => {
+    setDocuments(prev => {
+      const updated = prev.map(d => ({
+        ...d,
+        isPrimary: d.id === docId,
+      }));
+      const primary = updated.find(d => d.isPrimary);
+      if (primary) {
+        setUploadedFileUrl(primary.fileUrl);
+        form.setValue('fileUrl', primary.fileUrl);
+      }
+      return updated;
+    });
+    toast({
+      title: "Primary document changed",
+      description: "You can re-run OCR extraction on this document if needed.",
+    });
+  };
+
+  // Handle re-running OCR on a specific document
+  const handleRerunOcr = async (doc: UploadedDocument) => {
+    if (!doc.fileUrl || doc.status !== 'uploaded') return;
+    
+    setIsOcrProcessing(true);
+    setOcrError("");
+    
+    try {
+      // Fetch the document and run OCR
+      const fileResponse = await fetch(doc.fileUrl, { credentials: 'include' });
+      if (!fileResponse.ok) {
+        throw new Error('Failed to fetch document');
+      }
+      
+      const blob = await fileResponse.blob();
+      
+      const formData = new FormData();
+      formData.append('file', blob, doc.fileName);
+
+      const response = await fetch('/api/ocr/extract', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      const result: OcrExtractionResult = await response.json();
+
+      if (!response.ok || result.error) {
+        const errorMessage = result.message || result.error || "Failed to process document";
+        setOcrError(errorMessage);
+        toast({
+          title: "OCR failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Apply extracted fields
       const autofilled = new Set<string>();
       if (result.documentTypeGuess) {
         form.setValue('documentType', result.documentTypeGuess);
@@ -310,34 +523,28 @@ export default function CheckNew() {
 
       if (fieldsFound.length > 0) {
         setOcrAutofilled(true);
-        setOcrUsed(true); // Only set to true when fields were actually extracted
+        setOcrUsed(true);
         setAutofilledFields(autofilled);
         setOcrResult(result);
         toast({
-          title: "Fields auto-filled",
+          title: "Fields updated",
           description: `Found: ${fieldsFound.join(', ')}. Please review and correct if needed.`,
         });
       } else {
-        // Don't set ocrUsed to true if no fields were extracted
-        setOcrResult(result);
         toast({
           title: "OCR completed",
-          description: "No fields could be extracted. Please enter details manually.",
+          description: "No fields could be extracted from this document.",
         });
       }
     } catch (error) {
-      console.error('OCR extraction error:', error);
-      const errorMessage = "Network error. Please check your connection and try again.";
-      setOcrError(errorMessage);
+      console.error('OCR re-run error:', error);
       toast({
         title: "Error",
-        description: errorMessage,
+        description: "Failed to process document. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsOcrProcessing(false);
-      // Clear the file input so the same file can be uploaded again
-      event.target.value = '';
     }
   };
 
@@ -393,8 +600,9 @@ export default function CheckNew() {
   // Step 1: Initial state - no upload and no form started
   // Step 2: File uploaded OR user has started filling form
   // Step 3: All required fields filled and ready to submit
+  const hasDocuments = documents.some(d => d.status === 'uploaded');
   const currentStep = hasRequiredFields ? 3 
-    : (ocrAutofilled || ocrUsed || uploadedFileUrl || hasStartedFillingForm) ? 2 
+    : (ocrAutofilled || ocrUsed || hasDocuments || hasStartedFillingForm) ? 2 
     : 1;
 
   return (
@@ -454,21 +662,100 @@ export default function CheckNew() {
                   </div>
                   <div className="flex-1 space-y-3">
                     <div>
-                      <p className="text-base font-bold">Step 1: Upload Document</p>
+                      <p className="text-base font-bold">Step 1: Upload Documents</p>
                       <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                        Upload your visa document to automatically extract key fields. We'll analyze it and pre-fill the form below.
+                        Upload visa documents to automatically extract key fields. The first document will be used for OCR extraction.
                       </p>
                     </div>
                     
+                    {/* Document list */}
+                    {documents.length > 0 && (
+                      <div className="space-y-2">
+                        {documents.map((doc) => (
+                          <div 
+                            key={doc.id}
+                            className="flex items-center gap-3 p-3 rounded-lg border bg-background hover-elevate"
+                            data-testid={`document-row-${doc.id}`}
+                          >
+                            <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{doc.fileName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {doc.status === 'uploading' ? 'Uploading...' : 
+                                 doc.status === 'error' ? 'Upload failed' : 
+                                 `${(parseInt(doc.sizeBytes) / 1024).toFixed(1)} KB`}
+                              </p>
+                            </div>
+                            {doc.isPrimary && (
+                              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-medium">
+                                Primary
+                              </span>
+                            )}
+                            <div className="flex items-center gap-1">
+                              {!doc.isPrimary && doc.status === 'uploaded' && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleSetPrimary(doc.id)}
+                                  title="Set as primary document"
+                                  data-testid={`button-set-primary-${doc.id}`}
+                                >
+                                  <Star className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {doc.status === 'uploaded' && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRerunOcr(doc)}
+                                  disabled={isOcrProcessing}
+                                  title="Re-run OCR extraction"
+                                  data-testid={`button-rerun-ocr-${doc.id}`}
+                                >
+                                  <RotateCcw className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveDocument(doc.id)}
+                                title="Remove document"
+                                data-testid={`button-remove-doc-${doc.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add document button */}
                     <div className="flex items-center gap-3">
-                      <Input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={handleOcrFileUpload}
-                        disabled={isOcrProcessing}
-                        className="max-w-sm"
-                        data-testid="input-ocr-file"
-                      />
+                      <label className="cursor-pointer">
+                        <Input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={handleOcrFileUpload}
+                          disabled={isOcrProcessing}
+                          className="hidden"
+                          data-testid="input-ocr-file"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isOcrProcessing}
+                          asChild
+                        >
+                          <span>
+                            <Plus className="h-4 w-4 mr-2" />
+                            {documents.length === 0 ? 'Upload Document' : 'Add Another Document'}
+                          </span>
+                        </Button>
+                      </label>
                       {isOcrProcessing && (
                         <p className="text-sm text-muted-foreground">Processing...</p>
                       )}
@@ -747,15 +1034,6 @@ export default function CheckNew() {
                     )}
                   </div>
                 </div>
-
-                {uploadedFileUrl && (
-                  <Alert className="bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900">
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    <AlertDescription className="text-sm text-green-900 dark:text-green-100">
-                      Document uploaded and stored successfully
-                    </AlertDescription>
-                  </Alert>
-                )}
 
                 {ocrUsed && (
                   <div className="flex items-start gap-3 p-4 border rounded-lg bg-muted/30">

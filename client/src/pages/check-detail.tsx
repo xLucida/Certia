@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CheckDecisionPanel, CheckAuditTrail } from "@/components/check-components";
 import { StatusInterpretation } from "@/components/StatusInterpretation";
-import { ArrowLeft, User, Printer, Trash2, FileText, Plus, Paperclip, Upload, Download, X, Clock } from "lucide-react";
+import { ArrowLeft, User, Printer, Trash2, FileText, Plus, Paperclip, Upload, Download, X, Clock, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { RightToWorkCheck, RightToWorkCheckNote, RightToWorkCheckDocument, AuditLog } from "@shared/schema";
@@ -188,6 +188,27 @@ export default function CheckDetail() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete attachment. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const setPrimaryMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      await apiRequest("PATCH", `/api/checks/${checkId}/documents/${documentId}/primary`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/checks", checkId, "attachments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/checks", checkId] });
+      toast({
+        title: "Primary document updated",
+        description: "The primary document has been changed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to set primary document. Please try again.",
         variant: "destructive",
       });
     },
@@ -527,9 +548,16 @@ export default function CheckDetail() {
                         >
                           <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate" data-testid={`attachment-name-${index}`}>
-                              {attachment.fileName}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium truncate" data-testid={`attachment-name-${index}`}>
+                                {attachment.fileName}
+                              </p>
+                              {attachment.isPrimary && (
+                                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                                  Primary
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
                               {attachment.sizeBytes && (
                                 <span>{formatFileSize(parseInt(attachment.sizeBytes))}</span>
@@ -538,6 +566,19 @@ export default function CheckDetail() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
+                            {!attachment.isPrimary && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setPrimaryMutation.mutate(attachment.id)}
+                                disabled={setPrimaryMutation.isPending}
+                                className="h-8 w-8"
+                                title="Set as primary document"
+                                data-testid={`button-set-primary-${index}`}
+                              >
+                                <Star className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
