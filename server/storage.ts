@@ -489,6 +489,15 @@ export class DatabaseStorage implements IStorage {
       eq(talentProfiles.isVisibleInTalentPool, "true")
     ];
 
+    // Exclude NOT_ELIGIBLE workers from the Talent pool
+    conditions.push(
+      or(
+        eq(talentProfiles.lastCheckStatus, "ELIGIBLE"),
+        eq(talentProfiles.lastCheckStatus, "NEEDS_REVIEW"),
+        isNull(talentProfiles.lastCheckStatus)
+      )
+    );
+
     if (filters?.workArea) {
       conditions.push(eq(talentProfiles.workArea, filters.workArea as any));
     }
