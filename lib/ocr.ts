@@ -39,13 +39,29 @@ export async function extractFieldsFromDocument(fileBuffer: Buffer): Promise<Ocr
       throw new Error('No text could be extracted from the document. The image may be too low quality or not contain readable text.');
     }
 
+    const documentTypeGuess = guessDocumentType(rawText);
+    const documentNumberGuess = guessDocumentNumber(rawText);
+    const expiryDateGuessIso = guessExpiryDate(rawText);
+    const employerNameGuess = guessEmployerName(rawText);
+    const employmentPermissionGuess = guessEmploymentPermission(rawText);
+
+    console.log('[OCR] Raw text extracted (first 1000 chars):', rawText.substring(0, 1000));
+    console.log('[OCR] Extraction results:', {
+      rawTextLength: rawText.length,
+      documentTypeGuess,
+      documentNumberGuess,
+      expiryDateGuessIso,
+      employerNameGuess,
+      employmentPermissionGuess,
+    });
+
     return {
       rawText,
-      documentTypeGuess: guessDocumentType(rawText),
-      documentNumberGuess: guessDocumentNumber(rawText),
-      expiryDateGuessIso: guessExpiryDate(rawText),
-      employerNameGuess: guessEmployerName(rawText),
-      employmentPermissionGuess: guessEmploymentPermission(rawText),
+      documentTypeGuess,
+      documentNumberGuess,
+      expiryDateGuessIso,
+      employerNameGuess,
+      employmentPermissionGuess,
     };
   } catch (error: any) {
     if (error.code === 7) {

@@ -482,14 +482,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("[OCR] Extraction failed:", error);
       
-      if (error.message?.includes('OCR_SPACE_API_KEY')) {
+      if (error.message?.includes('GOOGLE_CLOUD_VISION_CREDENTIALS')) {
         return res.status(500).json({ 
           error: "OCR service not configured",
-          message: "OCR service is not available. Please contact your administrator."
+          message: "Google Cloud Vision credentials are not configured. Please contact your administrator."
         });
       }
 
-      if (error.message?.includes('OCR.space API')) {
+      if (error.message?.includes('Invalid Google Cloud Vision credentials')) {
+        return res.status(500).json({
+          error: "OCR service misconfigured",
+          message: "Google Cloud Vision credentials are invalid. Please contact your administrator."
+        });
+      }
+
+      if (error.message?.includes('Google Cloud Vision API error')) {
         return res.status(503).json({
           error: "OCR service unavailable",
           message: error.message
