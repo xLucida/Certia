@@ -1,4 +1,4 @@
-import FormData from 'form-data';
+import vision from '@google-cloud/vision';
 
 export interface OcrExtractionResult {
   rawText: string;
@@ -10,47 +10,49 @@ export interface OcrExtractionResult {
 }
 
 export async function extractFieldsFromDocument(fileBuffer: Buffer): Promise<OcrExtractionResult> {
-  const apiKey = process.env.OCR_SPACE_API_KEY;
+  const credentialsJson = process.env.GOOGLE_CLOUD_VISION_CREDENTIALS;
   
-  if (!apiKey) {
-    throw new Error('OCR_SPACE_API_KEY environment variable is not set. Please configure it in Replit Secrets.');
+  if (!credentialsJson) {
+    throw new Error('GOOGLE_CLOUD_VISION_CREDENTIALS environment variable is not set. Please configure it in Replit Secrets as a JSON string.');
   }
 
-  const formData = new FormData();
-  formData.append('file', fileBuffer, { filename: 'document.pdf' });
-  formData.append('apikey', apiKey);
-  formData.append('language', 'ger');
-  formData.append('isOverlayRequired', 'false');
-  formData.append('detectOrientation', 'true');
-  formData.append('scale', 'true');
-  formData.append('OCREngine', '2');
+  let credentials;
+  try {
+    credentials = JSON.parse(credentialsJson);
+  } catch (error) {
+    throw new Error('GOOGLE_CLOUD_VISION_CREDENTIALS must be a valid JSON string. Please check your Replit Secrets configuration.');
+  }
 
-  const response = await fetch('https://api.ocr.space/parse/image', {
-    method: 'POST',
-    body: formData as any,
-    headers: formData.getHeaders(),
+  const client = new vision.ImageAnnotatorClient({
+    credentials,
   });
 
-  if (!response.ok) {
-    throw new Error(`OCR.space API returned status ${response.status}. Please check your API key or try again later.`);
+  try {
+    const [result] = await client.textDetection({
+      image: { content: fileBuffer },
+    });
+
+    const detections = result.textAnnotations;
+    const rawText = detections && detections.length > 0 ? detections[0].description || '' : '';
+
+    if (!rawText) {
+      throw new Error('No text could be extracted from the document. The image may be too low quality or not contain readable text.');
+    }
+
+    return {
+      rawText,
+      documentTypeGuess: guessDocumentType(rawText),
+      documentNumberGuess: guessDocumentNumber(rawText),
+      expiryDateGuessIso: guessExpiryDate(rawText),
+      employerNameGuess: guessEmployerName(rawText),
+      employmentPermissionGuess: guessEmploymentPermission(rawText),
+    };
+  } catch (error: any) {
+    if (error.code === 7) {
+      throw new Error('Invalid Google Cloud Vision credentials. Please verify your service account JSON in Replit Secrets.');
+    }
+    throw new Error(`Google Cloud Vision API error: ${error.message || 'Unknown error occurred during text extraction.'}`);
   }
-
-  const result = await response.json();
-
-  if (result.IsErroredOnProcessing) {
-    throw new Error(result.ErrorMessage?.[0] || 'OCR processing failed. The document may not be readable.');
-  }
-
-  const rawText = result.ParsedResults?.[0]?.ParsedText || '';
-
-  return {
-    rawText,
-    documentTypeGuess: guessDocumentType(rawText),
-    documentNumberGuess: guessDocumentNumber(rawText),
-    expiryDateGuessIso: guessExpiryDate(rawText),
-    employerNameGuess: guessEmployerName(rawText),
-    employmentPermissionGuess: guessEmploymentPermission(rawText),
-  };
 }
 
 function guessDocumentType(text: string): OcrExtractionResult['documentTypeGuess'] {
